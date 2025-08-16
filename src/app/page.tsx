@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Layout/Header';
 import { MobileNavigation } from '@/components/Layout/MobileNavigation';
 import { Dashboard } from '@/components/Dashboard/Dashboard';
@@ -13,11 +14,38 @@ import { sampleGoals, sampleTasks, sampleAchievements, sampleScheduleTemplates, 
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { generateId } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const deviceInfo = useDeviceDetection();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  // Redirect to auth page if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/auth');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth page if not authenticated
+  if (!isAuthenticated) {
+    return null; // Will redirect to /auth
+  }
 
   // Initialize theme
   useEffect(() => {

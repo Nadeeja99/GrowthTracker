@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Menu, Bell, Settings, Sun, Moon, User, Target } from 'lucide-react';
+import { Menu, Bell, Settings, Sun, Moon, User, Target, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
   currentView: string;
@@ -21,6 +22,7 @@ export function Header({
   isMobile,
   onMenuToggle 
 }: HeaderProps) {
+  const { user, logout } = useAuth();
   const navItems = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'goals', label: 'Goals' },

@@ -1,0 +1,218 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  avatar    String?
+  timezone  String   @default("UTC")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  goals     Goal[]
+  tasks     Task[]
+  schedules Schedule[]
+  habits    Habit[]
+  analytics Analytics[]
+  taskTags  TaskTag[]
+
+  @@map("users")
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  targetDate  DateTime?
+  priority    Priority @default(MEDIUM)
+  status      GoalStatus @default(ACTIVE)
+  progress    Int      @default(0)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milestones Milestone[]
+  tasks      Task[]
+
+  @@map("goals")
+}
+
+model Milestone {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  targetDate  DateTime?
+  completed   Boolean  @default(false)
+  goalId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  goal       Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@map("milestones")
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  priority    Priority @default(MEDIUM)
+  status      TaskStatus @default(PENDING)
+  dueDate     DateTime?
+  completedAt DateTime?
+  estimatedTime Int?    // in minutes
+  actualTime   Int?     // in minutes
+  userId      String
+  goalId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal       Goal?    @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  tags       TaskTag[]
+
+  @@map("tasks")
+}
+
+model TaskTag {
+  id     String @id @default(cuid())
+  name   String
+  color  String @default("#3B82F6")
+  userId String
+  taskId String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([name, userId])
+  @@map("task_tags")
+}
+
+model Schedule {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  allDay      Boolean  @default(false)
+  recurring   RecurringPattern?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("schedules")
+}
+
+model Habit {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  frequency   HabitFrequency
+  targetCount Int      @default(1)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions HabitCompletion[]
+
+  @@map("habits")
+}
+
+model HabitCompletion {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  count     Int      @default(1)
+  notes     String?
+  habitId   String
+  createdAt DateTime @default(now())
+
+  // Relations
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+  @@map("habit_completions")
+}
+
+model Analytics {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  type      AnalyticsType
+  value     Float
+  metadata  Json?
+  userId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, type])
+  @@map("analytics")
+}
+
+// Enums
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum RecurringPattern {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum HabitFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum AnalyticsType {
+  TASK_COMPLETION_RATE
+  HABIT_STREAK
+  PRODUCTIVITY_SCORE
+  TIME_TRACKED
+  GOAL_PROGRESS
+}
