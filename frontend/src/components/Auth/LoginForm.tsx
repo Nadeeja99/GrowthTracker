@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface LoginFormProps {
@@ -12,6 +13,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const router = useRouter();
 
   const { login } = useAuth();
 
@@ -22,7 +24,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
 
     try {
       await login(email, password);
-      // Login successful - user will be redirected or state updated
+      // Login successful - redirect to main page
+      router.push('/');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
     } finally {

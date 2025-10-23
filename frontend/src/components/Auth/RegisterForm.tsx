@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface RegisterFormProps {
@@ -18,6 +19,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) =
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const router = useRouter();
 
   const { register } = useAuth();
 
@@ -52,7 +54,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) =
         firstName: formData.firstName || undefined,
         lastName: formData.lastName || undefined,
       });
-      // Registration successful - user will be logged in automatically
+      // Registration successful - redirect to main page
+      router.push('/');
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
