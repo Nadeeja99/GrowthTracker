@@ -10,15 +10,17 @@ import { MobileDrawer } from '@/components/ui/MobileDrawer';
 
 interface GoalManagerProps {
   goals: Goal[];
-  onCreateGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'currentWeeklyHours' | 'streakDays'>) => void;
-  onUpdateGoal: (goalId: string, updates: Partial<Goal>) => void;
-  onDeleteGoal: (goalId: string) => void;
+  onCreateGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'currentWeeklyHours' | 'streakDays'>) => Promise<void>;
+  onUpdateGoal: (goalId: string, updates: Partial<Goal>) => Promise<void>;
+  onDeleteGoal: (goalId: string) => Promise<void>;
   isMobile: boolean;
+  isLoading?: boolean;
 }
 
-export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, isMobile }: GoalManagerProps) {
+export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, isMobile, isLoading = false }: GoalManagerProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [editingGoal, setEditingGoal] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     color: '#3B82F6',
@@ -41,16 +43,24 @@ export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, i
     '#6366F1'  // Indigo
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingGoal) {
-      onUpdateGoal(editingGoal, formData);
-      setEditingGoal(null);
-    } else {
-      onCreateGoal(formData);
+    setIsSubmitting(true);
+    try {
+      if (editingGoal) {
+        await onUpdateGoal(editingGoal, formData);
+        setEditingGoal(null);
+      } else {
+        await onCreateGoal(formData);
+      }
+      setIsCreating(false);
+      resetForm();
+    } catch (error) {
+      // Error is already handled in the parent component
+      console.error('Error saving goal:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsCreating(false);
-    resetForm();
   };
 
   const handleEdit = (goal: Goal) => {
@@ -83,9 +93,14 @@ export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, i
     resetForm();
   };
 
-  const handleDelete = (goalId: string) => {
+  const handleDelete = async (goalId: string) => {
     if (window.confirm('Are you sure you want to delete this goal?')) {
-      onDeleteGoal(goalId);
+      try {
+        await onDeleteGoal(goalId);
+      } catch (error) {
+        // Error is already handled in the parent component
+        console.error('Error deleting goal:', error);
+      }
     }
   };
 
@@ -179,9 +194,10 @@ export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, i
       <div className="flex space-x-3 pt-4">
         <button
           type="submit"
-          className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          disabled={isSubmitting}
+          className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors"
         >
-          {editingGoal ? 'Update Goal' : 'Create Goal'}
+          {isSubmitting ? 'Saving...' : (editingGoal ? 'Update Goal' : 'Create Goal')}
         </button>
         <button
           type="button"
@@ -243,14 +259,23 @@ export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, i
         </MobileDrawer>
       )}
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-500 dark:text-gray-400">Loading goals...</p>
+        </div>
+      )}
+
       {/* Goals List */}
-      <div className={cn(
-        'grid gap-4 md:gap-6',
-        isMobile 
-          ? 'grid-cols-1' 
-          : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-      )}>
-        {goals.map((goal) => {
+      {!isLoading && (
+        <div className={cn(
+          'grid gap-4 md:gap-6',
+          isMobile 
+            ? 'grid-cols-1' 
+            : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+        )}>
+          {goals.map((goal) => {
           const progressPercentage = getProgressPercentage(goal.currentWeeklyHours, goal.targetHoursWeekly);
           
           return (
@@ -344,9 +369,10 @@ export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, i
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
 
-      {goals.length === 0 && !isCreating && (
+      {!isLoading && goals.length === 0 && !isCreating && (
         <div className="text-center py-12">
           <Target className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
           <h3 className={cn(

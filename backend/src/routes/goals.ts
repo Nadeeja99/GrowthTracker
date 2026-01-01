@@ -15,6 +15,19 @@ router.post('/', async (req: AuthRequest, res) => {
     const validatedData = createGoalSchema.parse(req.body);
     const userId = req.user!.id;
 
+    // Check if user exists (since auth is mocked, we need to verify)
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      logger.error('User not found', { userId });
+      return res.status(404).json({
+        success: false,
+        error: 'User not found. Please register first.'
+      });
+    }
+
     const goal = await prisma.goal.create({
       data: {
         title: validatedData.title,
@@ -40,11 +53,35 @@ router.post('/', async (req: AuthRequest, res) => {
       message: 'Goal created successfully',
       data: { goal }
     });
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Create goal error:', error);
+    
+    // Handle Zod validation errors
+    if (error.name === 'ZodError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: error.errors
+      });
+    }
+
+    // Handle Prisma errors
+    if (error.code === 'P2002') {
+      return res.status(409).json({
+        success: false,
+        error: 'Goal with this title already exists'
+      });
+    }
+
+    // Generic error with more details in development
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? error.message || 'Failed to create goal'
+      : 'Failed to create goal';
+
     res.status(500).json({
       success: false,
-      error: 'Failed to create goal'
+      error: errorMessage,
+      ...(process.env.NODE_ENV === 'development' && { details: error.stack })
     });
   }
 });

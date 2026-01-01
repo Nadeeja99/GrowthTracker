@@ -15,6 +15,8 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { generateId } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/lib/api';
+import { mapBackendGoalToFrontend, mapFrontendGoalToBackend, mapFrontendGoalUpdateToBackend } from '@/lib/goalMapper';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -57,13 +59,48 @@ export default function Home() {
     }
   }, []);
 
-  // Data state with sample data
-  const [goals, setGoals] = useLocalStorage<Goal[]>('dev-tracker-goals', sampleGoals);
+  // Goals state - now using API
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
+  const [goalsError, setGoalsError] = useState<string | null>(null);
+  
+  // Other data state with sample data (still using localStorage for now)
   const [activities, setActivities] = useLocalStorage<ScheduleActivity[]>('dev-tracker-activities', getCurrentWeekActivities());
   const [tasks, setTasks] = useLocalStorage<Task[]>('dev-tracker-tasks', sampleTasks);
   const [achievements, setAchievements] = useLocalStorage<Achievement[]>('dev-tracker-achievements', sampleAchievements);
   const [scheduleTemplates, setScheduleTemplates] = useLocalStorage<ScheduleTemplate[]>('dev-tracker-templates', sampleScheduleTemplates);
   const [dailyRatings, setDailyRatings] = useLocalStorage<DailyRating[]>('dev-tracker-ratings', sampleDailyRatings);
+
+  // Fetch goals from API on mount and when authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      fetchGoals();
+    }
+  }, [isAuthenticated, isLoading]);
+
+  const fetchGoals = async () => {
+    try {
+      setGoalsLoading(true);
+      setGoalsError(null);
+      const response = await apiClient.getGoals();
+      
+      if (response.success && response.data?.goals) {
+        // Map backend goals to frontend format
+        const mappedGoals = response.data.goals.map(mapBackendGoalToFrontend);
+        setGoals(mappedGoals);
+      } else {
+        setGoalsError(response.error || 'Failed to fetch goals');
+        // Fallback to empty array
+        setGoals([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching goals:', error);
+      setGoalsError(error.message || 'Failed to fetch goals');
+      setGoals([]);
+    } finally {
+      setGoalsLoading(false);
+    }
+  };
 
   // Apply dark mode class to document
   useEffect(() => {
@@ -79,28 +116,77 @@ export default function Home() {
     setIsDarkMode(!isDarkMode);
   };
 
-  // Goal management functions
-  const handleCreateGoal = (goalData: Omit<Goal, 'id' | 'createdAt' | 'currentWeeklyHours' | 'streakDays'>) => {
-    const newGoal: Goal = {
-      ...goalData,
-      id: generateId(),
-      createdAt: new Date().toISOString(),
-      currentWeeklyHours: 0,
-      streakDays: 0
-    };
-    setGoals([...goals, newGoal]);
+  // Goal management functions - now using API
+  const handleCreateGoal = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'currentWeeklyHours' | 'streakDays'>) => {
+    try {
+      // Map frontend goal data to backend format
+      const backendGoalData = mapFrontendGoalToBackend(goalData);
+      console.log('Creating goal with data:', backendGoalData);
+      
+      // Create goal via API
+      const response = await apiClient.createGoal(backendGoalData);
+      console.log('API response:', response);
+      
+      if (response.success && response.data?.goal) {
+        // Map backend response to frontend format and add to state
+        const newGoal = mapBackendGoalToFrontend(response.data.goal);
+        setGoals([...goals, newGoal]);
+      } else {
+        const errorMsg = response.error || 'Failed to create goal';
+        console.error('Goal creation failed:', response);
+        throw new Error(errorMsg);
+      }
+    } catch (error: any) {
+      console.error('Error creating goal:', error);
+      const errorMessage = error.message || 'Failed to create goal. Please try again.';
+      alert(errorMessage);
+      throw error;
+    }
   };
 
-  const handleUpdateGoal = (goalId: string, updates: Partial<Goal>) => {
-    setGoals(goals.map(goal => 
-      goal.id === goalId ? { ...goal, ...updates } : goal
-    ));
+  const handleUpdateGoal = async (goalId: string, updates: Partial<Goal>) => {
+    try {
+      // Map frontend updates to backend format
+      const backendUpdates = mapFrontendGoalUpdateToBackend(updates);
+      
+      // Update goal via API
+      const response = await apiClient.updateGoal(goalId, backendUpdates);
+      
+      if (response.success && response.data?.goal) {
+        // Map backend response to frontend format and update state
+        const updatedGoal = mapBackendGoalToFrontend(response.data.goal);
+        setGoals(goals.map(goal => 
+          goal.id === goalId ? updatedGoal : goal
+        ));
+      } else {
+        throw new Error(response.error || 'Failed to update goal');
+      }
+    } catch (error: any) {
+      console.error('Error updating goal:', error);
+      alert(error.message || 'Failed to update goal. Please try again.');
+      throw error;
+    }
   };
 
-  const handleDeleteGoal = (goalId: string) => {
-    setGoals(goals.filter(goal => goal.id !== goalId));
-    setActivities(activities.filter(activity => activity.goalId !== goalId));
-    setTasks(tasks.filter(task => task.goalId !== goalId));
+  const handleDeleteGoal = async (goalId: string) => {
+    try {
+      // Delete goal via API
+      const response = await apiClient.deleteGoal(goalId);
+      
+      if (response.success) {
+        // Remove from state
+        setGoals(goals.filter(goal => goal.id !== goalId));
+        // Also remove related activities and tasks (still using localStorage for these)
+        setActivities(activities.filter(activity => activity.goalId !== goalId));
+        setTasks(tasks.filter(task => task.goalId !== goalId));
+      } else {
+        throw new Error(response.error || 'Failed to delete goal');
+      }
+    } catch (error: any) {
+      console.error('Error deleting goal:', error);
+      alert(error.message || 'Failed to delete goal. Please try again.');
+      throw error;
+    }
   };
 
   // Activity management functions
@@ -237,6 +323,7 @@ export default function Home() {
             onUpdateGoal={handleUpdateGoal}
             onDeleteGoal={handleDeleteGoal}
             isMobile={deviceInfo.isMobile}
+            isLoading={goalsLoading}
           />
         );
       case 'schedule':

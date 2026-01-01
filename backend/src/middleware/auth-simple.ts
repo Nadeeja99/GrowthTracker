@@ -35,17 +35,46 @@ export const authenticate = async (
       return;
     }
 
-    // For now, just use a mock user
+    // For now, use a mock user or find/create a test user
     // In production, you'd verify the token properly
-    const mockUser = {
-      id: 'mock-user-id',
-      email: 'mock@example.com',
-      username: 'mockuser'
-    };
+    try {
+      // Try to find or create a test user
+      let user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: 'test@example.com' },
+            { username: 'testuser' }
+          ]
+        }
+      });
 
-    // Add user to request
-    req.user = mockUser;
-    next();
+      if (!user) {
+        // Create a test user if none exists
+        user = await prisma.user.create({
+          data: {
+            email: 'test@example.com',
+            username: 'testuser',
+            password: 'hashed-password-placeholder', // Not used in mock auth
+          }
+        });
+      }
+
+      req.user = {
+        id: user.id,
+        email: user.email,
+        username: user.username
+      };
+      next();
+    } catch (error) {
+      // Fallback to mock user if database operation fails
+      const mockUser = {
+        id: 'mock-user-id',
+        email: 'mock@example.com',
+        username: 'mockuser'
+      };
+      req.user = mockUser;
+      next();
+    }
   } catch (error) {
     res.status(500).json({
       success: false,
