@@ -1,17 +1,44 @@
 # GrowthTracker
 
-A full-stack personal development tracker that helps you set goals, schedule activities, manage tasks, and visualise your progress over time.
+A full-stack personal development tracker that helps you set goals, build habits, schedule activities, manage tasks, and visualise your progress over time.
 
 ---
 
 ## Features
 
+### Core
+- **Today View** — Unified daily dashboard with a greeting, today's schedule, habit check-ins, due tasks, and a daily review (rating + notes)
 - **Goal Management** — Create and track personal goals with colour-coding, weekly/daily hour targets, and priority levels
-- **Schedule** — Plan daily activities linked to goals; track status (pending, in-progress, completed, skipped, rescheduled); apply reusable schedule templates
 - **Task Manager** — Create tasks with subtasks, tags, priority, due dates, and goal associations
 - **Analytics** — Charts for goal progress, time allocation, weekly trends, habit strength, and completion rates
 - **Settings** — Edit your profile, set working hours, configure Pomodoro timer preferences, toggle dark/light mode
 - **Authentication** — Secure JWT-based registration and login with HTTP-only refresh token cookies
+
+### Schedule
+- **Weekly Calendar** — Visual 7-day calendar showing activity counts, completion progress bars, and status badges per day
+- **Daily Schedule** — Hour-by-hour time-slot view with quick stats (completed / in-progress / pending / skipped)
+- **Activity Status Tracking** — Mark activities as pending, in-progress, completed, skipped, or rescheduled
+- **Recurring Schedules** — Pick a date range, select days of the week (or use Weekdays / Weekends / Every day presets), set a time slot, and bulk-create all sessions at once with a live preview
+- **Schedule–Task Link** — Attach a schedule block to a specific task; the task name appears as a badge on calendar and daily views
+- **Schedule Templates** — Save reusable activity templates and apply them to any date
+
+### Habits
+- **Habit Tracker** — Create daily, weekly, or monthly habits with a target count
+- **One-tap completion** — Mark a habit done for today directly from the tracker or the Today View
+- **Streaks** — Consecutive-day streak count displayed with a flame indicator
+- **30-day Heatmap** — Expandable completion heatmap on each habit card
+
+### Focus
+- **Pomodoro Timer** — Circular countdown ring for Work, Short Break, and Long Break sessions
+- **Session cycling** — Dot indicators track progress through the 4-session Pomodoro cycle
+- **Configurable durations** — Session lengths are read from your Settings preferences
+- **Goal & task context** — Optionally associate a focus session with a goal and task
+
+### Quick Capture
+- **Floating action button** — Always-visible `+` button (bottom-right) to instantly create a task or schedule activity
+- **Keyboard shortcut** — Press `Cmd+K` (Mac) or `Ctrl+K` (Windows/Linux) to open Quick Capture from anywhere in the app
+- **Task mode** — Title, goal, and priority (low / medium / high)
+- **Activity mode** — Title, goal, date, start time, and end time
 
 ---
 
@@ -49,13 +76,17 @@ GrowthTracker/
 │       ├── components/        # UI components
 │       │   ├── Analytics/
 │       │   ├── Dashboard/
+│       │   ├── Focus/         # Pomodoro timer
 │       │   ├── Goals/
-│       │   ├── Layout/
-│       │   ├── Schedule/
+│       │   ├── Habits/        # Habit tracker & heatmap
+│       │   ├── Layout/        # Header, mobile nav
+│       │   ├── Schedule/      # Calendar, daily view, recurring form, templates
 │       │   ├── Settings/
-│       │   └── Tasks/
+│       │   ├── Tasks/
+│       │   ├── Today/         # Today view & daily review
+│       │   └── ui/            # Shared UI (QuickCapture, etc.)
 │       ├── contexts/          # React context (Auth)
-│       ├── hooks/             # Custom hooks
+│       ├── hooks/             # Custom hooks (useTimer, useLocalStorage, …)
 │       ├── lib/               # API client, mappers, utilities
 │       └── types/             # TypeScript type definitions
 │
@@ -149,6 +180,9 @@ The app will be available at `http://localhost:3000`.
 | GET/PUT/DELETE | `/api/tasks/:id` | Get / update / delete a task |
 | GET/POST | `/api/schedules` | List / create schedule activities |
 | GET/PUT/DELETE | `/api/schedules/:id` | Get / update / delete an activity |
+| GET/POST | `/api/habits` | List / create habits |
+| GET/PUT/DELETE | `/api/habits/:id` | Get / update / delete a habit |
+| POST | `/api/habits/:id/complete` | Log a habit completion for today |
 | PUT | `/api/users/profile` | Update user profile |
 | GET | `/api/users/stats` | Get user statistics |
 | GET | `/api/analytics/overview` | Analytics summary |

@@ -16,6 +16,8 @@ export interface Goal {
 export interface ScheduleActivity {
   id: string;
   goalId?: string;
+  taskId?: string;
+  taskTitle?: string;
   title: string;
   startTime: string;
   endTime: string;
@@ -109,4 +111,34 @@ export interface DeviceInfo {
   isDesktop: boolean;
   screenWidth: number;
   screenHeight: number;
+}
+
+export interface HabitCompletion {
+  id: string;
+  date: string;
+  count: number;
+  notes?: string;
+  habitId: string;
+}
+
+export interface Habit {
+  id: string;
+  name: string;
+  description?: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  targetCount: number;
+  createdAt: string;
+  completions: HabitCompletion[];
+  streak: number;
+  completedToday: boolean;
+  totalCompletions: number;
+}
+
+export interface FocusSession {
+  id: string;
+  type: 'work' | 'break' | 'longBreak';
+  duration: number;
+  goalId?: string;
+  taskId?: string;
+  completedAt: string;
 }

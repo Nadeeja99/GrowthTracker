@@ -10,7 +10,11 @@ import { Schedule } from '@/components/Schedule/Schedule';
 import { TaskManager } from '@/components/Tasks/TaskManager';
 import { Analytics } from '@/components/Analytics/Analytics';
 import { Settings } from '@/components/Settings/Settings';
-import { Goal, ScheduleActivity, Task, Achievement, ScheduleTemplate, DailyRating, SubTask } from '@/types';
+import { HabitTracker } from '@/components/Habits/HabitTracker';
+import { FocusTimer } from '@/components/Focus/FocusTimer';
+import { TodayView } from '@/components/Today/TodayView';
+import { QuickCapture } from '@/components/ui/QuickCapture';
+import { Goal, ScheduleActivity, Task, Achievement, ScheduleTemplate, DailyRating, SubTask, Habit } from '@/types';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { generateId } from '@/lib/utils';
@@ -19,9 +23,10 @@ import { apiClient } from '@/lib/api';
 import { mapBackendGoalToFrontend, mapFrontendGoalToBackend, mapFrontendGoalUpdateToBackend } from '@/lib/goalMapper';
 import { mapBackendTaskToFrontend, mapFrontendTaskToBackend, mapFrontendTaskUpdateToBackend } from '@/lib/taskMapper';
 import { mapBackendScheduleToFrontend, mapFrontendActivityToBackend, mapFrontendActivityUpdateToBackend } from '@/lib/scheduleMapper';
+import { mapBackendHabitToFrontend } from '@/lib/habitMapper';
 
 export default function Home() {
-  const [currentView, setCurrentView] = useState('dashboard');
+  const [currentView, setCurrentView] = useState('today');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const deviceInfo = useDeviceDetection();
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -51,36 +56,63 @@ export default function Home() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [activities, setActivities] = useState<ScheduleActivity[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [habits, setHabits] = useState<Habit[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
-  // Local-only state (no backend models)
+  // Local-only state
   const [achievements] = useLocalStorage<Achievement[]>('dev-tracker-achievements', []);
   const [scheduleTemplates, setScheduleTemplates] = useLocalStorage<ScheduleTemplate[]>('dev-tracker-templates', []);
   const [dailyRatings, setDailyRatings] = useLocalStorage<DailyRating[]>('dev-tracker-ratings', []);
+
+  const today = new Date().toISOString().split('T')[0];
+  const todayRating = dailyRatings.find(r => r.date === today) ?? null;
 
   const fetchAllData = useCallback(async () => {
     if (!isAuthenticated) return;
     setIsDataLoading(true);
     try {
-      const [goalsRes, tasksRes, schedulesRes] = await Promise.all([
+      const [goalsResult, tasksResult, schedulesResult, habitsResult] = await Promise.allSettled([
         apiClient.getGoals(),
         apiClient.getTasks(),
         apiClient.getSchedules(),
+        apiClient.getHabits(),
       ]);
 
-      const fetchedActivities: ScheduleActivity[] = schedulesRes.success && schedulesRes.data?.schedules
+      const schedulesRes = schedulesResult.status === 'fulfilled' ? schedulesResult.value : null;
+      const fetchedActivities: ScheduleActivity[] = schedulesRes?.success && schedulesRes.data?.schedules
         ? schedulesRes.data.schedules.map(mapBackendScheduleToFrontend)
         : [];
-
       setActivities(fetchedActivities);
 
-      if (tasksRes.success && tasksRes.data?.tasks) {
+      const tasksRes = tasksResult.status === 'fulfilled' ? tasksResult.value : null;
+      if (tasksRes?.success && tasksRes.data?.tasks) {
         setTasks(tasksRes.data.tasks.map(mapBackendTaskToFrontend));
       }
 
-      if (goalsRes.success && goalsRes.data?.goals) {
+      const goalsRes = goalsResult.status === 'fulfilled' ? goalsResult.value : null;
+      if (goalsRes?.success && goalsRes.data?.goals) {
         setGoals(goalsRes.data.goals.map(g => mapBackendGoalToFrontend(g, fetchedActivities)));
       }
+
+      const habitsRes = habitsResult.status === 'fulfilled' ? habitsResult.value : null;
+      if (habitsRes?.success && habitsRes.data?.habits) {
+        const habitDetails = await Promise.allSettled(
+          habitsRes.data.habits.map(h => apiClient.getHabitWithCompletions(h.id))
+        );
+        const mappedHabits = habitDetails
+          .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof apiClient.getHabitWithCompletions>>> =>
+            r.status === 'fulfilled'
+          )
+          .map(r => r.value)
+          .filter(r => r.success && r.data?.habit)
+          .map(r => mapBackendHabitToFrontend(r.data!.habit));
+        setHabits(mappedHabits);
+      }
+
+      if (goalsResult.status === 'rejected') console.error('Goals fetch failed:', goalsResult.reason);
+      if (tasksResult.status === 'rejected') console.error('Tasks fetch failed:', tasksResult.reason);
+      if (schedulesResult.status === 'rejected') console.error('Schedules fetch failed:', schedulesResult.reason);
+      if (habitsResult.status === 'rejected') console.error('Habits fetch failed:', habitsResult.reason);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -107,7 +139,7 @@ export default function Home() {
 
   if (!isAuthenticated) return null;
 
-  // Goal handlers
+  // ─── Goal handlers ───────────────────────────────────────────────────────────
   const handleCreateGoal = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'currentWeeklyHours' | 'streakDays' | 'status' | 'progress'>) => {
     const backendData = mapFrontendGoalToBackend(goalData);
     const response = await apiClient.createGoal(backendData);
@@ -141,16 +173,25 @@ export default function Home() {
     }
   };
 
-  // Activity handlers
+  // ─── Activity handlers ────────────────────────────────────────────────────────
+  const statusBackendMap: Record<ScheduleActivity['status'], string> = {
+    pending: 'PENDING',
+    'in-progress': 'IN_PROGRESS',
+    completed: 'COMPLETED',
+    skipped: 'SKIPPED',
+    rescheduled: 'RESCHEDULED',
+  };
+
   const handleActivityStatusChange = async (activityId: string, status: ScheduleActivity['status']) => {
     try {
-      const response = await apiClient.updateSchedule(activityId, { status: { pending: 'PENDING', 'in-progress': 'IN_PROGRESS', completed: 'COMPLETED', skipped: 'SKIPPED', rescheduled: 'RESCHEDULED' }[status] });
+      const response = await apiClient.updateSchedule(activityId, { status: statusBackendMap[status] });
       if (response.success && response.data?.schedule) {
         const updated = mapBackendScheduleToFrontend(response.data.schedule);
         setActivities(prev => prev.map(a => a.id === activityId ? updated : a));
+        const newActivities = activities.map(a => a.id === activityId ? updated : a);
         setGoals(prev => prev.map(g => mapBackendGoalToFrontend(
           { id: g.id, title: g.name, description: JSON.stringify({ color: g.color, targetHoursWeekly: g.targetHoursWeekly, targetHoursDaily: g.targetHoursDaily }), priority: (['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const)[g.priority - 1] || 'MEDIUM', status: g.status, progress: g.progress, createdAt: g.createdAt, updatedAt: g.createdAt },
-          activities.map(a => a.id === activityId ? updated : a)
+          newActivities
         )));
       }
     } catch (error) {
@@ -196,7 +237,7 @@ export default function Home() {
     }
   };
 
-  // Template handlers (local only)
+  // ─── Template handlers (local only) ─────────────────────────────────────────
   const handleCreateTemplate = (templateData: Omit<ScheduleTemplate, 'id'>) => {
     setScheduleTemplates(prev => [...prev, { ...templateData, id: generateId() }]);
   };
@@ -211,7 +252,7 @@ export default function Home() {
     }
   };
 
-  // Task handlers
+  // ─── Task handlers ────────────────────────────────────────────────────────────
   const handleCreateTask = async (taskData: Omit<Task, 'id' | 'createdAt'>) => {
     try {
       const backendData = mapFrontendTaskToBackend(taskData);
@@ -261,8 +302,105 @@ export default function Home() {
     ));
   };
 
+  // Quick capture task
+  const handleQuickTask = async (data: { title: string; priority: string; goalId?: string }) => {
+    await handleCreateTask({
+      title: data.title,
+      priority: data.priority as Task['priority'],
+      status: 'todo',
+      tags: [],
+      subtasks: [],
+      goalId: data.goalId,
+    });
+  };
+
+  // Quick capture activity
+  const handleQuickActivity = async (data: { title: string; date: string; startTime: string; endTime: string; goalId?: string }) => {
+    await handleCreateActivity({
+      title: data.title,
+      date: data.date,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      status: 'pending',
+      goalId: data.goalId,
+    });
+  };
+
+  // Bulk create for recurring schedules
+  const handleCreateActivities = async (activitiesList: Array<Omit<ScheduleActivity, 'id'>>) => {
+    for (const a of activitiesList) {
+      await handleCreateActivity(a);
+    }
+  };
+
+  // ─── Habit handlers ───────────────────────────────────────────────────────────
+  const handleCreateHabit = async (data: { name: string; description?: string; frequency: string; targetCount: number }) => {
+    const response = await apiClient.createHabit({ ...data, frequency: data.frequency.toUpperCase() });
+    if (response.success && response.data?.habit) {
+      const fullRes = await apiClient.getHabitWithCompletions(response.data.habit.id);
+      if (fullRes.success && fullRes.data?.habit) {
+        setHabits(prev => [...prev, mapBackendHabitToFrontend(fullRes.data!.habit)]);
+      }
+    }
+  };
+
+  const handleUpdateHabit = async (id: string, data: { name?: string; description?: string; frequency?: string; targetCount?: number }) => {
+    const payload = { ...data, ...(data.frequency ? { frequency: data.frequency.toUpperCase() } : {}) };
+    const response = await apiClient.updateHabit(id, payload);
+    if (response.success) {
+      const fullRes = await apiClient.getHabitWithCompletions(id);
+      if (fullRes.success && fullRes.data?.habit) {
+        setHabits(prev => prev.map(h => h.id === id ? mapBackendHabitToFrontend(fullRes.data!.habit) : h));
+      }
+    }
+  };
+
+  const handleDeleteHabit = async (id: string) => {
+    const response = await apiClient.deleteHabit(id);
+    if (response.success) {
+      setHabits(prev => prev.filter(h => h.id !== id));
+    }
+  };
+
+  const handleCompleteHabit = async (id: string, date: string) => {
+    const habit = habits.find(h => h.id === id);
+    if (!habit) return;
+    if (habit.completedToday) return; // already done
+    await apiClient.completeHabit(id, { date });
+    const fullRes = await apiClient.getHabitWithCompletions(id);
+    if (fullRes.success && fullRes.data?.habit) {
+      setHabits(prev => prev.map(h => h.id === id ? mapBackendHabitToFrontend(fullRes.data!.habit) : h));
+    }
+  };
+
+  // ─── Daily rating handler ─────────────────────────────────────────────────────
+  const handleSaveDailyRating = (rating: Omit<DailyRating, 'date'>) => {
+    const entry: DailyRating = { ...rating, date: today };
+    setDailyRatings(prev => {
+      const filtered = prev.filter(r => r.date !== today);
+      return [...filtered, entry];
+    });
+  };
+
+  // ─── View renderer ────────────────────────────────────────────────────────────
   const renderCurrentView = () => {
     switch (currentView) {
+      case 'today':
+        return (
+          <TodayView
+            goals={goals}
+            activities={activities}
+            tasks={tasks}
+            habits={habits}
+            dailyRating={todayRating}
+            onActivityStatusChange={handleActivityStatusChange}
+            onTaskStatusChange={(id, status) => handleUpdateTask(id, { status })}
+            onCompleteHabit={handleCompleteHabit}
+            onSaveDailyRating={handleSaveDailyRating}
+            onViewChange={setCurrentView}
+            isMobile={deviceInfo.isMobile}
+          />
+        );
       case 'dashboard':
         return (
           <Dashboard
@@ -286,14 +424,35 @@ export default function Home() {
             isLoading={isDataLoading}
           />
         );
+      case 'habits':
+        return (
+          <HabitTracker
+            habits={habits}
+            onCreateHabit={handleCreateHabit}
+            onUpdateHabit={handleUpdateHabit}
+            onDeleteHabit={handleDeleteHabit}
+            onCompleteHabit={handleCompleteHabit}
+            isMobile={deviceInfo.isMobile}
+          />
+        );
+      case 'focus':
+        return (
+          <FocusTimer
+            goals={goals}
+            tasks={tasks}
+            isMobile={deviceInfo.isMobile}
+          />
+        );
       case 'schedule':
         return (
           <Schedule
             goals={goals}
+            tasks={tasks}
             activities={activities}
             scheduleTemplates={scheduleTemplates}
             onActivityStatusChange={handleActivityStatusChange}
             onCreateActivity={handleCreateActivity}
+            onCreateActivities={handleCreateActivities}
             onUpdateActivity={handleUpdateActivity}
             onDeleteActivity={handleDeleteActivity}
             onCreateTemplate={handleCreateTemplate}
@@ -353,6 +512,11 @@ export default function Home() {
       {deviceInfo.isMobile && (
         <MobileNavigation currentView={currentView} onViewChange={setCurrentView} />
       )}
+      <QuickCapture
+        goals={goals}
+        onCreateTask={handleQuickTask}
+        onCreateActivity={handleQuickActivity}
+      />
     </div>
   );
 }

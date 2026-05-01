@@ -69,6 +69,7 @@ export const createScheduleSchema = z.object({
   notes: z.string().max(500).optional(),
   actualTimeSpent: z.number().min(0).optional(),
   goalId: z.string().optional(),
+  taskId: z.string().optional(),
 }).refine((data) => {
   if (!data.allDay) {
     return new Date(data.startTime) < new Date(data.endTime);
@@ -90,6 +91,7 @@ export const updateScheduleSchema = z.object({
   notes: z.string().max(500).optional(),
   actualTimeSpent: z.number().min(0).optional(),
   goalId: z.string().optional().nullable(),
+  taskId: z.string().optional().nullable(),
 });
 
 export const createHabitSchema = z.object({
@@ -114,7 +116,7 @@ export const createHabitCompletionSchema = z.object({
 
 export const paginationSchema = z.object({
   page: z.string().transform(Number).pipe(z.number().min(1)).default('1'),
-  limit: z.string().transform(Number).pipe(z.number().min(1).max(100)).default('50'),
+  limit: z.string().transform(Number).pipe(z.number().min(1).max(500)).default('50'),
 });
 
 export const dateRangeSchema = z.object({

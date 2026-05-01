@@ -1,12 +1,17 @@
 import { Router } from 'express';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth-simple';
-import { createScheduleSchema, updateScheduleSchema, paginationSchema } from '../utils/validation';
+import { createScheduleSchema, updateScheduleSchema } from '../utils/validation';
 import { logger } from '../utils/logger';
 
 const router = Router();
 
 router.use(authenticate);
+
+const scheduleInclude = {
+  goal: { select: { id: true, title: true } },
+  task: { select: { id: true, title: true, status: true } },
+};
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
@@ -26,8 +31,9 @@ router.post('/', async (req: AuthRequest, res) => {
         actualTimeSpent: validatedData.actualTimeSpent,
         user: { connect: { id: userId } },
         goal: validatedData.goalId ? { connect: { id: validatedData.goalId } } : undefined,
+        task: validatedData.taskId ? { connect: { id: validatedData.taskId } } : undefined,
       },
-      include: { goal: { select: { id: true, title: true } } },
+      include: scheduleInclude,
     });
 
     logger.info('Schedule created', { scheduleId: schedule.id, userId });
@@ -62,7 +68,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
     const schedules = await prisma.schedule.findMany({
       where,
-      include: { goal: { select: { id: true, title: true } } },
+      include: scheduleInclude,
       orderBy: { startTime: 'asc' },
     });
 
@@ -80,7 +86,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
     const schedule = await prisma.schedule.findFirst({
       where: { id, userId },
-      include: { goal: { select: { id: true, title: true } } },
+      include: scheduleInclude,
     });
 
     if (!schedule) {
@@ -123,8 +129,13 @@ router.put('/:id', async (req: AuthRequest, res) => {
             ? { connect: { id: validatedData.goalId } }
             : { disconnect: true }
           : undefined,
+        task: validatedData.taskId !== undefined
+          ? validatedData.taskId
+            ? { connect: { id: validatedData.taskId } }
+            : { disconnect: true }
+          : undefined,
       },
-      include: { goal: { select: { id: true, title: true } } },
+      include: scheduleInclude,
     });
 
     logger.info('Schedule updated', { scheduleId: id, userId });

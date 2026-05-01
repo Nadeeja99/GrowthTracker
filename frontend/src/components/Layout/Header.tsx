@@ -28,8 +28,11 @@ export function Header({
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const navItems = [
+    { id: 'today', label: 'Today' },
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'goals', label: 'Goals' },
+    { id: 'habits', label: 'Habits' },
+    { id: 'focus', label: 'Focus' },
     { id: 'schedule', label: 'Schedule' },
     { id: 'tasks', label: 'Tasks' },
     { id: 'analytics', label: 'Analytics' },

@@ -1,307 +1,307 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Calendar, Clock, Target, FileText } from 'lucide-react';
-import { Goal, ScheduleActivity } from '@/types';
+import { X, Save, Calendar, Clock, CheckSquare } from 'lucide-react';
+import { Goal, ScheduleActivity, Task } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface ActivityFormProps {
   goals: Goal[];
+  tasks: Task[];
   activity?: ScheduleActivity | null;
-  onSubmit: (activity: Omit<ScheduleActivity, 'id'>) => void;
+  onSubmit: (activity: Omit<ScheduleActivity, 'id' | 'taskTitle'>) => void;
   onCancel: () => void;
   isMobile: boolean;
 }
 
-export function ActivityForm({
-  goals,
-  activity,
-  onSubmit,
-  onCancel,
-  isMobile
-}: ActivityFormProps) {
+const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+  const hour = Math.floor(i / 2);
+  const minute = i % 2 === 0 ? '00' : '30';
+  return `${hour.toString().padStart(2, '0')}:${minute}`;
+});
+
+export function ActivityForm({ goals, tasks, activity, onSubmit, onCancel, isMobile }: ActivityFormProps) {
   const [formData, setFormData] = useState({
     goalId: '',
+    taskId: '',
     title: '',
     startTime: '09:00',
     endTime: '10:00',
     date: new Date().toISOString().split('T')[0],
     notes: '',
-    status: 'pending' as ScheduleActivity['status']
+    status: 'pending' as ScheduleActivity['status'],
   });
-
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (activity) {
       setFormData({
         goalId: activity.goalId || '',
+        taskId: activity.taskId || '',
         title: activity.title,
         startTime: activity.startTime,
         endTime: activity.endTime,
         date: activity.date,
         notes: activity.notes || '',
-        status: activity.status
+        status: activity.status,
       });
     } else if (goals.length > 0) {
       setFormData(prev => ({ ...prev, goalId: goals[0].id }));
     }
   }, [activity, goals]);
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.goalId) {
-      newErrors.goalId = 'Please select a goal';
-    }
-    if (!formData.title.trim()) {
-      newErrors.title = 'Please enter an activity title';
-    }
-    if (!formData.startTime) {
-      newErrors.startTime = 'Please select a start time';
-    }
-    if (!formData.endTime) {
-      newErrors.endTime = 'Please select an end time';
-    }
-    if (!formData.date) {
-      newErrors.date = 'Please select a date';
-    }
-
-    // Validate time logic
-    if (formData.startTime && formData.endTime) {
-      const start = new Date(`2000-01-01T${formData.startTime}`);
-      const end = new Date(`2000-01-01T${formData.endTime}`);
-      if (start >= end) {
-        newErrors.endTime = 'End time must be after start time';
+  // Clear linked task when goal changes and task doesn't belong to the new goal
+  useEffect(() => {
+    if (formData.taskId) {
+      const task = tasks.find(t => t.id === formData.taskId);
+      if (task?.goalId && formData.goalId && task.goalId !== formData.goalId) {
+        setFormData(prev => ({ ...prev, taskId: '' }));
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.goalId]);
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const handleTaskChange = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    setFormData(prev => ({
+      ...prev,
+      taskId,
+      // Auto-fill title from task if title is still empty
+      title: !prev.title.trim() && task ? task.title : prev.title,
+    }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateForm()) {
-      onSubmit(formData);
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!formData.title.trim()) e.title = 'Please enter an activity title';
+    if (!formData.date) e.date = 'Please select a date';
+    if (formData.startTime && formData.endTime) {
+      const s = new Date(`2000-01-01T${formData.startTime}`);
+      const e2 = new Date(`2000-01-01T${formData.endTime}`);
+      if (s >= e2) e.endTime = 'End time must be after start time';
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = (evt: React.FormEvent) => {
+    evt.preventDefault();
+    if (validate()) {
+      onSubmit({
+        goalId: formData.goalId || undefined,
+        taskId: formData.taskId || undefined,
+        title: formData.title.trim(),
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        date: formData.date,
+        notes: formData.notes.trim() || undefined,
+        status: formData.status,
+      });
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const set = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
   };
 
-  const getGoalColor = (goalId: string) => {
-    const goal = goals.find(g => g.id === goalId);
-    return goal?.color || '#6B7280';
-  };
+  // Tasks available for linking: not completed, and belong to selected goal (or have no goal)
+  const availableTasks = tasks.filter(t =>
+    t.status !== 'completed' &&
+    (!formData.goalId || !t.goalId || t.goalId === formData.goalId)
+  );
 
-  const timeOptions = Array.from({ length: 48 }, (_, i) => {
-    const hour = Math.floor(i / 2);
-    const minute = i % 2 === 0 ? '00' : '30';
-    return `${hour.toString().padStart(2, '0')}:${minute}`;
-  });
+  const duration = (() => {
+    const s = new Date(`2000-01-01T${formData.startTime}`);
+    const e = new Date(`2000-01-01T${formData.endTime}`);
+    const h = (e.getTime() - s.getTime()) / (1000 * 60 * 60);
+    return h > 0 ? `${h.toFixed(1)}h` : null;
+  })();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className={cn(
         'bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto',
-        isMobile && 'max-w-full mx-4'
+        isMobile && 'max-w-full mx-2'
       )}>
         <div className="p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-5">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <Calendar className="w-4 h-4 text-white" />
               </div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {activity ? 'Edit Activity' : 'Create Activity'}
+                {activity ? 'Edit Activity' : 'Add Activity'}
               </h2>
             </div>
-            <button
-              onClick={onCancel}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
+            <button onClick={onCancel} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Goal Selection */}
+            {/* Goal */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Goal Area
-              </label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Goal Area</label>
               <div className="grid grid-cols-2 gap-2">
-                {goals.map((goal) => (
+                <button
+                  type="button"
+                  onClick={() => set('goalId', '')}
+                  className={cn(
+                    'p-2.5 rounded-lg border-2 text-left transition-all',
+                    !formData.goalId
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                  )}
+                >
+                  <span className="text-sm text-gray-500 dark:text-gray-400">No Goal</span>
+                </button>
+                {goals.map(goal => (
                   <button
                     key={goal.id}
                     type="button"
-                    onClick={() => handleInputChange('goalId', goal.id)}
+                    onClick={() => set('goalId', goal.id)}
                     className={cn(
-                      'p-3 rounded-lg border-2 transition-all duration-200 text-left',
+                      'p-2.5 rounded-lg border-2 text-left transition-all',
                       formData.goalId === goal.id
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                     )}
                   >
                     <div className="flex items-center space-x-2">
-                      <div 
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: goal.color }}
-                      />
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {goal.name}
-                      </span>
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: goal.color }} />
+                      <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{goal.name}</span>
                     </div>
                   </button>
                 ))}
               </div>
-              {errors.goalId && (
-                <p className="text-red-500 text-sm mt-1">{errors.goalId}</p>
-              )}
             </div>
 
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Activity Title
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => handleInputChange('title', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter activity title"
-              />
-              {errors.title && (
-                <p className="text-red-500 text-sm mt-1">{errors.title}</p>
-              )}
-            </div>
-
-            {/* Date and Time */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Linked Task */}
+            {availableTasks.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => handleInputChange('date', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                {errors.date && (
-                  <p className="text-red-500 text-sm mt-1">{errors.date}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Start Time
-                </label>
-                <select
-                  value={formData.startTime}
-                  onChange={(e) => handleInputChange('startTime', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {timeOptions.map((time) => (
-                    <option key={time} value={time}>{time}</option>
-                  ))}
-                </select>
-                {errors.startTime && (
-                  <p className="text-red-500 text-sm mt-1">{errors.startTime}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  End Time
-                </label>
-                <select
-                  value={formData.endTime}
-                  onChange={(e) => handleInputChange('endTime', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {timeOptions.map((time) => (
-                    <option key={time} value={time}>{time}</option>
-                  ))}
-                </select>
-                {errors.endTime && (
-                  <p className="text-red-500 text-sm mt-1">{errors.endTime}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Status */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => handleInputChange('status', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="pending">Pending</option>
-                <option value="in-progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="skipped">Skipped</option>
-                <option value="rescheduled">Rescheduled</option>
-              </select>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Notes (Optional)
-              </label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => handleInputChange('notes', e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Add any additional notes..."
-              />
-            </div>
-
-            {/* Duration Preview */}
-            {formData.startTime && formData.endTime && (
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                  <Clock className="w-4 h-4" />
-                  <span>
-                    Duration: {(() => {
-                      const start = new Date(`2000-01-01T${formData.startTime}`);
-                      const end = new Date(`2000-01-01T${formData.endTime}`);
-                      const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-                      return `${duration.toFixed(1)} hours`;
-                    })()}
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <CheckSquare className="w-3.5 h-3.5" />
+                    Link to Task
+                    <span className="text-gray-400 font-normal">(optional)</span>
                   </span>
-                </div>
+                </label>
+                <select
+                  value={formData.taskId}
+                  onChange={e => handleTaskChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">No task linked</option>
+                  {availableTasks.map(task => (
+                    <option key={task.id} value={task.id}>
+                      {task.title}
+                      {task.priority === 'high' ? ' 🔴' : task.priority === 'medium' ? ' 🟡' : ' 🟢'}
+                    </option>
+                  ))}
+                </select>
+                {formData.taskId && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    This block is dedicated to working on that task
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors"
-              >
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Activity Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={e => set('title', e.target.value)}
+                placeholder="e.g. Deep work session"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
+            </div>
+
+            {/* Date + Times */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Date</label>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={e => set('date', e.target.value)}
+                  className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Start</label>
+                <select
+                  value={formData.startTime}
+                  onChange={e => set('startTime', e.target.value)}
+                  className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">End</label>
+                <select
+                  value={formData.endTime}
+                  onChange={e => set('endTime', e.target.value)}
+                  className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                {errors.endTime && <p className="text-red-500 text-xs mt-1">{errors.endTime}</p>}
+              </div>
+            </div>
+
+            {duration && (
+              <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                <Clock className="w-3.5 h-3.5" />
+                Duration: <strong className="text-gray-700 dark:text-gray-300">{duration}</strong>
+              </div>
+            )}
+
+            {/* Status (edit only) */}
+            {activity && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Status</label>
+                <select
+                  value={formData.status}
+                  onChange={e => set('status', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="skipped">Skipped</option>
+                  <option value="rescheduled">Rescheduled</option>
+                </select>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Notes <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={e => set('notes', e.target.value)}
+                rows={2}
+                placeholder="Any additional context..."
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <button type="button" onClick={onCancel} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors">
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
-              >
+              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2">
                 <Save className="w-4 h-4" />
-                <span>{activity ? 'Update' : 'Create'}</span>
+                <span>{activity ? 'Update' : 'Add Activity'}</span>
               </button>
             </div>
           </form>

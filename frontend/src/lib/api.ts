@@ -58,9 +58,36 @@ export interface BackendSchedule {
   notes?: string;
   actualTimeSpent?: number;
   goalId?: string;
+  taskId?: string;
   createdAt: string;
   updatedAt: string;
   goal?: { id: string; title: string };
+  task?: { id: string; title: string; status: string };
+}
+
+export interface BackendHabit {
+  id: string;
+  name: string;
+  description?: string;
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  targetCount: number;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { completions: number };
+}
+
+export interface BackendHabitCompletion {
+  id: string;
+  date: string;
+  count: number;
+  notes?: string;
+  habitId: string;
+  createdAt: string;
+}
+
+export interface BackendHabitWithCompletions extends BackendHabit {
+  completions: BackendHabitCompletion[];
 }
 
 class ApiClient {
@@ -138,7 +165,7 @@ class ApiClient {
 
   // Goals
   async getGoals(): Promise<ApiResponse<{ goals: BackendGoal[] }>> {
-    return this.request('/goals?limit=100');
+    return this.request('/goals?limit=500');
   }
 
   async createGoal(goalData: { title: string; description?: string; targetDate?: string; priority?: string }): Promise<ApiResponse<{ goal: BackendGoal }>> {
@@ -155,7 +182,7 @@ class ApiClient {
 
   // Tasks
   async getTasks(): Promise<ApiResponse<{ tasks: BackendTask[] }>> {
-    return this.request('/tasks?limit=200');
+    return this.request('/tasks?limit=500');
   }
 
   async createTask(taskData: {
@@ -204,6 +231,7 @@ class ApiClient {
     notes?: string;
     actualTimeSpent?: number;
     goalId?: string;
+    taskId?: string;
   }): Promise<ApiResponse<{ schedule: BackendSchedule }>> {
     return this.request('/schedules', { method: 'POST', body: JSON.stringify(scheduleData) });
   }
@@ -216,12 +244,38 @@ class ApiClient {
     notes?: string;
     actualTimeSpent?: number;
     goalId?: string | null;
+    taskId?: string | null;
   }): Promise<ApiResponse<{ schedule: BackendSchedule }>> {
     return this.request(`/schedules/${id}`, { method: 'PUT', body: JSON.stringify(scheduleData) });
   }
 
   async deleteSchedule(id: string): Promise<ApiResponse> {
     return this.request(`/schedules/${id}`, { method: 'DELETE' });
+  }
+
+  // Habits
+  async getHabits(): Promise<ApiResponse<{ habits: BackendHabit[] }>> {
+    return this.request('/habits?limit=500');
+  }
+
+  async getHabitWithCompletions(id: string): Promise<ApiResponse<{ habit: BackendHabitWithCompletions }>> {
+    return this.request(`/habits/${id}`);
+  }
+
+  async createHabit(data: { name: string; description?: string; frequency: string; targetCount?: number }): Promise<ApiResponse<{ habit: BackendHabit }>> {
+    return this.request('/habits', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateHabit(id: string, data: { name?: string; description?: string; frequency?: string; targetCount?: number }): Promise<ApiResponse<{ habit: BackendHabit }>> {
+    return this.request(`/habits/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async deleteHabit(id: string): Promise<ApiResponse> {
+    return this.request(`/habits/${id}`, { method: 'DELETE' });
+  }
+
+  async completeHabit(id: string, data: { date: string; count?: number; notes?: string }): Promise<ApiResponse<{ completion: any }>> {
+    return this.request(`/habits/${id}/complete`, { method: 'POST', body: JSON.stringify(data) });
   }
 
   // Users

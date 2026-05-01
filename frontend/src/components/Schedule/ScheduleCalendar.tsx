@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Clock, CheckCircle2, XCircle, Play, SkipForward } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Clock, CheckCircle2, XCircle, Play, SkipForward, CheckSquare } from 'lucide-react';
 import { Goal, ScheduleActivity } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -208,6 +208,12 @@ export function ScheduleCalendar({
                     <div className="text-gray-500 dark:text-gray-400 text-xs">
                       {activity.startTime} - {activity.endTime}
                     </div>
+                    {activity.taskTitle && (
+                      <div className="flex items-center gap-0.5 mt-0.5">
+                        <CheckSquare className="w-2.5 h-2.5 text-purple-500 flex-shrink-0" />
+                        <span className="text-xs text-purple-500 truncate">{activity.taskTitle}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
                 

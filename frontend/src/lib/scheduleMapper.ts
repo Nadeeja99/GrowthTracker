@@ -11,9 +11,11 @@ interface BackendSchedule {
   notes?: string;
   actualTimeSpent?: number;
   goalId?: string;
+  taskId?: string;
   createdAt: string;
   updatedAt: string;
   goal?: { id: string; title: string };
+  task?: { id: string; title: string; status: string };
 }
 
 const STATUS_MAP: Record<string, ScheduleActivity['status']> = {
@@ -38,21 +40,24 @@ export function mapBackendScheduleToFrontend(schedule: BackendSchedule): Schedul
 
   const pad = (n: number) => String(n).padStart(2, '0');
   const timeStr = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
   return {
     id: schedule.id,
     goalId: schedule.goalId,
+    taskId: schedule.taskId,
+    taskTitle: schedule.task?.title,
     title: schedule.title,
     startTime: timeStr(startDate),
     endTime: timeStr(endDate),
-    date: startDate.toISOString().split('T')[0],
+    date: localDateStr(startDate),
     status: STATUS_MAP[schedule.status] ?? 'pending',
     notes: schedule.notes,
     actualTimeSpent: schedule.actualTimeSpent,
   };
 }
 
-export function mapFrontendActivityToBackend(activity: Omit<ScheduleActivity, 'id'>): {
+export function mapFrontendActivityToBackend(activity: Omit<ScheduleActivity, 'id' | 'taskTitle'>): {
   title: string;
   startTime: string;
   endTime: string;
@@ -60,6 +65,7 @@ export function mapFrontendActivityToBackend(activity: Omit<ScheduleActivity, 'i
   notes?: string;
   actualTimeSpent?: number;
   goalId?: string;
+  taskId?: string;
 } {
   const combineDateTime = (date: string, time: string) =>
     new Date(`${date}T${time}:00`).toISOString();
@@ -72,6 +78,7 @@ export function mapFrontendActivityToBackend(activity: Omit<ScheduleActivity, 'i
     notes: activity.notes,
     actualTimeSpent: activity.actualTimeSpent,
     goalId: activity.goalId || undefined,
+    taskId: activity.taskId || undefined,
   };
 }
 
@@ -83,6 +90,7 @@ export function mapFrontendActivityUpdateToBackend(updates: Partial<ScheduleActi
   notes?: string;
   actualTimeSpent?: number;
   goalId?: string | null;
+  taskId?: string | null;
 } {
   const result: any = {};
 
@@ -90,6 +98,7 @@ export function mapFrontendActivityUpdateToBackend(updates: Partial<ScheduleActi
   if (updates.notes !== undefined) result.notes = updates.notes;
   if (updates.actualTimeSpent !== undefined) result.actualTimeSpent = updates.actualTimeSpent;
   if (updates.goalId !== undefined) result.goalId = updates.goalId || null;
+  if (updates.taskId !== undefined) result.taskId = updates.taskId || null;
   if (updates.status !== undefined) result.status = STATUS_TO_BACKEND[updates.status];
 
   const date = updates.date ?? currentDate;
