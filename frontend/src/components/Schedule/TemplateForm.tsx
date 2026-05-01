@@ -24,7 +24,7 @@ export function TemplateForm({
     name: '',
     type: 'workday' as ScheduleTemplate['type'],
     activities: [] as Array<{
-      goalId: string;
+      goalId?: string;
       title: string;
       startTime: string;
       endTime: string;

@@ -43,8 +43,8 @@ export function ScheduleCalendar({
     return activities.filter(activity => activity.date === date);
   };
 
-  const getGoalColor = (goalId: string) => {
-    const goal = goals.find(g => g.id === goalId);
+  const getGoalColor = (goalId?: string) => {
+    const goal = goalId ? goals.find(g => g.id === goalId) : undefined;
     return goal?.color || '#6B7280';
   };
 

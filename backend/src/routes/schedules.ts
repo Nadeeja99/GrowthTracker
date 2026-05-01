@@ -6,10 +6,8 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
-// All routes require authentication
 router.use(authenticate);
 
-// Create a new schedule
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const validatedData = createScheduleSchema.parse(req.body);
@@ -23,10 +21,13 @@ router.post('/', async (req: AuthRequest, res) => {
         endTime: new Date(validatedData.endTime),
         allDay: validatedData.allDay,
         recurring: validatedData.recurring,
-        user: {
-          connect: { id: userId }
-        },
-      }
+        status: validatedData.status,
+        notes: validatedData.notes,
+        actualTimeSpent: validatedData.actualTimeSpent,
+        user: { connect: { id: userId } },
+        goal: validatedData.goalId ? { connect: { id: validatedData.goalId } } : undefined,
+      },
+      include: { goal: { select: { id: true, title: true } } },
     });
 
     logger.info('Schedule created', { scheduleId: schedule.id, userId });
@@ -34,138 +35,75 @@ router.post('/', async (req: AuthRequest, res) => {
     res.status(201).json({
       success: true,
       message: 'Schedule created successfully',
-      data: { schedule }
+      data: { schedule },
     });
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Create schedule error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create schedule'
-    });
+    if (error.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Validation failed', details: error.errors });
+    }
+    res.status(500).json({ success: false, error: 'Failed to create schedule' });
   }
 });
 
-// Get all schedules for user
 router.get('/', async (req: AuthRequest, res) => {
-  try {
-    const userId = req.user!.id;
-    const { page, limit } = paginationSchema.parse(req.query);
-    const skip = (page - 1) * limit;
-
-    const [schedules, total] = await Promise.all([
-      prisma.schedule.findMany({
-        where: { userId },
-        orderBy: { startTime: 'asc' },
-        skip,
-        take: limit,
-      }),
-      prisma.schedule.count({ where: { userId } })
-    ]);
-
-    res.json({
-      success: true,
-      data: {
-        schedules,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit),
-        }
-      }
-    });
-  } catch (error) {
-    logger.error('Get schedules error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get schedules'
-    });
-  }
-});
-
-// Get schedules by date range
-router.get('/range', async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
     const { startDate, endDate } = req.query;
 
-    if (!startDate || !endDate) {
-      return res.status(400).json({
-        success: false,
-        error: 'Start date and end date are required'
-      });
+    const where: any = { userId };
+
+    if (startDate && endDate) {
+      where.startTime = {
+        gte: new Date(startDate as string),
+        lte: new Date(endDate as string),
+      };
     }
 
     const schedules = await prisma.schedule.findMany({
-      where: {
-        userId,
-        startTime: {
-          gte: new Date(startDate as string),
-          lte: new Date(endDate as string),
-        }
-      },
-      orderBy: { startTime: 'asc' }
+      where,
+      include: { goal: { select: { id: true, title: true } } },
+      orderBy: { startTime: 'asc' },
     });
 
-    res.json({
-      success: true,
-      data: { schedules }
-    });
+    res.json({ success: true, data: { schedules } });
   } catch (error) {
-    logger.error('Get schedules by range error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get schedules'
-    });
+    logger.error('Get schedules error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get schedules' });
   }
 });
 
-// Get a specific schedule
 router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
 
     const schedule = await prisma.schedule.findFirst({
-      where: { id, userId }
+      where: { id, userId },
+      include: { goal: { select: { id: true, title: true } } },
     });
 
     if (!schedule) {
-      return res.status(404).json({
-        success: false,
-        error: 'Schedule not found'
-      });
+      return res.status(404).json({ success: false, error: 'Schedule not found' });
     }
 
-    res.json({
-      success: true,
-      data: { schedule }
-    });
+    res.json({ success: true, data: { schedule } });
   } catch (error) {
     logger.error('Get schedule error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get schedule'
-    });
+    res.status(500).json({ success: false, error: 'Failed to get schedule' });
   }
 });
 
-// Update a schedule
 router.put('/:id', async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
     const validatedData = updateScheduleSchema.parse(req.body);
 
-    const schedule = await prisma.schedule.findFirst({
-      where: { id, userId }
-    });
+    const existing = await prisma.schedule.findFirst({ where: { id, userId } });
 
-    if (!schedule) {
-      return res.status(404).json({
-        success: false,
-        error: 'Schedule not found'
-      });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Schedule not found' });
     }
 
     const updatedSchedule = await prisma.schedule.update({
@@ -177,7 +115,16 @@ router.put('/:id', async (req: AuthRequest, res) => {
         endTime: validatedData.endTime ? new Date(validatedData.endTime) : undefined,
         allDay: validatedData.allDay,
         recurring: validatedData.recurring,
-      }
+        status: validatedData.status,
+        notes: validatedData.notes,
+        actualTimeSpent: validatedData.actualTimeSpent,
+        goal: validatedData.goalId !== undefined
+          ? validatedData.goalId
+            ? { connect: { id: validatedData.goalId } }
+            : { disconnect: true }
+          : undefined,
+      },
+      include: { goal: { select: { id: true, title: true } } },
     });
 
     logger.info('Schedule updated', { scheduleId: id, userId });
@@ -185,50 +132,36 @@ router.put('/:id', async (req: AuthRequest, res) => {
     res.json({
       success: true,
       message: 'Schedule updated successfully',
-      data: { schedule: updatedSchedule }
+      data: { schedule: updatedSchedule },
     });
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Update schedule error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update schedule'
-    });
+    if (error.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Validation failed', details: error.errors });
+    }
+    res.status(500).json({ success: false, error: 'Failed to update schedule' });
   }
 });
 
-// Delete a schedule
 router.delete('/:id', async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
 
-    const schedule = await prisma.schedule.findFirst({
-      where: { id, userId }
-    });
+    const existing = await prisma.schedule.findFirst({ where: { id, userId } });
 
-    if (!schedule) {
-      return res.status(404).json({
-        success: false,
-        error: 'Schedule not found'
-      });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Schedule not found' });
     }
 
-    await prisma.schedule.delete({
-      where: { id }
-    });
+    await prisma.schedule.delete({ where: { id } });
 
     logger.info('Schedule deleted', { scheduleId: id, userId });
 
-    res.json({
-      success: true,
-      message: 'Schedule deleted successfully'
-    });
+    res.json({ success: true, message: 'Schedule deleted successfully' });
   } catch (error) {
     logger.error('Delete schedule error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete schedule'
-    });
+    res.status(500).json({ success: false, error: 'Failed to delete schedule' });
   }
 });
 

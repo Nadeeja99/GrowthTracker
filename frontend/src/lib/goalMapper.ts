@@ -1,8 +1,5 @@
-// Mapper to convert between frontend Goal type and backend Goal API type
+import { Goal, ScheduleActivity } from '@/types';
 
-import { Goal } from '@/types';
-
-// Backend Goal type from API
 interface BackendGoal {
   id: string;
   title: string;
@@ -15,73 +12,91 @@ interface BackendGoal {
   updatedAt: string;
 }
 
-/**
- * Maps backend Goal API response to frontend Goal type
- */
-export function mapBackendGoalToFrontend(backendGoal: BackendGoal): Goal {
-  // Map priority enum to number (for display purposes)
-  const priorityMap: Record<string, number> = {
-    'LOW': 1,
-    'MEDIUM': 2,
-    'HIGH': 3,
-    'URGENT': 4,
-  };
+const GOAL_COLORS = [
+  '#3B82F6', '#10B981', '#8B5CF6', '#F97316',
+  '#EF4444', '#06B6D4', '#84CC16', '#F59E0B',
+  '#EC4899', '#6366F1',
+];
 
-  // Map priority to category for UI
-  const categoryMap: Record<string, 'high' | 'medium' | 'low'> = {
-    'LOW': 'low',
-    'MEDIUM': 'medium',
-    'HIGH': 'high',
-    'URGENT': 'high',
-  };
+const PRIORITY_TO_NUMBER: Record<string, number> = {
+  LOW: 1, MEDIUM: 2, HIGH: 3, URGENT: 4,
+};
 
-  // Generate color based on goal ID (consistent per goal)
-  const colors = [
-    '#3B82F6', // Blue
-    '#10B981', // Emerald
-    '#8B5CF6', // Purple
-    '#F97316', // Orange
-    '#EF4444', // Red
-    '#06B6D4', // Cyan
-    '#84CC16', // Lime
-    '#F59E0B', // Amber
-    '#EC4899', // Pink
-    '#6366F1'  // Indigo
-  ];
-  const colorIndex = parseInt(backendGoal.id.slice(-1), 16) % colors.length;
-  let color = colors[colorIndex];
-  let targetHoursWeekly = 10;
-  let targetHoursDaily = 1.5;
+const PRIORITY_TO_CATEGORY: Record<string, 'high' | 'medium' | 'low'> = {
+  LOW: 'low', MEDIUM: 'medium', HIGH: 'high', URGENT: 'high',
+};
 
-  // Try to parse metadata from description
-  if (backendGoal.description) {
-    try {
-      const metadata = JSON.parse(backendGoal.description);
-      if (metadata.color) color = metadata.color;
-      if (metadata.targetHoursWeekly) targetHoursWeekly = metadata.targetHoursWeekly;
-      if (metadata.targetHoursDaily) targetHoursDaily = metadata.targetHoursDaily;
-    } catch (e) {
-      // Description is not JSON, use defaults
+function parseMetadata(description?: string): { color?: string; targetHoursWeekly?: number; targetHoursDaily?: number } {
+  if (!description) return {};
+  try {
+    const meta = JSON.parse(description);
+    if (typeof meta === 'object' && meta !== null) return meta;
+  } catch {
+    // not JSON
+  }
+  return {};
+}
+
+function computeCurrentWeeklyHours(goalId: string, activities: ScheduleActivity[]): number {
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  return activities
+    .filter(a => a.goalId === goalId && a.status === 'completed' && new Date(a.date) >= startOfWeek)
+    .reduce((total, a) => {
+      const start = new Date(`2000-01-01T${a.startTime}`);
+      const end = new Date(`2000-01-01T${a.endTime}`);
+      return total + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    }, 0);
+}
+
+function computeStreakDays(goalId: string, activities: ScheduleActivity[]): number {
+  const completedDates = new Set(
+    activities
+      .filter(a => a.goalId === goalId && a.status === 'completed')
+      .map(a => a.date)
+  );
+
+  let streak = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    if (completedDates.has(dateStr)) {
+      streak++;
+    } else if (i > 0) {
+      break;
     }
   }
+
+  return streak;
+}
+
+export function mapBackendGoalToFrontend(backendGoal: BackendGoal, activities: ScheduleActivity[] = []): Goal {
+  const meta = parseMetadata(backendGoal.description);
+  const colorIndex = parseInt(backendGoal.id.slice(-1), 16) % GOAL_COLORS.length;
 
   return {
     id: backendGoal.id,
     name: backendGoal.title,
-    color: color,
-    category: categoryMap[backendGoal.priority] || 'medium',
-    targetHoursWeekly: targetHoursWeekly,
-    targetHoursDaily: targetHoursDaily,
-    currentWeeklyHours: 0, // This would need to be calculated from activities/schedules
-    streakDays: 0, // This would need to be calculated from habit completions
+    color: meta.color ?? GOAL_COLORS[colorIndex],
+    category: PRIORITY_TO_CATEGORY[backendGoal.priority] ?? 'medium',
+    targetHoursWeekly: meta.targetHoursWeekly ?? 10,
+    targetHoursDaily: meta.targetHoursDaily ?? 1.5,
+    currentWeeklyHours: computeCurrentWeeklyHours(backendGoal.id, activities),
+    streakDays: computeStreakDays(backendGoal.id, activities),
     createdAt: backendGoal.createdAt,
-    priority: priorityMap[backendGoal.priority] || 2,
+    priority: PRIORITY_TO_NUMBER[backendGoal.priority] ?? 2,
+    status: backendGoal.status,
+    progress: backendGoal.progress,
   };
 }
 
-/**
- * Maps frontend Goal type to backend Goal API request format
- */
 export function mapFrontendGoalToBackend(frontendGoal: {
   name: string;
   category: 'high' | 'medium' | 'low';
@@ -89,63 +104,28 @@ export function mapFrontendGoalToBackend(frontendGoal: {
   targetHoursDaily?: number;
   color?: string;
   priority?: number;
-}): {
-  title: string;
-  description?: string;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  targetDate?: string;
-} {
-  // Map category/priority to backend priority enum
-  const priorityMap: Record<string, 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'> = {
-    'low': 'LOW',
-    'medium': 'MEDIUM',
-    'high': 'HIGH',
+}): { title: string; description?: string; priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' } {
+  const categoryToPriority: Record<string, 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'> = {
+    low: 'LOW', medium: 'MEDIUM', high: 'HIGH',
   };
 
-  // Use category to determine priority, or use priority number if available
-  let priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' = priorityMap[frontendGoal.category] || 'MEDIUM';
-  
-  if (frontendGoal.priority) {
+  let priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' = categoryToPriority[frontendGoal.category] ?? 'MEDIUM';
+  if (frontendGoal.priority !== undefined) {
     if (frontendGoal.priority >= 4) priority = 'URGENT';
     else if (frontendGoal.priority >= 3) priority = 'HIGH';
     else if (frontendGoal.priority >= 2) priority = 'MEDIUM';
     else priority = 'LOW';
   }
 
-  // Store additional frontend-specific data in description
-  // Keep it under 500 characters (backend limit)
-  const metadata = {
-    targetHoursWeekly: frontendGoal.targetHoursWeekly || 10,
-    targetHoursDaily: frontendGoal.targetHoursDaily || 1.5,
-    color: frontendGoal.color || '#3B82F6',
-  };
+  const description = JSON.stringify({
+    targetHoursWeekly: frontendGoal.targetHoursWeekly ?? 10,
+    targetHoursDaily: frontendGoal.targetHoursDaily ?? 1.5,
+    color: frontendGoal.color ?? '#3B82F6',
+  });
 
-  const description = JSON.stringify(metadata);
-  
-  // Ensure description doesn't exceed backend limit
-  if (description.length > 500) {
-    console.warn('Goal description exceeds 500 characters, truncating metadata');
-    // If too long, just store essential data
-    const minimalMetadata = {
-      color: frontendGoal.color || '#3B82F6',
-    };
-    return {
-      title: frontendGoal.name,
-      description: JSON.stringify(minimalMetadata),
-      priority,
-    };
-  }
-
-  return {
-    title: frontendGoal.name,
-    description: description,
-    priority,
-  };
+  return { title: frontendGoal.name, description, priority };
 }
 
-/**
- * Maps partial frontend Goal updates to backend format
- */
 export function mapFrontendGoalUpdateToBackend(updates: Partial<Goal>): {
   title?: string;
   description?: string;
@@ -155,30 +135,24 @@ export function mapFrontendGoalUpdateToBackend(updates: Partial<Goal>): {
 } {
   const result: any = {};
 
-  if (updates.name !== undefined) {
-    result.title = updates.name;
+  if (updates.name !== undefined) result.title = updates.name;
+  if (updates.status !== undefined) result.status = updates.status;
+  if (updates.progress !== undefined) result.progress = updates.progress;
+
+  if (updates.color !== undefined || updates.targetHoursWeekly !== undefined || updates.targetHoursDaily !== undefined) {
+    result.description = JSON.stringify({
+      targetHoursWeekly: updates.targetHoursWeekly ?? 10,
+      targetHoursDaily: updates.targetHoursDaily ?? 1.5,
+      color: updates.color ?? '#3B82F6',
+    });
   }
 
-  if (updates.category !== undefined || updates.targetHoursWeekly !== undefined || 
-      updates.targetHoursDaily !== undefined || updates.color !== undefined) {
-    const metadata = {
-      targetHoursWeekly: updates.targetHoursWeekly || 10,
-      targetHoursDaily: updates.targetHoursDaily || 1.5,
-      color: updates.color || '#3B82F6',
+  if (updates.category !== undefined || updates.priority !== undefined) {
+    const categoryToPriority: Record<string, 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'> = {
+      low: 'LOW', medium: 'MEDIUM', high: 'HIGH',
     };
-    result.description = JSON.stringify(metadata);
-  }
-
-  if (updates.priority !== undefined || updates.category !== undefined) {
-    const category = updates.category || 'medium';
-    const priorityMap: Record<string, 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'> = {
-      'low': 'LOW',
-      'medium': 'MEDIUM',
-      'high': 'HIGH',
-    };
-    result.priority = priorityMap[category] || 'MEDIUM';
-    
-    if (updates.priority) {
+    result.priority = updates.category ? categoryToPriority[updates.category] : 'MEDIUM';
+    if (updates.priority !== undefined) {
       if (updates.priority >= 4) result.priority = 'URGENT';
       else if (updates.priority >= 3) result.priority = 'HIGH';
       else if (updates.priority >= 2) result.priority = 'MEDIUM';
@@ -188,4 +162,3 @@ export function mapFrontendGoalUpdateToBackend(updates: Partial<Goal>): {
 
   return result;
 }
-

@@ -32,7 +32,7 @@ export function TimeAllocationChart({
         const end = new Date(`2000-01-01T${activity.endTime}`);
         const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
         
-        const existing = goalTimeMap.get(activity.goalId);
+        const existing = activity.goalId ? goalTimeMap.get(activity.goalId) : undefined;
         if (existing) {
           existing.hours += duration;
           existing.count += 1;

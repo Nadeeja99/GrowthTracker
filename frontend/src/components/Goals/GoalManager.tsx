@@ -10,7 +10,7 @@ import { MobileDrawer } from '@/components/ui/MobileDrawer';
 
 interface GoalManagerProps {
   goals: Goal[];
-  onCreateGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'currentWeeklyHours' | 'streakDays'>) => Promise<void>;
+  onCreateGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'currentWeeklyHours' | 'streakDays' | 'status' | 'progress'>) => Promise<void>;
   onUpdateGoal: (goalId: string, updates: Partial<Goal>) => Promise<void>;
   onDeleteGoal: (goalId: string) => Promise<void>;
   isMobile: boolean;

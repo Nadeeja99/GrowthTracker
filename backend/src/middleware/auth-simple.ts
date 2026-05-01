@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { verifyToken } from '../utils/simpleAuth';
+import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -18,12 +19,9 @@ export const authenticate = async (
   try {
     let token: string | undefined;
 
-    // Check for token in Authorization header
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
-    }
-    // Check for token in cookies
-    else if (req.cookies.accessToken) {
+    } else if (req.cookies.accessToken) {
       token = req.cookies.accessToken;
     }
 
@@ -35,51 +33,31 @@ export const authenticate = async (
       return;
     }
 
-    // For now, use a mock user or find/create a test user
-    // In production, you'd verify the token properly
-    try {
-      // Try to find or create a test user
-      let user = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: 'test@example.com' },
-            { username: 'testuser' }
-          ]
-        }
-      });
+    const decoded = verifyToken(token);
 
-      if (!user) {
-        // Create a test user if none exists
-        user = await prisma.user.create({
-          data: {
-            email: 'test@example.com',
-            username: 'testuser',
-            password: 'hashed-password-placeholder', // Not used in mock auth
-          }
-        });
-      }
-
-      req.user = {
-        id: user.id,
-        email: user.email,
-        username: user.username
-      };
-      next();
-    } catch (error) {
-      // Fallback to mock user if database operation fails
-      const mockUser = {
-        id: 'mock-user-id',
-        email: 'mock@example.com',
-        username: 'mockuser'
-      };
-      req.user = mockUser;
-      next();
-    }
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Token verification failed.',
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, email: true, username: true },
     });
+
+    if (!user) {
+      res.status(401).json({
+        success: false,
+        error: 'User not found.',
+      });
+      return;
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) {
+      res.status(401).json({ success: false, error: 'Invalid token.' });
+    } else if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ success: false, error: 'Token expired.' });
+    } else {
+      res.status(500).json({ success: false, error: 'Token verification failed.' });
+    }
   }
 };
 
@@ -98,18 +76,20 @@ export const optionalAuth = async (
     }
 
     if (token) {
-      // For now, just use a mock user
-      const mockUser = {
-        id: 'mock-user-id',
-        email: 'mock@example.com',
-        username: 'mockuser'
-      };
-      req.user = mockUser;
+      try {
+        const decoded = verifyToken(token);
+        const user = await prisma.user.findUnique({
+          where: { id: decoded.id },
+          select: { id: true, email: true, username: true },
+        });
+        if (user) req.user = user;
+      } catch {
+        // Continue without auth
+      }
     }
 
     next();
   } catch (error) {
-    // Continue without authentication
     next();
   }
 };

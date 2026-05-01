@@ -44,13 +44,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (response.success && response.data?.user) {
           setUser(response.data.user);
         } else {
-          // Token is invalid, clear it
           apiClient.clearToken();
           setUser(null);
         }
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
       apiClient.clearToken();
       setUser(null);
     } finally {

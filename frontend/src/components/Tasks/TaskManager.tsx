@@ -128,14 +128,14 @@ export function TaskManager({
     onUpdateSubTask(taskId, subTaskId, { completed });
   };
 
-  const getGoalColor = (goalId: string) => {
-    const goal = goals.find(g => g.id === goalId);
+  const getGoalColor = (goalId?: string) => {
+    const goal = goalId ? goals.find(g => g.id === goalId) : undefined;
     return goal?.color || '#6B7280';
   };
 
-  const getGoalName = (goalId: string) => {
-    const goal = goals.find(g => g.id === goalId);
-    return goal?.name || 'Unknown Goal';
+  const getGoalName = (goalId?: string) => {
+    const goal = goalId ? goals.find(g => g.id === goalId) : undefined;
+    return goal?.name || 'No Goal';
   };
 
   const getPriorityColor = (priority: TaskPriority) => {

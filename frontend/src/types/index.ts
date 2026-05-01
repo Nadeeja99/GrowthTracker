@@ -1,5 +1,3 @@
-// Core type definitions for the personal development tracker app
-
 export interface Goal {
   id: string;
   name: string;
@@ -11,11 +9,13 @@ export interface Goal {
   streakDays: number;
   createdAt: string;
   priority: number;
+  status: 'ACTIVE' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
+  progress: number;
 }
 
 export interface ScheduleActivity {
   id: string;
-  goalId: string;
+  goalId?: string;
   title: string;
   startTime: string;
   endTime: string;
@@ -27,7 +27,7 @@ export interface ScheduleActivity {
 
 export interface Task {
   id: string;
-  goalId: string;
+  goalId?: string;
   title: string;
   description?: string;
   priority: 'high' | 'medium' | 'low';
@@ -37,22 +37,13 @@ export interface Task {
   completedAt?: string;
   subtasks: SubTask[];
   tags: string[];
+  estimatedTime?: number;
 }
 
 export interface SubTask {
   id: string;
   title: string;
   completed: boolean;
-}
-
-export interface TimeLog {
-  id: string;
-  goalId: string;
-  activityId?: string;
-  title: string;
-  duration: number;
-  date: string;
-  notes?: string;
 }
 
 export interface ScheduleTemplate {
@@ -87,7 +78,6 @@ export interface Achievement {
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   notifications: boolean;
-  autoSave: boolean;
   workingHours: {
     start: string;
     end: string;

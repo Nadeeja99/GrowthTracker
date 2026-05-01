@@ -35,7 +35,7 @@ export function ActivityForm({
   useEffect(() => {
     if (activity) {
       setFormData({
-        goalId: activity.goalId,
+        goalId: activity.goalId || '',
         title: activity.title,
         startTime: activity.startTime,
         endTime: activity.endTime,

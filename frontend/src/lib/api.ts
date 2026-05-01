@@ -1,4 +1,3 @@
-// API Client for Backend Communication
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export interface ApiResponse<T = any> {
@@ -20,7 +19,7 @@ export interface User {
   updatedAt: string;
 }
 
-export interface Goal {
+export interface BackendGoal {
   id: string;
   title: string;
   description?: string;
@@ -32,7 +31,7 @@ export interface Goal {
   updatedAt: string;
 }
 
-export interface Task {
+export interface BackendTask {
   id: string;
   title: string;
   description?: string;
@@ -42,122 +41,95 @@ export interface Task {
   completedAt?: string;
   estimatedTime?: number;
   actualTime?: number;
+  goalId?: string;
   createdAt: string;
   updatedAt: string;
+  tags?: Array<{ name: string }>;
 }
 
-export interface Schedule {
+export interface BackendSchedule {
   id: string;
   title: string;
   description?: string;
   startTime: string;
   endTime: string;
   allDay: boolean;
-  recurring?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED' | 'RESCHEDULED';
+  notes?: string;
+  actualTimeSpent?: number;
+  goalId?: string;
   createdAt: string;
   updatedAt: string;
+  goal?: { id: string; title: string };
 }
 
-export interface Habit {
-  id: string;
-  name: string;
-  description?: string;
-  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
-  targetCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// API Client Class
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
-    // Try to get token from localStorage
     if (typeof window !== 'undefined') {
       this.token = localStorage.getItem('accessToken');
     }
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
-    
+
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
     };
 
     if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
+      (headers as Record<string, string>).Authorization = `Bearer ${this.token}`;
     }
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
+    const response = await fetch(url, { ...options, headers });
+    const data = await response.json();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}`);
-      }
-
-      return data;
-    } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
+    if (response.status === 401) {
+      this.clearToken();
     }
+
+    if (!response.ok) {
+      throw new Error(data.error || `HTTP ${response.status}`);
+    }
+
+    return data;
   }
 
-  // Authentication
-  async register(userData: {
-    email: string;
-    username: string;
-    password: string;
-    firstName?: string;
-    lastName?: string;
-  }): Promise<ApiResponse<{ user: User; accessToken: string }>> {
-    const response = await this.request('/auth/register', {
+  // Auth
+  async register(userData: { email: string; username: string; password: string; firstName?: string; lastName?: string }): Promise<ApiResponse<{ user: User; accessToken: string }>> {
+    const response = await this.request<{ user: User; accessToken: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
-
     if (response.success && response.data?.accessToken) {
       this.setToken(response.data.accessToken);
     }
-
     return response;
   }
 
   async login(credentials: { email: string; password: string }): Promise<ApiResponse<{ user: User; accessToken: string }>> {
-    const response = await this.request('/auth/login', {
+    const response = await this.request<{ user: User; accessToken: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
-
     if (response.success && response.data?.accessToken) {
       this.setToken(response.data.accessToken);
     }
-
     return response;
   }
 
   async logout(): Promise<ApiResponse> {
-    const response = await this.request('/auth/logout', {
-      method: 'POST',
-    });
-
-    if (response.success) {
+    try {
+      const response = await this.request('/auth/logout', { method: 'POST' });
+      return response;
+    } finally {
       this.clearToken();
     }
-
-    return response;
   }
 
   async getCurrentUser(): Promise<ApiResponse<{ user: User }>> {
@@ -165,106 +137,113 @@ class ApiClient {
   }
 
   // Goals
-  async getGoals(): Promise<ApiResponse<{ goals: Goal[] }>> {
-    return this.request('/goals');
+  async getGoals(): Promise<ApiResponse<{ goals: BackendGoal[] }>> {
+    return this.request('/goals?limit=100');
   }
 
-  async createGoal(goalData: {
-    title: string;
-    description?: string;
-    targetDate?: string;
-    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  }): Promise<ApiResponse<{ goal: Goal }>> {
-    return this.request('/goals', {
-      method: 'POST',
-      body: JSON.stringify(goalData),
-    });
+  async createGoal(goalData: { title: string; description?: string; targetDate?: string; priority?: string }): Promise<ApiResponse<{ goal: BackendGoal }>> {
+    return this.request('/goals', { method: 'POST', body: JSON.stringify(goalData) });
   }
 
-  async updateGoal(id: string, goalData: Partial<Goal>): Promise<ApiResponse<{ goal: Goal }>> {
-    return this.request(`/goals/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(goalData),
-    });
+  async updateGoal(id: string, goalData: Partial<BackendGoal>): Promise<ApiResponse<{ goal: BackendGoal }>> {
+    return this.request(`/goals/${id}`, { method: 'PUT', body: JSON.stringify(goalData) });
   }
 
   async deleteGoal(id: string): Promise<ApiResponse> {
-    return this.request(`/goals/${id}`, {
-      method: 'DELETE',
-    });
+    return this.request(`/goals/${id}`, { method: 'DELETE' });
   }
 
   // Tasks
-  async getTasks(): Promise<ApiResponse<{ tasks: Task[] }>> {
-    return this.request('/tasks');
+  async getTasks(): Promise<ApiResponse<{ tasks: BackendTask[] }>> {
+    return this.request('/tasks?limit=200');
   }
 
   async createTask(taskData: {
     title: string;
     description?: string;
-    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+    priority?: string;
+    status?: string;
     dueDate?: string;
     estimatedTime?: number;
     goalId?: string;
-  }): Promise<ApiResponse<{ task: Task }>> {
-    return this.request('/tasks', {
-      method: 'POST',
-      body: JSON.stringify(taskData),
-    });
+  }): Promise<ApiResponse<{ task: BackendTask }>> {
+    return this.request('/tasks', { method: 'POST', body: JSON.stringify(taskData) });
   }
 
-  async updateTask(id: string, taskData: Partial<Task>): Promise<ApiResponse<{ task: Task }>> {
-    return this.request(`/tasks/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(taskData),
-    });
+  async updateTask(id: string, taskData: {
+    title?: string;
+    description?: string;
+    priority?: string;
+    status?: string;
+    dueDate?: string;
+    estimatedTime?: number;
+    actualTime?: number;
+    goalId?: string | null;
+  }): Promise<ApiResponse<{ task: BackendTask }>> {
+    return this.request(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(taskData) });
   }
 
   async deleteTask(id: string): Promise<ApiResponse> {
-    return this.request(`/tasks/${id}`, {
-      method: 'DELETE',
-    });
+    return this.request(`/tasks/${id}`, { method: 'DELETE' });
   }
 
   // Schedules
-  async getSchedules(): Promise<ApiResponse<{ schedules: Schedule[] }>> {
-    return this.request('/schedules');
+  async getSchedules(startDate?: string, endDate?: string): Promise<ApiResponse<{ schedules: BackendSchedule[] }>> {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    const query = params.toString();
+    return this.request(`/schedules${query ? `?${query}` : ''}`);
   }
 
   async createSchedule(scheduleData: {
     title: string;
-    description?: string;
     startTime: string;
     endTime: string;
-    allDay?: boolean;
-    recurring?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
-  }): Promise<ApiResponse<{ schedule: Schedule }>> {
-    return this.request('/schedules', {
-      method: 'POST',
-      body: JSON.stringify(scheduleData),
-    });
+    status?: string;
+    notes?: string;
+    actualTimeSpent?: number;
+    goalId?: string;
+  }): Promise<ApiResponse<{ schedule: BackendSchedule }>> {
+    return this.request('/schedules', { method: 'POST', body: JSON.stringify(scheduleData) });
   }
 
-  // Habits
-  async getHabits(): Promise<ApiResponse<{ habits: Habit[] }>> {
-    return this.request('/habits');
+  async updateSchedule(id: string, scheduleData: {
+    title?: string;
+    startTime?: string;
+    endTime?: string;
+    status?: string;
+    notes?: string;
+    actualTimeSpent?: number;
+    goalId?: string | null;
+  }): Promise<ApiResponse<{ schedule: BackendSchedule }>> {
+    return this.request(`/schedules/${id}`, { method: 'PUT', body: JSON.stringify(scheduleData) });
   }
 
-  async createHabit(habitData: {
-    name: string;
-    description?: string;
-    frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
-    targetCount?: number;
-  }): Promise<ApiResponse<{ habit: Habit }>> {
-    return this.request('/habits', {
-      method: 'POST',
-      body: JSON.stringify(habitData),
-    });
+  async deleteSchedule(id: string): Promise<ApiResponse> {
+    return this.request(`/schedules/${id}`, { method: 'DELETE' });
+  }
+
+  // Users
+  async updateProfile(data: { firstName?: string; lastName?: string; timezone?: string; avatar?: string }): Promise<ApiResponse<{ user: User }>> {
+    return this.request('/users/profile', { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async getUserStats(): Promise<ApiResponse<any>> {
+    return this.request('/users/stats');
   }
 
   // Analytics
-  async getAnalytics(): Promise<ApiResponse<any>> {
-    return this.request('/analytics/overview');
+  async getAnalyticsOverview(startDate?: string, endDate?: string): Promise<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    const query = params.toString();
+    return this.request(`/analytics/overview${query ? `?${query}` : ''}`);
+  }
+
+  async getGoalProgressAnalytics(): Promise<ApiResponse<any>> {
+    return this.request('/analytics/goal-progress');
   }
 
   // Token management
@@ -287,8 +266,4 @@ class ApiClient {
   }
 }
 
-// Create and export singleton instance
 export const apiClient = new ApiClient(API_BASE_URL);
-
-// Export types
-export type { ApiResponse, User, Goal, Task, Schedule, Habit };

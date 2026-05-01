@@ -22,7 +22,7 @@ export function TodaysFocus({ activities, goals, onActivityStatusChange, isMobil
   const today = new Date().toISOString().split('T')[0];
   const todaysActivities = activities.filter(activity => activity.date === today);
 
-  const getGoalById = (goalId: string) => goals.find(g => g.id === goalId);
+  const getGoalById = (goalId?: string) => goalId ? goals.find(g => g.id === goalId) : undefined;
 
   const getStatusColor = (status: ScheduleActivity['status']) => {
     switch (status) {

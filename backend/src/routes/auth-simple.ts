@@ -169,17 +169,28 @@ router.post('/refresh', async (req: AuthRequest, res) => {
       });
     }
 
-    // For now, just generate a new access token
-    // In production, you'd verify the refresh token
-    const mockUser = { id: 'mock-user-id', email: 'mock@example.com', username: 'mockuser' };
-    const accessToken = generateAccessToken(mockUser);
+    const { verifyToken } = await import('../utils/simpleAuth');
+    const decoded = verifyToken(refreshToken);
+
+    if (decoded.type !== 'refresh') {
+      return res.status(401).json({ success: false, error: 'Invalid refresh token' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, email: true, username: true }
+    });
+
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'User not found' });
+    }
+
+    const accessToken = generateAccessToken(user);
 
     res.json({
       success: true,
       message: 'Token refreshed successfully',
-      data: {
-        accessToken,
-      }
+      data: { accessToken }
     });
   } catch (error) {
     logger.error('Token refresh error:', error);

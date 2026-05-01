@@ -1,29 +1,25 @@
-import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
-// Simple token generation (temporary replacement for JWT)
-export const generateToken = (payload: any): string => {
-  const data = JSON.stringify(payload) + Date.now() + Math.random();
-  return crypto.createHash('sha256').update(data).digest('hex');
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-jwt-secret-key-change-in-production';
+const ACCESS_TOKEN_EXPIRES = '7d';
+const REFRESH_TOKEN_EXPIRES = '30d';
+
+export const generateAccessToken = (user: { id: string; email: string; username: string }): string => {
+  return jwt.sign(
+    { id: user.id, email: user.email, username: user.username, type: 'access' },
+    JWT_SECRET,
+    { expiresIn: ACCESS_TOKEN_EXPIRES }
+  );
 };
 
-export const verifyToken = (token: string): any => {
-  // For now, just return a mock user ID
-  // In production, you'd want proper JWT verification
-  return { id: 'mock-user-id' };
+export const generateRefreshToken = (user: { id: string }): string => {
+  return jwt.sign(
+    { id: user.id, type: 'refresh' },
+    JWT_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRES }
+  );
 };
 
-export const generateAccessToken = (user: any): string => {
-  return generateToken({
-    id: user.id,
-    email: user.email,
-    username: user.username,
-    type: 'access'
-  });
-};
-
-export const generateRefreshToken = (user: any): string => {
-  return generateToken({
-    id: user.id,
-    type: 'refresh'
-  });
+export const verifyToken = (token: string): { id: string; email?: string; username?: string; type: string } => {
+  return jwt.verify(token, JWT_SECRET) as any;
 };

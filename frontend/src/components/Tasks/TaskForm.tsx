@@ -41,7 +41,7 @@ export function TaskForm({
   useEffect(() => {
     if (task) {
       setFormData({
-        goalId: task.goalId,
+        goalId: task.goalId || '',
         title: task.title,
         description: task.description || '',
         priority: task.priority,

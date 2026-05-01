@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Layout/Header';
 import { MobileNavigation } from '@/components/Layout/MobileNavigation';
@@ -9,14 +9,16 @@ import { GoalManager } from '@/components/Goals/GoalManager';
 import { Schedule } from '@/components/Schedule/Schedule';
 import { TaskManager } from '@/components/Tasks/TaskManager';
 import { Analytics } from '@/components/Analytics/Analytics';
+import { Settings } from '@/components/Settings/Settings';
 import { Goal, ScheduleActivity, Task, Achievement, ScheduleTemplate, DailyRating, SubTask } from '@/types';
-import { sampleGoals, sampleTasks, sampleAchievements, sampleScheduleTemplates, sampleDailyRatings, getCurrentWeekActivities } from '@/data/sampleData';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { generateId } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api';
 import { mapBackendGoalToFrontend, mapFrontendGoalToBackend, mapFrontendGoalUpdateToBackend } from '@/lib/goalMapper';
+import { mapBackendTaskToFrontend, mapFrontendTaskToBackend, mapFrontendTaskUpdateToBackend } from '@/lib/taskMapper';
+import { mapBackendScheduleToFrontend, mapFrontendActivityToBackend, mapFrontendActivityUpdateToBackend } from '@/lib/scheduleMapper';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -25,31 +27,12 @@ export default function Home() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
-  // Redirect to auth page if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/auth');
     }
   }, [isAuthenticated, isLoading, router]);
 
-  // Show loading while checking authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show auth page if not authenticated
-  if (!isAuthenticated) {
-    return null; // Will redirect to /auth
-  }
-
-  // Initialize theme
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
@@ -59,246 +42,223 @@ export default function Home() {
     }
   }, []);
 
-  // Goals state - now using API
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [goalsLoading, setGoalsLoading] = useState(true);
-  const [goalsError, setGoalsError] = useState<string | null>(null);
-  
-  // Other data state with sample data (still using localStorage for now)
-  const [activities, setActivities] = useLocalStorage<ScheduleActivity[]>('dev-tracker-activities', getCurrentWeekActivities());
-  const [tasks, setTasks] = useLocalStorage<Task[]>('dev-tracker-tasks', sampleTasks);
-  const [achievements, setAchievements] = useLocalStorage<Achievement[]>('dev-tracker-achievements', sampleAchievements);
-  const [scheduleTemplates, setScheduleTemplates] = useLocalStorage<ScheduleTemplate[]>('dev-tracker-templates', sampleScheduleTemplates);
-  const [dailyRatings, setDailyRatings] = useLocalStorage<DailyRating[]>('dev-tracker-ratings', sampleDailyRatings);
-
-  // Fetch goals from API on mount and when authenticated
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      fetchGoals();
-    }
-  }, [isAuthenticated, isLoading]);
-
-  const fetchGoals = async () => {
-    try {
-      setGoalsLoading(true);
-      setGoalsError(null);
-      const response = await apiClient.getGoals();
-      
-      if (response.success && response.data?.goals) {
-        // Map backend goals to frontend format
-        const mappedGoals = response.data.goals.map(mapBackendGoalToFrontend);
-        setGoals(mappedGoals);
-      } else {
-        setGoalsError(response.error || 'Failed to fetch goals');
-        // Fallback to empty array
-        setGoals([]);
-      }
-    } catch (error: any) {
-      console.error('Error fetching goals:', error);
-      setGoalsError(error.message || 'Failed to fetch goals');
-      setGoals([]);
-    } finally {
-      setGoalsLoading(false);
-    }
-  };
-
-  // Apply dark mode class to document
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    document.documentElement.classList.toggle('dark', isDarkMode);
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
-  const handleThemeToggle = () => {
-    setIsDarkMode(!isDarkMode);
-  };
+  // API-backed state
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [activities, setActivities] = useState<ScheduleActivity[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
-  // Goal management functions - now using API
-  const handleCreateGoal = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'currentWeeklyHours' | 'streakDays'>) => {
+  // Local-only state (no backend models)
+  const [achievements] = useLocalStorage<Achievement[]>('dev-tracker-achievements', []);
+  const [scheduleTemplates, setScheduleTemplates] = useLocalStorage<ScheduleTemplate[]>('dev-tracker-templates', []);
+  const [dailyRatings, setDailyRatings] = useLocalStorage<DailyRating[]>('dev-tracker-ratings', []);
+
+  const fetchAllData = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setIsDataLoading(true);
     try {
-      // Map frontend goal data to backend format
-      const backendGoalData = mapFrontendGoalToBackend(goalData);
-      console.log('Creating goal with data:', backendGoalData);
-      
-      // Create goal via API
-      const response = await apiClient.createGoal(backendGoalData);
-      console.log('API response:', response);
-      
-      if (response.success && response.data?.goal) {
-        // Map backend response to frontend format and add to state
-        const newGoal = mapBackendGoalToFrontend(response.data.goal);
-        setGoals([...goals, newGoal]);
-      } else {
-        const errorMsg = response.error || 'Failed to create goal';
-        console.error('Goal creation failed:', response);
-        throw new Error(errorMsg);
+      const [goalsRes, tasksRes, schedulesRes] = await Promise.all([
+        apiClient.getGoals(),
+        apiClient.getTasks(),
+        apiClient.getSchedules(),
+      ]);
+
+      const fetchedActivities: ScheduleActivity[] = schedulesRes.success && schedulesRes.data?.schedules
+        ? schedulesRes.data.schedules.map(mapBackendScheduleToFrontend)
+        : [];
+
+      setActivities(fetchedActivities);
+
+      if (tasksRes.success && tasksRes.data?.tasks) {
+        setTasks(tasksRes.data.tasks.map(mapBackendTaskToFrontend));
       }
-    } catch (error: any) {
-      console.error('Error creating goal:', error);
-      const errorMessage = error.message || 'Failed to create goal. Please try again.';
-      alert(errorMessage);
-      throw error;
+
+      if (goalsRes.success && goalsRes.data?.goals) {
+        setGoals(goalsRes.data.goals.map(g => mapBackendGoalToFrontend(g, fetchedActivities)));
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setIsDataLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      fetchAllData();
+    }
+  }, [isAuthenticated, isLoading, fetchAllData]);
+
+  if (isLoading || (isAuthenticated && isDataLoading)) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto" />
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return null;
+
+  // Goal handlers
+  const handleCreateGoal = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'currentWeeklyHours' | 'streakDays' | 'status' | 'progress'>) => {
+    const backendData = mapFrontendGoalToBackend(goalData);
+    const response = await apiClient.createGoal(backendData);
+    if (response.success && response.data?.goal) {
+      const newGoal = mapBackendGoalToFrontend(response.data.goal, activities);
+      setGoals(prev => [...prev, newGoal]);
+    } else {
+      throw new Error(response.error || 'Failed to create goal');
     }
   };
 
   const handleUpdateGoal = async (goalId: string, updates: Partial<Goal>) => {
-    try {
-      // Map frontend updates to backend format
-      const backendUpdates = mapFrontendGoalUpdateToBackend(updates);
-      
-      // Update goal via API
-      const response = await apiClient.updateGoal(goalId, backendUpdates);
-      
-      if (response.success && response.data?.goal) {
-        // Map backend response to frontend format and update state
-        const updatedGoal = mapBackendGoalToFrontend(response.data.goal);
-        setGoals(goals.map(goal => 
-          goal.id === goalId ? updatedGoal : goal
-        ));
-      } else {
-        throw new Error(response.error || 'Failed to update goal');
-      }
-    } catch (error: any) {
-      console.error('Error updating goal:', error);
-      alert(error.message || 'Failed to update goal. Please try again.');
-      throw error;
+    const backendUpdates = mapFrontendGoalUpdateToBackend(updates);
+    const response = await apiClient.updateGoal(goalId, backendUpdates);
+    if (response.success && response.data?.goal) {
+      const updatedGoal = mapBackendGoalToFrontend(response.data.goal, activities);
+      setGoals(prev => prev.map(g => g.id === goalId ? updatedGoal : g));
+    } else {
+      throw new Error(response.error || 'Failed to update goal');
     }
   };
 
   const handleDeleteGoal = async (goalId: string) => {
+    const response = await apiClient.deleteGoal(goalId);
+    if (response.success) {
+      setGoals(prev => prev.filter(g => g.id !== goalId));
+      setActivities(prev => prev.filter(a => a.goalId !== goalId));
+      setTasks(prev => prev.filter(t => t.goalId !== goalId));
+    } else {
+      throw new Error(response.error || 'Failed to delete goal');
+    }
+  };
+
+  // Activity handlers
+  const handleActivityStatusChange = async (activityId: string, status: ScheduleActivity['status']) => {
     try {
-      // Delete goal via API
-      const response = await apiClient.deleteGoal(goalId);
-      
+      const response = await apiClient.updateSchedule(activityId, { status: { pending: 'PENDING', 'in-progress': 'IN_PROGRESS', completed: 'COMPLETED', skipped: 'SKIPPED', rescheduled: 'RESCHEDULED' }[status] });
+      if (response.success && response.data?.schedule) {
+        const updated = mapBackendScheduleToFrontend(response.data.schedule);
+        setActivities(prev => prev.map(a => a.id === activityId ? updated : a));
+        setGoals(prev => prev.map(g => mapBackendGoalToFrontend(
+          { id: g.id, title: g.name, description: JSON.stringify({ color: g.color, targetHoursWeekly: g.targetHoursWeekly, targetHoursDaily: g.targetHoursDaily }), priority: (['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const)[g.priority - 1] || 'MEDIUM', status: g.status, progress: g.progress, createdAt: g.createdAt, updatedAt: g.createdAt },
+          activities.map(a => a.id === activityId ? updated : a)
+        )));
+      }
+    } catch (error) {
+      console.error('Failed to update activity status:', error);
+    }
+  };
+
+  const handleCreateActivity = async (activityData: Omit<ScheduleActivity, 'id'>) => {
+    try {
+      const backendData = mapFrontendActivityToBackend(activityData);
+      const response = await apiClient.createSchedule(backendData);
+      if (response.success && response.data?.schedule) {
+        const newActivity = mapBackendScheduleToFrontend(response.data.schedule);
+        setActivities(prev => [...prev, newActivity]);
+      }
+    } catch (error) {
+      console.error('Failed to create activity:', error);
+    }
+  };
+
+  const handleUpdateActivity = async (activityId: string, updates: Partial<ScheduleActivity>) => {
+    try {
+      const current = activities.find(a => a.id === activityId);
+      const backendUpdates = mapFrontendActivityUpdateToBackend(updates, current?.date);
+      const response = await apiClient.updateSchedule(activityId, backendUpdates);
+      if (response.success && response.data?.schedule) {
+        const updated = mapBackendScheduleToFrontend(response.data.schedule);
+        setActivities(prev => prev.map(a => a.id === activityId ? updated : a));
+      }
+    } catch (error) {
+      console.error('Failed to update activity:', error);
+    }
+  };
+
+  const handleDeleteActivity = async (activityId: string) => {
+    try {
+      const response = await apiClient.deleteSchedule(activityId);
       if (response.success) {
-        // Remove from state
-        setGoals(goals.filter(goal => goal.id !== goalId));
-        // Also remove related activities and tasks (still using localStorage for these)
-        setActivities(activities.filter(activity => activity.goalId !== goalId));
-        setTasks(tasks.filter(task => task.goalId !== goalId));
-      } else {
-        throw new Error(response.error || 'Failed to delete goal');
+        setActivities(prev => prev.filter(a => a.id !== activityId));
       }
-    } catch (error: any) {
-      console.error('Error deleting goal:', error);
-      alert(error.message || 'Failed to delete goal. Please try again.');
-      throw error;
+    } catch (error) {
+      console.error('Failed to delete activity:', error);
     }
   };
 
-  // Activity management functions
-  const handleActivityStatusChange = (activityId: string, status: ScheduleActivity['status']) => {
-    setActivities(activities.map(activity => 
-      activity.id === activityId ? { ...activity, status } : activity
-    ));
-
-    // Update goal progress when activity is completed
-    if (status === 'completed') {
-      const activity = activities.find(a => a.id === activityId);
-      if (activity) {
-        const startTime = new Date(`2000-01-01T${activity.startTime}`);
-        const endTime = new Date(`2000-01-01T${activity.endTime}`);
-        const durationHours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-        
-        setGoals(goals.map(goal => 
-          goal.id === activity.goalId 
-            ? { ...goal, currentWeeklyHours: goal.currentWeeklyHours + durationHours }
-            : goal
-        ));
-      }
-    }
-  };
-
-  const handleCreateActivity = (activityData: Omit<ScheduleActivity, 'id'>) => {
-    const newActivity: ScheduleActivity = {
-      ...activityData,
-      id: generateId(),
-      status: activityData.status || 'pending'
-    };
-    setActivities([...activities, newActivity]);
-  };
-
-  const handleUpdateActivity = (activityId: string, updates: Partial<ScheduleActivity>) => {
-    setActivities(activities.map(activity => 
-      activity.id === activityId ? { ...activity, ...updates } : activity
-    ));
-  };
-
-  const handleDeleteActivity = (activityId: string) => {
-    setActivities(activities.filter(activity => activity.id !== activityId));
-  };
-
-  // Template management functions
+  // Template handlers (local only)
   const handleCreateTemplate = (templateData: Omit<ScheduleTemplate, 'id'>) => {
-    const newTemplate: ScheduleTemplate = {
-      ...templateData,
-      id: generateId()
-    };
-    setScheduleTemplates([...scheduleTemplates, newTemplate]);
+    setScheduleTemplates(prev => [...prev, { ...templateData, id: generateId() }]);
   };
 
   const handleUpdateTemplate = (templateId: string, updates: Partial<ScheduleTemplate>) => {
-    setScheduleTemplates(scheduleTemplates.map(template => 
-      template.id === templateId ? { ...template, ...updates } : template
-    ));
+    setScheduleTemplates(prev => prev.map(t => t.id === templateId ? { ...t, ...updates } : t));
   };
 
   const handleDeleteTemplate = (templateId: string) => {
-    if (window.confirm('Are you sure you want to delete this template?')) {
-      setScheduleTemplates(scheduleTemplates.filter(template => template.id !== templateId));
+    if (window.confirm('Delete this template?')) {
+      setScheduleTemplates(prev => prev.filter(t => t.id !== templateId));
     }
   };
 
-  // Task management functions
-  const handleCreateTask = (taskData: Omit<Task, 'id' | 'createdAt'>) => {
-    const newTask: Task = {
-      ...taskData,
-      id: generateId(),
-      createdAt: new Date().toISOString(),
-      completedAt: taskData.status === 'completed' ? new Date().toISOString() : undefined
-    };
-    setTasks([...tasks, newTask]);
-  };
-
-  const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        const updatedTask = { ...task, ...updates };
-        // Update completedAt if status changes to completed
-        if (updates.status === 'completed' && !task.completedAt) {
-          updatedTask.completedAt = new Date().toISOString();
-        } else if (updates.status !== 'completed' && task.completedAt) {
-          updatedTask.completedAt = undefined;
-        }
-        return updatedTask;
+  // Task handlers
+  const handleCreateTask = async (taskData: Omit<Task, 'id' | 'createdAt'>) => {
+    try {
+      const backendData = mapFrontendTaskToBackend(taskData);
+      const response = await apiClient.createTask(backendData);
+      if (response.success && response.data?.task) {
+        const newTask = mapBackendTaskToFrontend(response.data.task);
+        newTask.subtasks = taskData.subtasks ?? [];
+        setTasks(prev => [newTask, ...prev]);
       }
-      return task;
-    }));
+    } catch (error) {
+      console.error('Failed to create task:', error);
+    }
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
+  const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
+    try {
+      const backendUpdates = mapFrontendTaskUpdateToBackend(updates);
+      const response = await apiClient.updateTask(taskId, backendUpdates);
+      if (response.success && response.data?.task) {
+        const updatedTask = mapBackendTaskToFrontend(response.data.task);
+        setTasks(prev => prev.map(t => {
+          if (t.id !== taskId) return t;
+          return { ...updatedTask, subtasks: updates.subtasks ?? t.subtasks };
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to update task:', error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const response = await apiClient.deleteTask(taskId);
+      if (response.success) {
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+      }
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+    }
   };
 
   const handleUpdateSubTask = (taskId: string, subTaskId: string, updates: Partial<SubTask>) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId 
-        ? {
-            ...task,
-            subtasks: task.subtasks.map(subTask => 
-              subTask.id === subTaskId ? { ...subTask, ...updates } : subTask
-            )
-          }
+    setTasks(prev => prev.map(task =>
+      task.id === taskId
+        ? { ...task, subtasks: task.subtasks.map(st => st.id === subTaskId ? { ...st, ...updates } : st) }
         : task
     ));
-  };
-
-  const handleGoalClick = (goalId: string) => {
-    // Navigate to goal details or analytics view
-    setCurrentView('analytics');
   };
 
   const renderCurrentView = () => {
@@ -309,7 +269,7 @@ export default function Home() {
             goals={goals}
             activities={activities}
             achievements={achievements}
-            onGoalClick={handleGoalClick}
+            onGoalClick={() => setCurrentView('analytics')}
             onActivityStatusChange={handleActivityStatusChange}
             onViewChange={setCurrentView}
             isMobile={deviceInfo.isMobile}
@@ -323,7 +283,7 @@ export default function Home() {
             onUpdateGoal={handleUpdateGoal}
             onDeleteGoal={handleDeleteGoal}
             isMobile={deviceInfo.isMobile}
-            isLoading={goalsLoading}
+            isLoading={isDataLoading}
           />
         );
       case 'schedule':
@@ -367,10 +327,11 @@ export default function Home() {
         );
       case 'settings':
         return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Settings</h2>
-            <p className="text-gray-500 dark:text-gray-400">Coming soon! App settings and configuration options will be available here.</p>
-          </div>
+          <Settings
+            isDarkMode={isDarkMode}
+            onThemeToggle={() => setIsDarkMode(d => !d)}
+            isMobile={deviceInfo.isMobile}
+          />
         );
       default:
         return null;
@@ -378,27 +339,19 @@ export default function Home() {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-200 ${
-      isDarkMode ? 'dark bg-gray-900' : 'bg-gray-50'
-    }`}>
+    <div className={`min-h-screen transition-colors duration-200 ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}>
       <Header
         currentView={currentView}
         onViewChange={setCurrentView}
         isDarkMode={isDarkMode}
-        onThemeToggle={handleThemeToggle}
+        onThemeToggle={() => setIsDarkMode(d => !d)}
         isMobile={deviceInfo.isMobile}
       />
-      
-      <main className="px-4 md:px-6 py-4 md:py-6">
+      <main className="px-4 md:px-6 py-4 md:py-6 pb-20 md:pb-6">
         {renderCurrentView()}
       </main>
-
-      {/* Mobile Navigation */}
       {deviceInfo.isMobile && (
-        <MobileNavigation
-          currentView={currentView}
-          onViewChange={setCurrentView}
-        />
+        <MobileNavigation currentView={currentView} onViewChange={setCurrentView} />
       )}
     </div>
   );
