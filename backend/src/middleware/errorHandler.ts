@@ -65,10 +65,11 @@ export const errorHandler = (
   }
 
   // Client errors are expected traffic: log them briefly. Server errors get
-  // the full stack, and their internal message is never sent to the client.
+  // the full stack, and their internal message is never sent to the client,
+  // unless it was written for users (HttpError, e.g. "AI is busy, try again").
   if (statusCode >= 500) {
     logger.error('Request failed', { ...context, status: statusCode, error: err.message, stack: err.stack });
-    message = 'Internal Server Error';
+    if (!err.isOperational) message = 'Internal Server Error';
   } else {
     logger.warn('Request rejected', { ...context, status: statusCode, error: message });
   }

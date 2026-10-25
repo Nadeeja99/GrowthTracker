@@ -240,6 +240,16 @@ export const coachMessageSchema = z.object({
 
 export const coachSettingsSchema = z.object({ enabled: z.boolean() });
 
+export const weekStartSchema = z.object({ weekStart: dateKeySchema });
+
+const clockTimeSchema = z.string().regex(/^(([01]\d|2[0-3]):[0-5]\d|24:00)$/, 'Expected HH:MM');
+
+export const weekPlanRequestSchema = z.object({
+  weekStart: dateKeySchema,
+  // The part of each day the plan may use, in the user's local time.
+  window: z.object({ start: clockTimeSchema, end: clockTimeSchema }).default({ start: '07:00', end: '21:00' }),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

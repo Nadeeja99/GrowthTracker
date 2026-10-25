@@ -27,7 +27,7 @@ export const STARTER_PROMPTS = [
 export function CoachDataNotice() {
   return (
     <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-gray-400">
-      <li>Each message sends your goals, open tasks, this week&apos;s time blocks, habits and the last 7 daily reviews (including notes) to OpenAI to write a reply.</li>
+      <li>Each AI request (coach messages, weekly reviews, week plans, milestone suggestions) sends the relevant goals, tasks, time blocks, habits and recent daily reviews (including notes) to OpenAI.</li>
       <li>Your email address and password are never sent. OpenAI doesn&apos;t use API data to train its models.</li>
       <li>The coach only suggests changes; nothing is added to your plan unless you choose to.</li>
     </ul>
@@ -217,7 +217,7 @@ function Composer({ remaining }: { remaining: number }) {
               submit();
             }
           }}
-          placeholder={outOfMessages ? 'No messages left today' : 'Ask about your goals, week or habits…'}
+          placeholder={outOfMessages ? 'No AI requests left today' : 'Ask about your goals, week or habits…'}
           className="flex-1 resize-none rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
         />
         {pending ? (
@@ -231,7 +231,7 @@ function Composer({ remaining }: { remaining: number }) {
         )}
       </div>
       <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex justify-between gap-2">
-        <span>{remaining} {remaining === 1 ? 'message' : 'messages'} left today · AI can make mistakes</span>
+        <span>{remaining} AI {remaining === 1 ? 'request' : 'requests'} left today · AI can make mistakes</span>
         {draft.length > MAX_LENGTH - 200 && <span className="tabular-nums">{draft.length}/{MAX_LENGTH}</span>}
       </p>
     </form>

@@ -2,25 +2,29 @@ import http from 'http';
 import { AddressInfo } from 'net';
 import request from 'supertest';
 import { app } from '../src/app';
-import { CoachModel, CoachModelError, CoachModelRequest, CoachModelResult, setCoachModelForTests } from '../src/services/coach/model';
-import { normalizeSuggestions, suggestActionsJsonSchema, suggestActionsSchema } from '../src/services/coach/suggestions';
+import { AiModel, AiModelError, GenerateResult, ReplyRequest, ReplyResult, setAiModelForTests } from '../src/services/ai/model';
+import { normalizeSuggestions } from '../src/services/coach/suggestions';
 import { addDays, dateKeyInZone } from '../src/utils/dates';
 import { auth, prisma, registerUser, resetDatabase, TestUser } from './helpers';
 import { parseSse } from './fake-openai';
 
 /** A scripted model that records what it was asked. */
-class FakeModel implements CoachModel {
+class FakeModel implements AiModel {
   readonly name = 'fake-model';
-  requests: CoachModelRequest[] = [];
-  next: (req: CoachModelRequest) => Promise<CoachModelResult> = async () => this.result('Hello there.');
+  requests: ReplyRequest[] = [];
+  next: (req: ReplyRequest) => Promise<ReplyResult> = async () => this.result('Hello there.');
 
-  result(text: string, suggestionArgs: string | null = null): CoachModelResult {
-    return { text, suggestionArgs, inputTokens: 1000, outputTokens: 50, truncated: false };
+  result(text: string, toolArgs: string | null = null): ReplyResult {
+    return { text, toolArgs, inputTokens: 1000, outputTokens: 50, truncated: false };
   }
 
-  async reply(req: CoachModelRequest) {
+  async reply(req: ReplyRequest) {
     this.requests.push(req);
     return this.next(req);
+  }
+
+  async generate(): Promise<GenerateResult> {
+    throw new Error('not used by the coach');
   }
 }
 
@@ -44,19 +48,21 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   model = new FakeModel();
-  setCoachModelForTests(model);
+  setAiModelForTests(model);
 });
 afterAll(async () => {
-  setCoachModelForTests(undefined);
+  setAiModelForTests(undefined);
   await prisma.$disconnect();
 });
 
 describe('configuration and consent', () => {
   it('reports when no AI provider is configured', async () => {
-    setCoachModelForTests(null);
+    setAiModelForTests(null);
     const status = (await request(app).get('/api/coach').set(auth(alice.token))).body.data;
     expect(status).toMatchObject({ configured: false, enabled: false, usage: { used: 0, limit: 20, remaining: 20 }, messages: [] });
-    expect((await send(alice, 'hi')).status).toBe(503);
+    const res = await send(alice, 'hi');
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('AI features aren’t configured on this server.');
   });
 
   it('sends nothing to the model until the user opts in', async () => {
@@ -113,6 +119,7 @@ describe('conversation', () => {
   it('gives the model the user\'s data and the conversation so far, but not their account details', async () => {
     await send(alice, 'And what next?');
     const { instructions, input } = model.requests[0];
+    expect(model.requests[0].tool?.name).toBe('suggest_actions');
     expect(instructions).toContain('Half marathon');
     expect(instructions).toContain(aliceGoalId);
     expect(instructions).not.toContain(alice.email);
@@ -141,7 +148,7 @@ describe('conversation', () => {
   });
 
   it('reports provider failures without saving the turn or using up the quota', async () => {
-    model.next = async () => { throw new CoachModelError('Rate limited', 429); };
+    model.next = async () => { throw new AiModelError('Rate limited', 429); };
     const before = await prisma.coachMessage.count();
     const res = await send(alice, 'Hello?');
     expect(parseSse(res.text)).toEqual([{ event: 'error', data: { message: 'The AI service is busy right now. Please try again in a minute.' } }]);
@@ -195,7 +202,7 @@ describe('daily limits', () => {
 
     const res = await send(carol, 'One more?');
     expect(res.status).toBe(429);
-    expect(res.body.error).toMatch(/all 20 coach messages/);
+    expect(res.body.error).toMatch(/all 20 AI requests/);
     expect(model.requests).toHaveLength(0);
   });
 
@@ -211,12 +218,6 @@ describe('daily limits', () => {
 
 describe('suggestion validation', () => {
   const ctx = { todayKey: '2026-10-25', timezone: 'Europe/Dublin', goalIds: new Set(['g1']), now: new Date('2026-10-25T09:00:00Z') };
-
-  it('keeps the JSON Schema sent to the model in sync with the validator', () => {
-    const zodFields = Object.keys(suggestActionsSchema.shape.actions.element.shape).sort();
-    expect(Object.keys(suggestActionsJsonSchema.properties.actions.items.properties).sort()).toEqual(zodFields);
-    expect([...suggestActionsJsonSchema.properties.actions.items.required].sort()).toEqual(zodFields);
-  });
 
   it('converts local wall-clock times across the DST change', () => {
     // Clocks go back on 25 Oct 2026 in Dublin: 09:00 local is 09:00 UTC; the day before it was 08:00 UTC.

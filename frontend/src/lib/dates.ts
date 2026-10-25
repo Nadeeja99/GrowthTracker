@@ -13,3 +13,15 @@ export function parseDateKey(key: string): Date {
   const [year, month, day] = key.split('-').map(Number);
   return new Date(year, month - 1, day);
 }
+
+/** The Sunday that starts the week containing `date` (weeks run Sunday to Saturday). */
+export function weekStartKey(date: Date = new Date()): string {
+  return toDateKey(new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay()));
+}
+
+/** `key` moved by whole days. */
+export function addDaysToKey(key: string, days: number): string {
+  const date = parseDateKey(key);
+  date.setDate(date.getDate() + days);
+  return toDateKey(date);
+}

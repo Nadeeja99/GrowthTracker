@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import { env } from '../config/env';
 import { prisma } from '../config/database';
 import { DEMO_EMAIL } from '../config/demo';
-import { addDays, dateKeyInZone, dateOnly, startOfDayInZone } from '../utils/dates';
+import { addDays, dateKeyInZone, dateOnly, zonedTimeToInstant } from '../utils/dates';
 
 export { DEMO_EMAIL };
 
@@ -19,8 +19,7 @@ export async function seedDemo() {
   const today = dateKeyInZone(new Date(), TIMEZONE);
   const day = (offset: number) => addDays(today, offset);
   // A wall-clock time on a calendar day in the demo user's zone.
-  const at = (offset: number, hour: number, minute = 0) =>
-    new Date(startOfDayInZone(day(offset), TIMEZONE).getTime() + (hour * 60 + minute) * 60_000);
+  const at = (offset: number, hour: number, minute = 0) => zonedTimeToInstant(day(offset), hour * 60 + minute, TIMEZONE);
 
   await prisma.user.deleteMany({ where: { email: DEMO_EMAIL } });
   const user = await prisma.user.create({

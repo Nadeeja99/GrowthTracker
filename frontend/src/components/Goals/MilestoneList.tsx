@@ -5,16 +5,19 @@ import { CheckCircle2, Circle, Plus, X } from 'lucide-react';
 import { Milestone } from '@/types';
 import { cn } from '@/lib/utils';
 import { submitOnModEnter } from '@/lib/forms';
+import { MilestoneSuggestions } from '@/components/AI/MilestoneSuggestions';
 
 interface MilestoneListProps {
+  goalId: string;
+  goalTitle: string;
   milestones: Milestone[];
-  onAdd: (title: string) => Promise<void>;
+  onAdd: (title: string, targetDate?: string) => Promise<void>;
   onToggle: (milestoneId: string, completed: boolean) => Promise<void>;
   onDelete: (milestoneId: string) => Promise<void>;
 }
 
 // Milestones break a goal into checkpoints; completing them drives the goal's progress.
-export function MilestoneList({ milestones, onAdd, onToggle, onDelete }: MilestoneListProps) {
+export function MilestoneList({ goalId, goalTitle, milestones, onAdd, onToggle, onDelete }: MilestoneListProps) {
   const [title, setTitle] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +108,8 @@ export function MilestoneList({ milestones, onAdd, onToggle, onDelete }: Milesto
       </form>
 
       {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">{error}</p>}
+
+      <MilestoneSuggestions goalId={goalId} goalTitle={goalTitle} onAdd={onAdd} />
     </div>
   );
 }

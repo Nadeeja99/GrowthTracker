@@ -228,6 +228,40 @@ export interface CoachTurn {
   usage: CoachUsage;
 }
 
+export interface WeeklyReviewContent {
+  headline: string;
+  wins: string[];
+  slips: string[];
+  patterns: Array<{ observation: string; evidence: string }>;
+  priorities: Array<{ title: string; why: string; goalId: string | null }>;
+}
+
+export interface WeeklyReview {
+  weekStart: string;
+  content: WeeklyReviewContent;
+  generatedAt: string;
+}
+
+export interface PlannedBlock {
+  id: string;
+  title: string;
+  goalId: string | null;
+  startTime: string;
+  endTime: string;
+  reason: string;
+}
+
+export interface WeekPlan {
+  summary: string;
+  blocks: PlannedBlock[];
+}
+
+export interface SuggestedMilestone {
+  title: string;
+  targetDate: string | null;
+  why: string;
+}
+
 /** An error response from the API, with its HTTP status. */
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -591,6 +625,23 @@ class ApiClient {
       }
     }
     throw new ApiError('The reply was interrupted. Please try again.', 0);
+  }
+
+  // AI features (share the coach's opt-in and daily budget)
+  async getWeeklyReview(weekStart: string): Promise<ApiResponse<{ review: WeeklyReview | null }>> {
+    return this.request(`/ai/weekly-review?weekStart=${weekStart}`);
+  }
+
+  async generateWeeklyReview(weekStart: string): Promise<ApiResponse<{ review: WeeklyReview }>> {
+    return this.request('/ai/weekly-review', { method: 'POST', body: JSON.stringify({ weekStart }) });
+  }
+
+  async planWeek(weekStart: string, window: { start: string; end: string }): Promise<ApiResponse<{ plan: WeekPlan }>> {
+    return this.request('/ai/week-plan', { method: 'POST', body: JSON.stringify({ weekStart, window }) });
+  }
+
+  async suggestMilestones(goalId: string): Promise<ApiResponse<{ milestones: SuggestedMilestone[] }>> {
+    return this.request(`/ai/goals/${goalId}/milestones`, { method: 'POST' });
   }
 
   // Token management

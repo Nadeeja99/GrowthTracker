@@ -71,7 +71,8 @@ export function useGoalMutations() {
   // Milestone responses carry the parent goal with its recalculated progress.
   const addMilestone = useMutation({
     meta: { silent: true },
-    mutationFn: ({ goalId, title }: { goalId: string; title: string }) => apiClient.createMilestone(goalId, { title }),
+    mutationFn: ({ goalId, title, targetDate }: { goalId: string; title: string; targetDate?: string }) =>
+      apiClient.createMilestone(goalId, { title, targetDate: targetDate ? `${targetDate}T00:00:00.000Z` : undefined }),
     onSuccess: res => putGoal(res.data!.goal),
   });
 

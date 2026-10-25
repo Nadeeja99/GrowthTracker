@@ -21,7 +21,7 @@ export default function GoalsPage() {
       onCreateGoal={async input => { await m.create.mutateAsync(input); }}
       onUpdateGoal={async (id, updates) => { await m.update.mutateAsync({ id, updates }); }}
       onDeleteGoal={async id => { await m.remove.mutateAsync(id); }}
-      onAddMilestone={async (goalId, title) => { await m.addMilestone.mutateAsync({ goalId, title }); }}
+      onAddMilestone={async (goalId, title, targetDate) => { await m.addMilestone.mutateAsync({ goalId, title, targetDate }); }}
       onToggleMilestone={async (id, completed) => { await m.toggleMilestone.mutateAsync({ id, completed }); }}
       onDeleteMilestone={async id => { await m.deleteMilestone.mutateAsync(id); }}
       isMobile={isMobile}

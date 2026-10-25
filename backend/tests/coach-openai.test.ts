@@ -67,5 +67,21 @@ it('marks a reply cut off by the token limit', async () => {
 it('turns provider errors into a friendly message', async () => {
   fake.script = { httpError: 401 };
   const res = await request(app).post('/api/coach/messages').set(auth(user.token)).send({ message: 'Hi' });
-  expect(parseSse(res.text)).toEqual([{ event: 'error', data: { message: 'AI Coach is temporarily unavailable.' } }]);
+  expect(parseSse(res.text)).toEqual([{ event: 'error', data: { message: 'AI features are temporarily unavailable.' } }]);
+});
+
+it('requests strict structured output for one-shot features and reads the JSON', async () => {
+  const goal = (await request(app).post('/api/goals').set(auth(user.token)).send({ title: 'Run a 10k' })).body.data.goal;
+  fake.script = { text: [JSON.stringify({ milestones: [{ title: 'Run 5k without stopping', targetDate: null, why: 'Base.' }] })] };
+
+  const res = await request(app).post(`/api/ai/goals/${goal.id}/milestones`).set(auth(user.token));
+  expect(res.status).toBe(200);
+  expect(res.body.data.milestones).toEqual([{ title: 'Run 5k without stopping', targetDate: null, why: 'Base.' }]);
+
+  const { body } = fake.requests.at(-1)!;
+  expect(body.stream).toBeUndefined();
+  expect(body).toMatchObject({ model: 'gpt-6-luna', store: false, max_output_tokens: 1500 });
+  expect(body.text).toMatchObject({ format: { type: 'json_schema', name: 'goal_breakdown', strict: true } });
+  expect(String(body.input)).toContain('Run a 10k');
+  expect(await prisma.aiUsage.findFirst({ where: { feature: 'goal_breakdown' } })).toMatchObject({ status: 'ok', inputTokens: 1200 });
 });

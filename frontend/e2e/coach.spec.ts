@@ -27,7 +27,8 @@ test('streams a reply and adds a suggested block to the plan', async ({ page }) 
   await expect(panel.getByText(/You have 3 active goals/).first()).toBeVisible()
   await expect(panel.getByText('I suggested a block for tomorrow evening.').first()).toBeVisible()
   await expect(panel.getByRole('button', { name: 'Stop the reply' })).toHaveCount(0)
-  await expect(panel.getByText(/29 messages left today/)).toBeVisible()
+  // The budget is shared with the other AI features, so only check it's shown.
+  await expect(panel.getByText(/\d+ AI requests left today/)).toBeVisible()
 
   await panel.getByRole('button', { name: 'Add to plan: Focused session' }).click()
   await expect(panel.getByText('Added').last()).toBeVisible()

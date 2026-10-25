@@ -28,12 +28,21 @@ export function dateKeyInZone(instant: Date, timeZone: string): string {
 
 /** The instant local midnight starts on `dateKey` in `timeZone`. */
 export function startOfDayInZone(dateKey: string, timeZone: string): Date {
+  return zonedTimeToInstant(dateKey, 0, timeZone);
+}
+
+/**
+ * The instant the wall clock in `timeZone` shows `minutes` after midnight on
+ * `dateKey`. Uses the offset in force at that time, so it stays correct on the
+ * day clocks change.
+ */
+export function zonedTimeToInstant(dateKey: string, minutes: number, timeZone: string): Date {
   const [year, month, day] = dateKey.split('-').map(Number);
-  const utcMidnight = Date.UTC(year, month - 1, day);
-  const offset = timeZoneOffsetMs(new Date(utcMidnight), timeZone);
+  const wallClockAsUtc = Date.UTC(year, month - 1, day) + minutes * 60_000;
+  const offset = timeZoneOffsetMs(new Date(wallClockAsUtc), timeZone);
   // Re-evaluate once in case a DST transition falls between the guess and the answer.
-  const correctedOffset = timeZoneOffsetMs(new Date(utcMidnight - offset), timeZone);
-  return new Date(utcMidnight - correctedOffset);
+  const correctedOffset = timeZoneOffsetMs(new Date(wallClockAsUtc - offset), timeZone);
+  return new Date(wallClockAsUtc - correctedOffset);
 }
 
 export function addDays(dateKey: string, days: number): string {

@@ -40,6 +40,11 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 - Opt-in: nothing is sent to OpenAI until you turn the coach on; the data shared is listed up front, and it can be switched off or cleared in Settings
 - Starter prompts on the Today page; works across tabs (a reply keeps streaming if you close the panel)
 
+### AI growth features
+- **Weekly review** (Insights): wins, what slipped, **patterns** linking your daily energy, mood and notes to what got done, and priorities for next week, each addable as a task. Generated on request and saved, so revisiting it costs nothing.
+- **Plan my week** (Plan): proposes time blocks that move each goal towards its weekly target, inside the hours you choose. You tick the ones you want and add them in one go.
+- **Suggest milestones** (Goals): breaks a goal into checkpoints, dated within its deadline, skipping ones it already has.
+
 ### Focus timer (available everywhere)
 - Pomodoro timer in a slide-over panel that **keeps running while you switch tabs**; the header shows the countdown
 - Start it from a task or a planned block; every interval (stopped-early ones after 1 minute) is saved and counts toward the goal's hours and the task's logged time
@@ -186,10 +191,16 @@ browser ──POST /api/coach/messages──► API ──Responses API (stream)
 - **Grounded context.** Each request builds a compact JSON snapshot of the user's data (`backend/src/services/coach/context.ts`). It contains no email, password or account fields, and free text is clipped. The prompt marks the snapshot as data, not instructions, so text in a task title or review note can't change the coach's rules.
 - **Structured output, never trusted blindly.** Suggestions come from a strict function tool (`suggest_actions`) with an explicit JSON Schema. The API re-validates every call with zod and drops anything malformed, in the past or more than 14 days ahead. It unlinks goal ids the user doesn't own, converts local times to instants in the user's time zone (DST-safe) and caps the list at three. Applying a suggestion locks the row, so a double click can't add it twice.
 - **Streaming.** The API streams Server-Sent Events (`delta`, `done`, `error`) through the Next.js proxy (`Cache-Control: no-transform` keeps compression from buffering them). If the browser disconnects, the request to OpenAI is aborted.
+- **One pipeline for every AI feature** (`backend/src/services/ai/`). Each request passes the same checks (provider configured, user opted in, one request at a time, daily quota) and is logged in `ai_usage` with its feature and token counts. The one-shot features use **strict JSON-schema structured output** and are validated again with zod. The server then enforces rules a model can't be trusted with:
+  - plan blocks must fall inside the chosen hours, start in the future, and not overlap existing blocks or each other (at most 4 a day)
+  - milestone dates must fall between today and the goal's deadline, with duplicates dropped
+  - review lists are capped, and goal links are limited to the user's own goals
+
+  Local times are converted with the offset in force at that moment, so plans are right on the days clocks change.
 - **Cost controls.**
   - Users opt in.
   - One reply at a time per user.
-  - 20 messages per user per day (30 for the shared demo account) and 500 per UTC day across all users.
+  - 20 AI requests per user per day, shared by all AI features (30 for the shared demo account), and 500 per UTC day across all users.
   - Output is capped at 1,500 tokens per reply.
   - Every call is recorded in `ai_usage` with its token counts, and failed calls don't count against the user.
   - Requests use `store: false`, so OpenAI doesn't keep them.
@@ -206,9 +217,9 @@ browser ──POST /api/coach/messages──► API ──Responses API (stream)
 
 | Suite | Command | What it covers |
 |---|---|---|
-| Backend integration (Jest + Supertest) | `cd backend && TEST_DATABASE_URL=postgresql://…/growthtracker_test npm test` | Auth and token rotation, access control between users (IDOR), validation, goals/tasks/tracking endpoints, rate limiting, proxy gate, time-zone maths, demo seed, AI coach (opt-in, quotas, streaming, suggestion validation, the real OpenAI SDK against a fake server) |
+| Backend integration (Jest + Supertest) | `cd backend && TEST_DATABASE_URL=postgresql://…/growthtracker_test npm test` | Auth and token rotation, access control between users (IDOR), validation, goals/tasks/tracking endpoints, rate limiting, proxy gate, time-zone maths, demo seed, AI coach and features (opt-in, shared quotas, streaming, structured output validation, plan overlap and window rules, DST-safe times, schema/validator sync, the real OpenAI SDK against a fake server) |
 | Frontend unit (Vitest + Testing Library) | `cd frontend && npm test` | API client session refresh, coach SSE parsing, data mappers, toast store, focus timer, dialog focus trap, safe rendering of coach text |
-| End-to-end (Playwright + axe-core) | `cd frontend && npm run test:e2e` | Zero WCAG 2.1 AA violations on every page in light and dark mode, dialog keyboard behaviour, error toasts, skeletons, 404, delete confirmation, no React console warnings, coach chat (stream, stop, add a suggestion, opt out) |
+| End-to-end (Playwright + axe-core) | `cd frontend && npm run test:e2e` | Zero WCAG 2.1 AA violations on every page in light and dark mode, dialog keyboard behaviour, error toasts, skeletons, 404, delete confirmation, no React console warnings, coach chat (stream, stop, add a suggestion, opt out), weekly review, plan my week, milestone suggestions |
 
 The backend tests run against a real Postgres database whose name must end in `_test`; every table is truncated between suites. The E2E suite needs the API running with the demo seed (and, for the coach tests, `OPENAI_BASE_URL` pointing at the fake OpenAI server) and starts the frontend itself (`API_ORIGIN` points it at the API; `E2E_CHANNEL=chrome` uses your installed Chrome instead of downloading Chromium). It changes the demo data, so re-run `npm run db:seed` before running it again.
 
@@ -283,6 +294,9 @@ The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API
 | POST | `/api/coach/messages` | Send a message; the reply streams as Server-Sent Events |
 | DELETE | `/api/coach/messages` | Clear the conversation |
 | POST | `/api/coach/messages/:id/suggestions/:suggestionId/apply` | Add a suggested task, block or habit |
+| GET/POST | `/api/ai/weekly-review` | Saved review for a week (`?weekStart=`) / write or rewrite it |
+| POST | `/api/ai/week-plan` | Propose time blocks for this or next week within a daily window |
+| POST | `/api/ai/goals/:id/milestones` | Suggest milestones for a goal |
 | GET | `/api/analytics/overview` | Analytics summary |
 | GET | `/api/analytics/goal-progress` | Per-goal progress analytics |
 | GET | `/api/analytics/weekly-trends` | Weekly task and habit trends |
@@ -312,7 +326,7 @@ The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API
 | `OPENAI_MODEL` | Model for the coach | `gpt-6-luna` |
 | `OPENAI_REASONING_EFFORT` | `none` / `low` / `medium` / `high` | `low` |
 | `AI_MAX_OUTPUT_TOKENS` | Token ceiling per reply | `1500` |
-| `AI_DAILY_LIMIT` / `AI_DEMO_DAILY_LIMIT` / `AI_GLOBAL_DAILY_LIMIT` | Coach messages per user per day / for the demo account / across all users per UTC day | `20` / `30` / `500` |
+| `AI_DAILY_LIMIT` / `AI_DEMO_DAILY_LIMIT` / `AI_GLOBAL_DAILY_LIMIT` | AI requests per user per day / for the demo account / across all users per UTC day | `20` / `30` / `500` |
 
 ### Frontend
 

@@ -5,7 +5,7 @@ import http from 'http';
 import { AddressInfo } from 'net';
 
 export interface Script {
-  /** Text fragments streamed as output_text deltas. */
+  /** Text fragments streamed as output_text deltas (joined for non-streamed calls). */
   text?: string[];
   /** JSON arguments for a suggest_actions call. */
   toolArgs?: string;
@@ -42,14 +42,6 @@ export async function startFakeOpenAI(port = 0): Promise<FakeOpenAI> {
         return;
       }
 
-      res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-      let seq = 0;
-      const frames: Array<{ frame: string; pause: boolean }> = [];
-      const send = (type: string, data: object) => frames.push({
-        frame: `event: ${type}\ndata: ${JSON.stringify({ type, sequence_number: seq++, ...data })}\n\n`,
-        pause: type === 'response.output_text.delta',
-      });
-
       const fullText = text.join('');
       const message = (state: string, content: object[]) =>
         ({ id: 'msg_1', type: 'message', role: 'assistant', status: state, content });
@@ -66,6 +58,21 @@ export async function startFakeOpenAI(port = 0): Promise<FakeOpenAI> {
           input_tokens: 1200, input_tokens_details: { cached_tokens: 0 },
           output_tokens: 90, output_tokens_details: { reasoning_tokens: 10 }, total_tokens: 1290,
         },
+      });
+
+      // responses.create without streaming (structured output): one JSON body.
+      if (body.stream !== true) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(response(status, [message('completed', [part(fullText)])])));
+        return;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      let seq = 0;
+      const frames: Array<{ frame: string; pause: boolean }> = [];
+      const send = (type: string, data: object) => frames.push({
+        frame: `event: ${type}\ndata: ${JSON.stringify({ type, sequence_number: seq++, ...data })}\n\n`,
+        pause: type === 'response.output_text.delta',
       });
 
       send('response.created', { response: response('in_progress', []) });

@@ -10,6 +10,7 @@ import { CompletionRateChart } from './CompletionRateChart';
 import { ProductivityInsights } from './ProductivityInsights';
 import { parseDateKey, toDateKey } from '@/lib/dates';
 import { AnalyticsOverview } from '@/lib/api';
+import { WeeklyReviewCard } from '@/components/AI/WeeklyReviewCard';
 
 export type TimeRange = 'week' | 'month' | 'quarter' | 'year';
 
@@ -232,6 +233,8 @@ export function Analytics({
           </select>
         </div>
       </div>
+
+      <WeeklyReviewCard />
 
       {/* Key metrics (server-computed for the selected range) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">

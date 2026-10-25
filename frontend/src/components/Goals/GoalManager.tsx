@@ -15,7 +15,7 @@ interface GoalManagerProps {
   onCreateGoal: (goal: GoalInput) => Promise<void>;
   onUpdateGoal: (goalId: string, updates: Partial<GoalInput>) => Promise<void>;
   onDeleteGoal: (goalId: string) => Promise<void>;
-  onAddMilestone: (goalId: string, title: string) => Promise<void>;
+  onAddMilestone: (goalId: string, title: string, targetDate?: string) => Promise<void>;
   onToggleMilestone: (milestoneId: string, completed: boolean) => Promise<void>;
   onDeleteMilestone: (milestoneId: string) => Promise<void>;
   isMobile: boolean;
@@ -395,8 +395,10 @@ export function GoalManager({
                 </div>
 
                 <MilestoneList
+                  goalId={goal.id}
+                  goalTitle={goal.name}
                   milestones={goal.milestones}
-                  onAdd={title => onAddMilestone(goal.id, title)}
+                  onAdd={(title, targetDate) => onAddMilestone(goal.id, title, targetDate)}
                   onToggle={onToggleMilestone}
                   onDelete={onDeleteMilestone}
                 />

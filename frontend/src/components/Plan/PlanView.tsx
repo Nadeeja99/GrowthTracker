@@ -11,6 +11,7 @@ import { DailySchedule } from '@/components/Schedule/DailySchedule';
 import { ActivityForm } from '@/components/Schedule/ActivityForm';
 import { RecurringScheduleForm } from '@/components/Schedule/RecurringScheduleForm';
 import { TaskManager } from '@/components/Tasks/TaskManager';
+import { PlanWeekButton } from '@/components/AI/PlanWeekDialog';
 
 type ActivityInput = Omit<ScheduleActivity, 'id' | 'taskTitle'>;
 
@@ -103,6 +104,7 @@ export function PlanView(props: PlanViewProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <PlanWeekButton />
             <button
               onClick={() => setModal({ type: 'activity', initialValues: { date: selectedDate } })}
               className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm flex items-center gap-1.5"

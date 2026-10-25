@@ -6,13 +6,13 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { HttpError } from '../../utils/httpError';
-import { addDays, dateOnly, startOfDayInZone } from '../../utils/dates';
+import { addDays, dateOnly, zonedTimeToInstant } from '../../utils/dates';
+import { isDateKey, minutesOfDay, nullable } from '../ai/time';
+import type { ToolDefinition } from '../ai/model';
 
 // Arguments the model must produce for `suggest_actions`. Strict structured
 // output requires every field, so fields that don't apply to a kind are null.
 // The JSON Schema is sent to the model; the zod schema validates what comes back.
-const nullable = (type: string, description: string, extra: object = {}) => ({ type: [type, 'null'], description, ...extra });
-
 export const suggestActionsJsonSchema = {
   type: 'object',
   properties: {
@@ -40,6 +40,15 @@ export const suggestActionsJsonSchema = {
   required: ['actions'],
   additionalProperties: false,
 } as const;
+
+/** The function the coach may call to propose actions. */
+export const suggestActionsTool: ToolDefinition = {
+  name: 'suggest_actions',
+  description:
+    'Propose up to 3 concrete actions the user can add to their plan with one click. ' +
+    'Call this only when a specific task, time block or habit would clearly help; never for general advice.',
+  parameters: suggestActionsJsonSchema as unknown as Record<string, unknown>,
+};
 
 export const suggestActionsSchema = z.object({
   actions: z.array(z.object({
@@ -70,8 +79,6 @@ export type CoachSuggestion =
   | SuggestionBase & { kind: 'habit'; frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' };
 
 const MAX_SUGGESTIONS = 3;
-const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
-const TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
 /** Blocks and due dates can be proposed for at most this far ahead. */
 const HORIZON_DAYS = 14;
 
@@ -101,7 +108,7 @@ export function normalizeSuggestions(rawArgs: string | null, ctx: NormalizeConte
   const now = ctx.now ?? new Date();
   const lastDayKey = addDays(ctx.todayKey, HORIZON_DAYS);
   const inHorizon = (key: string | null): key is string =>
-    !!key && DATE_KEY.test(key) && key >= ctx.todayKey && key <= lastDayKey;
+    isDateKey(key) && key >= ctx.todayKey && key <= lastDayKey;
   const ownGoal = (id: string | null) => (id && ctx.goalIds.has(id) ? id : null);
 
   const suggestions: CoachSuggestion[] = [];
@@ -119,11 +126,10 @@ export function normalizeSuggestions(rawArgs: string | null, ctx: NormalizeConte
         dueDate: inHorizon(action.dueDate) ? action.dueDate : null,
       });
     } else if (action.type === 'time_block') {
-      const time = action.startTime ? TIME.exec(action.startTime) : null;
-      if (!inHorizon(action.date) || !time || action.durationMinutes == null) continue;
-      const minutes = Number(time[1]) * 60 + Number(time[2]);
+      const minutes = minutesOfDay(action.startTime);
+      if (!inHorizon(action.date) || minutes === null || action.durationMinutes == null) continue;
       const duration = Math.min(Math.max(action.durationMinutes, 15), 240);
-      const start = new Date(startOfDayInZone(action.date, ctx.timezone).getTime() + minutes * 60_000);
+      const start = zonedTimeToInstant(action.date, minutes, ctx.timezone);
       if (start <= now) continue;
       suggestions.push({
         ...base,

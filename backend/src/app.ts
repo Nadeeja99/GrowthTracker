@@ -24,6 +24,7 @@ import milestoneRoutes from './routes/milestones';
 import reflectionRoutes from './routes/reflections';
 import focusSessionRoutes from './routes/focusSessions';
 import coachRoutes from './routes/coach';
+import aiRoutes from './routes/ai';
 
 export const app = express();
 
@@ -94,6 +95,7 @@ app.use('/api/milestones', milestoneRoutes);
 app.use('/api/reflections', reflectionRoutes);
 app.use('/api/focus-sessions', focusSessionRoutes);
 app.use('/api/coach', coachRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

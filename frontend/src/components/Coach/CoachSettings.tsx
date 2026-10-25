@@ -34,7 +34,7 @@ export function CoachSettings() {
               <p id="coach-toggle-label" className="text-sm font-medium text-gray-900 dark:text-white">Use AI Coach</p>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {status.enabled
-                  ? `${status.usage.remaining} of ${status.usage.limit} messages left today.`
+                  ? `${status.usage.remaining} of ${status.usage.limit} AI requests left today (coach, reviews, plans).`
                   : 'Off. Nothing is sent to the AI provider.'}
               </p>
             </div>

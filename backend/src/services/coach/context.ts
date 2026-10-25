@@ -3,24 +3,20 @@
 // and free text (titles, review notes) is clipped.
 import { prisma } from '../../config/database';
 import { addDays, dateKeyInZone, startOfDayInZone } from '../../utils/dates';
+import { clip, goalTimeMs, hours } from '../ai/data';
 
 const HISTORY_DAYS = 7;
 const UPCOMING_DAYS = 3;
 const MAX_TASKS = 15;
 const PRIORITY_RANK = { HIGH: 0, MEDIUM: 1, LOW: 2 } as const;
 
-const clip = (text: string | null | undefined, max: number) =>
-  text ? text.trim().replace(/\s+/g, ' ').slice(0, max) : undefined;
-
-const hours = (ms: number) => Math.round((ms / 3_600_000) * 10) / 10;
-
 export interface CoachContext {
   todayKey: string;
   timezone: string;
   /** Ids of the goals the model may link suggestions to. */
   goalIds: Set<string>;
-  /** JSON snapshot placed in the prompt. */
-  snapshot: string;
+  /** Snapshot placed in the prompt. */
+  snapshot: object;
 }
 
 export async function buildCoachContext(userId: string, timezone: string, now = new Date()): Promise<CoachContext> {
@@ -67,17 +63,8 @@ export async function buildCoachContext(userId: string, timezone: string, now = 
   const goalTitle = new Map(goals.map(g => [g.id, g.title]));
   const past = blocks.filter(b => b.startTime < now);
 
-  // Hours per goal over the last 7 days: completed blocks, plus focus sessions
-  // not tied to a block. Focus inside a block replaces the block's planned time.
-  const focusedBlocks = new Set(focus.map(f => f.scheduleId).filter(Boolean));
-  const doneMs = new Map<string, number>();
-  const addDone = (goalId: string | null, ms: number) => {
-    if (goalId) doneMs.set(goalId, (doneMs.get(goalId) ?? 0) + ms);
-  };
-  for (const b of past) {
-    if (b.status === 'COMPLETED' && !focusedBlocks.has(b.id)) addDone(b.goalId, b.endTime.getTime() - b.startTime.getTime());
-  }
-  for (const f of focus) addDone(f.goalId, f.durationSeconds * 1000);
+  // Hours per goal over the last 7 days.
+  const doneMs = goalTimeMs(past, focus);
 
   const openTasks = tasks
     .sort((a, b) =>
@@ -141,5 +128,5 @@ export async function buildCoachContext(userId: string, timezone: string, now = 
     })),
   };
 
-  return { todayKey, timezone, goalIds: new Set(goals.map(g => g.id)), snapshot: JSON.stringify(snapshot) };
+  return { todayKey, timezone, goalIds: new Set(goals.map(g => g.id)), snapshot };
 }

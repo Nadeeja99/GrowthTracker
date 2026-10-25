@@ -1,15 +1,15 @@
-import { Router, Response } from 'express';
+import { Router } from 'express';
 import { CoachMessage, Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth-simple';
 import { coachMessageSchema, coachSettingsSchema } from '../utils/validation';
-import { HttpError } from '../utils/httpError';
 import { logger } from '../utils/logger';
 import { buildCoachContext } from '../services/coach/context';
 import { coachInstructions } from '../services/coach/prompt';
-import { CoachModelError, CoachModelResult, getCoachModel } from '../services/coach/model';
-import { applySuggestion, CoachSuggestion, normalizeSuggestions } from '../services/coach/suggestions';
-import { CoachQuota, globalLimitReached, userQuota } from '../services/coach/usage';
+import { applySuggestion, CoachSuggestion, normalizeSuggestions, suggestActionsTool } from '../services/coach/suggestions';
+import { AiModelError, friendlyAiError, getAiModel } from '../services/ai/model';
+import { beginAiRequest } from '../services/ai/request';
+import { userQuota } from '../services/ai/usage';
 
 const router = Router();
 
@@ -18,9 +18,6 @@ router.use(authenticate);
 /** Earlier turns sent with each message, for conversational context. */
 const HISTORY_TURNS = 12;
 const LIST_LIMIT = 50;
-
-// One reply at a time per user, so parallel requests can't bypass the daily cap.
-const inFlight = new Set<string>();
 
 const serialize = (m: CoachMessage) => ({
   id: m.id,
@@ -42,7 +39,7 @@ router.get('/', async (req: AuthRequest, res) => {
   res.json({
     success: true,
     data: {
-      configured: getCoachModel() !== null,
+      configured: getAiModel() !== null,
       enabled: user.aiCoachEnabled,
       usage,
       messages: messages.reverse().map(serialize),
@@ -71,147 +68,94 @@ router.post('/messages/:messageId/suggestions/:suggestionId/apply', async (req: 
 
 /**
  * Sends a message and streams the reply as Server-Sent Events:
- *   delta { text }                      a fragment of the reply
+ *   delta { text }                        a fragment of the reply
  *   done  { userMessage, message, usage } the saved turn, with validated suggestions
- *   error { message }                   the reply failed; nothing was saved
+ *   error { message }                     the reply failed; nothing was saved
  * Problems detected before streaming starts are ordinary JSON errors.
  */
 router.post('/messages', async (req: AuthRequest, res) => {
   const user = req.user!;
   const { message } = coachMessageSchema.parse(req.body);
 
-  const model = getCoachModel();
-  if (!model) throw new HttpError(503, 'AI Coach isn’t configured on this server.');
-
-  const { aiCoachEnabled } = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { aiCoachEnabled: true } });
-  if (!aiCoachEnabled) throw new HttpError(403, 'Turn on AI Coach first.');
-
-  if (inFlight.has(user.id)) throw new HttpError(409, 'The coach is still answering your previous message.');
-  inFlight.add(user.id);
-
+  const ai = await beginAiRequest(user, 'coach');
   try {
-    const quota = await userQuota(user);
-    if (quota.remaining === 0) {
-      throw new HttpError(429, `You’ve used all ${quota.limit} coach messages for today. They reset at midnight.`);
-    }
-    if (await globalLimitReached()) {
-      throw new HttpError(503, 'AI Coach has reached its daily limit. Please try again tomorrow.');
-    }
-
     const [context, history] = await Promise.all([
       buildCoachContext(user.id, user.timezone),
       prisma.coachMessage.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: HISTORY_TURNS }),
-    ]);
+    ]).catch(async error => {
+      await ai.finish('error');
+      throw error;
+    });
+
+    res.status(200).set({
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      // no-transform also stops the compression middleware from buffering the stream.
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.flushHeaders();
+    const send = (event: string, data: unknown) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+    // Stop generating (and paying for) a reply nobody will read.
+    const controller = new AbortController();
+    res.on('close', () => {
+      if (!res.writableEnded) controller.abort();
+    });
 
     const startedAt = new Date();
-    const usageRow = await prisma.aiUsage.create({ data: { userId: user.id, model: model.name, status: 'pending' } });
-    await streamReply(res, {
-      userId: user.id,
-      message,
-      startedAt,
-      usageId: usageRow.id,
-      run: (onText, signal) => model.reply({
+    try {
+      const result = await ai.model.reply({
         instructions: coachInstructions(context.snapshot),
         input: [
           ...history.reverse().map(m => ({ role: m.role === 'USER' ? 'user' as const : 'assistant' as const, content: m.content })),
           { role: 'user' as const, content: message },
         ],
-        onText,
-        signal,
-      }),
-      suggestions: args => normalizeSuggestions(args, context),
-      quota: () => userQuota(user),
-    });
-  } finally {
-    inFlight.delete(user.id);
-  }
-});
+        tool: suggestActionsTool,
+        onText: text => send('delta', { text }),
+        signal: controller.signal,
+      });
+      const suggestions = normalizeSuggestions(result.toolArgs, context);
+      let content = result.text.trim() || (suggestions.length
+        ? 'Here are a few things you could add:'
+        : 'Sorry, I couldn’t come up with an answer. Try asking another way.');
+      if (result.truncated) content += ' …';
 
-interface StreamJob {
-  userId: string;
-  message: string;
-  startedAt: Date;
-  usageId: string;
-  run: (onText: (delta: string) => void, signal: AbortSignal) => Promise<CoachModelResult>;
-  suggestions: (rawArgs: string | null) => CoachSuggestion[];
-  quota: () => Promise<CoachQuota>;
-}
+      const [userMessage, reply] = await prisma.$transaction([
+        prisma.coachMessage.create({ data: { userId: user.id, role: 'USER', content: message, createdAt: startedAt } }),
+        prisma.coachMessage.create({
+          data: {
+            userId: user.id,
+            role: 'ASSISTANT',
+            content,
+            suggestions: suggestions.length ? suggestions as unknown as Prisma.InputJsonValue : undefined,
+          },
+        }),
+      ]);
+      await ai.finish('ok', { inputTokens: result.inputTokens, outputTokens: result.outputTokens });
 
-async function streamReply(res: Response, job: StreamJob): Promise<void> {
-  res.status(200).set({
-    'Content-Type': 'text/event-stream; charset=utf-8',
-    // no-transform also stops the compression middleware from buffering the stream.
-    'Cache-Control': 'no-cache, no-transform',
-    Connection: 'keep-alive',
-    'X-Accel-Buffering': 'no',
-  });
-  res.flushHeaders();
-  const send = (event: string, data: unknown) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-
-  // Stop generating (and paying for) a reply nobody will read.
-  const controller = new AbortController();
-  res.on('close', () => {
-    if (!res.writableEnded) controller.abort();
-  });
-
-  try {
-    const result = await job.run(text => send('delta', { text }), controller.signal);
-    const suggestions = job.suggestions(result.suggestionArgs);
-    let content = result.text.trim() || (suggestions.length
-      ? 'Here are a few things you could add:'
-      : 'Sorry, I couldn’t come up with an answer. Try asking another way.');
-    if (result.truncated) content += ' …';
-
-    const [userMessage, reply] = await prisma.$transaction([
-      prisma.coachMessage.create({ data: { userId: job.userId, role: 'USER', content: job.message, createdAt: job.startedAt } }),
-      prisma.coachMessage.create({
-        data: {
-          userId: job.userId,
-          role: 'ASSISTANT',
-          content,
-          suggestions: suggestions.length ? suggestions as unknown as Prisma.InputJsonValue : undefined,
-        },
-      }),
-      prisma.aiUsage.update({
-        where: { id: job.usageId },
-        data: {
-          status: 'ok',
-          inputTokens: result.inputTokens,
-          outputTokens: result.outputTokens,
-          durationMs: Date.now() - job.startedAt.getTime(),
-        },
-      }),
-    ]);
-
-    logger.info('Coach replied', {
-      userId: job.userId,
-      inputTokens: result.inputTokens,
-      outputTokens: result.outputTokens,
-      suggestions: suggestions.length,
-      truncated: result.truncated,
-      durationMs: Date.now() - job.startedAt.getTime(),
-    });
-    send('done', { userMessage: serialize(userMessage), message: serialize(reply), usage: await job.quota() });
-  } catch (error) {
-    const aborted = controller.signal.aborted;
-    await prisma.aiUsage
-      .update({ where: { id: job.usageId }, data: { status: aborted ? 'aborted' : 'error', durationMs: Date.now() - job.startedAt.getTime() } })
-      .catch(() => undefined);
-    if (!aborted) {
-      logger.error('Coach reply failed', { userId: job.userId, status: error instanceof CoachModelError ? error.status : undefined, error: (error as Error).message });
-      send('error', { message: friendlyError(error) });
+      logger.info('Coach replied', {
+        userId: user.id,
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
+        suggestions: suggestions.length,
+        truncated: result.truncated,
+        durationMs: Date.now() - startedAt.getTime(),
+      });
+      send('done', { userMessage: serialize(userMessage), message: serialize(reply), usage: await userQuota(user) });
+    } catch (error) {
+      const aborted = controller.signal.aborted;
+      await ai.finish(aborted ? 'aborted' : 'error');
+      if (!aborted) {
+        logger.error('Coach reply failed', { userId: user.id, status: error instanceof AiModelError ? error.status : undefined, error: (error as Error).message });
+        send('error', { message: friendlyAiError(error) });
+      }
+    } finally {
+      res.end();
     }
   } finally {
-    res.end();
+    ai.release();
   }
-}
-
-function friendlyError(error: unknown): string {
-  if (error instanceof CoachModelError) {
-    if (error.status === 429) return 'The AI service is busy right now. Please try again in a minute.';
-    if (error.status === 401 || error.status === 403) return 'AI Coach is temporarily unavailable.';
-  }
-  return 'The coach couldn’t answer just now. Please try again.';
-}
+});
 
 export default router;
