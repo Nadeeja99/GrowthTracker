@@ -114,14 +114,16 @@ class ApiClient {
     }
 
     const response = await fetch(url, { ...options, headers });
-    const data = await response.json();
+    // Proxies and cold-starting hosts can answer with HTML, so don't assume JSON.
+    const data = await response.json().catch(() => ({}));
 
     if (response.status === 401) {
       this.clearToken();
     }
 
     if (!response.ok) {
-      throw new Error(data.error || `HTTP ${response.status}`);
+      const fieldError: string | undefined = data.validationErrors?.[0]?.message;
+      throw new Error(fieldError || data.error || `HTTP ${response.status}`);
     }
 
     return data;
@@ -131,7 +133,8 @@ class ApiClient {
   async register(userData: { email: string; username: string; password: string; firstName?: string; lastName?: string }): Promise<ApiResponse<{ user: User; accessToken: string }>> {
     const response = await this.request<{ user: User; accessToken: string }>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify(userData),
+      // Store the browser's time zone so "today", streaks and analytics use the user's calendar day.
+      body: JSON.stringify({ ...userData, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
     });
     if (response.success && response.data?.accessToken) {
       this.setToken(response.data.accessToken);
@@ -202,7 +205,7 @@ class ApiClient {
     description?: string;
     priority?: string;
     status?: string;
-    dueDate?: string;
+    dueDate?: string | null;
     estimatedTime?: number;
     actualTime?: number;
     goalId?: string | null;

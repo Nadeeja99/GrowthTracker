@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import { ZodError } from 'zod';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 
 export interface AppError extends Error {
   statusCode?: number;
@@ -16,19 +17,19 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  logger.error('Error occurred:', {
+  logger.error('Error occurred', {
+    requestId: req.id,
     error: err.message,
     stack: err.stack,
-    url: req.url,
     method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
+    path: req.originalUrl.split('?')[0],
   });
 
   if (err instanceof ZodError) {
     res.status(400).json({
       success: false,
       error: 'Validation failed',
+      requestId: req.id,
       validationErrors: err.errors.map(e => ({
         field: e.path.join('.'),
         message: e.message,
@@ -76,6 +77,7 @@ export const errorHandler = (
   res.status(statusCode).json({
     success: false,
     error: message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    requestId: req.id,
+    ...(env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };

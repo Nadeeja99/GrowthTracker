@@ -48,6 +48,7 @@ model Goal {
   tasks      Task[]
   schedules  Schedule[]
 
+  @@index([userId, status])
   @@map("goals")
 }
 
@@ -63,6 +64,7 @@ model Milestone {
 
   goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
+  @@index([goalId])
   @@map("milestones")
 }
 
@@ -86,6 +88,9 @@ model Task {
   tags      TaskTag[]
   schedules Schedule[]
 
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([goalId])
   @@map("tasks")
 }
 
@@ -101,6 +106,7 @@ model TaskTag {
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@unique([name, taskId])
+  @@index([taskId])
   @@map("task_tags")
 }
 
@@ -125,6 +131,9 @@ model Schedule {
   goal Goal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
   task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
+  @@index([userId, startTime])
+  @@index([goalId])
+  @@index([taskId])
   @@map("schedules")
 }
 
@@ -141,6 +150,7 @@ model Habit {
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   completions HabitCompletion[]
 
+  @@index([userId])
   @@map("habits")
 }
 

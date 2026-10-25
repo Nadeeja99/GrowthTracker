@@ -5,6 +5,7 @@ import { Plus, CheckCircle2, Circle, Flame, Edit, Trash2, Repeat, ChevronDown, C
 import { Habit, HabitCompletion } from '@/types';
 import { cn } from '@/lib/utils';
 import { HabitForm } from './HabitForm';
+import { toDateKey } from '@/lib/dates';
 
 interface HabitTrackerProps {
   habits: Habit[];
@@ -27,12 +28,12 @@ function HabitCard({
   onComplete: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const today = new Date().toISOString().split('T')[0];
+  const today = toDateKey();
 
   const last30Days = Array.from({ length: 30 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (29 - i));
-    return d.toISOString().split('T')[0];
+    return toDateKey(d);
   });
 
   const completedDates = new Set(habit.completions.map(c => c.date.split('T')[0]));
@@ -162,7 +163,7 @@ export function HabitTracker({
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [filter, setFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = toDateKey();
 
   const handleCreate = async (data: { name: string; description?: string; frequency: string; targetCount: number }) => {
     await onCreateHabit(data);

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
-import { verifyToken } from '../utils/simpleAuth';
+import { verifyAccessToken } from '../utils/simpleAuth';
 import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
@@ -8,6 +8,7 @@ export interface AuthRequest extends Request {
     id: string;
     email: string;
     username: string;
+    timezone: string;
   };
 }
 
@@ -33,11 +34,11 @@ export const authenticate = async (
       return;
     }
 
-    const decoded = verifyToken(token);
+    const decoded = verifyAccessToken(token);
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { id: true, email: true, username: true },
+      select: { id: true, email: true, username: true, timezone: true },
     });
 
     if (!user) {
@@ -51,10 +52,11 @@ export const authenticate = async (
     req.user = user;
     next();
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      res.status(401).json({ success: false, error: 'Invalid token.' });
-    } else if (error instanceof jwt.TokenExpiredError) {
+    // TokenExpiredError extends JsonWebTokenError, so it must be checked first.
+    if (error instanceof jwt.TokenExpiredError) {
       res.status(401).json({ success: false, error: 'Token expired.' });
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      res.status(401).json({ success: false, error: 'Invalid token.' });
     } else {
       res.status(500).json({ success: false, error: 'Token verification failed.' });
     }

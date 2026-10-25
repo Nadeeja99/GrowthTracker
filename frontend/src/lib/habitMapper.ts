@@ -1,17 +1,18 @@
 import { Habit, HabitCompletion } from '@/types';
 import { BackendHabit, BackendHabitWithCompletions, BackendHabitCompletion } from '@/lib/api';
+import { toDateKey } from '@/lib/dates';
 
 function computeStreak(completions: BackendHabitCompletion[]): number {
   if (completions.length === 0) return 0;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const completedDates = new Set(
-    completions.map(c => new Date(c.date).toISOString().split('T')[0])
+    completions.map(c => c.date.slice(0, 10))
   );
   let streak = 0;
   const check = new Date(today);
   while (true) {
-    const key = check.toISOString().split('T')[0];
+    const key = toDateKey(check);
     if (completedDates.has(key)) {
       streak++;
       check.setDate(check.getDate() - 1);
@@ -23,7 +24,7 @@ function computeStreak(completions: BackendHabitCompletion[]): number {
 }
 
 export function mapBackendHabitToFrontend(backendHabit: BackendHabitWithCompletions): Habit {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toDateKey();
   const completions: HabitCompletion[] = (backendHabit.completions || []).map(c => ({
     id: c.id,
     date: c.date,

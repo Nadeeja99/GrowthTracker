@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { TrendingUp, Calendar, Activity, CheckCircle } from 'lucide-react';
 import { ScheduleActivity, Task, DailyRating } from '@/types';
+import { toDateKey } from '@/lib/dates';
 
 interface WeeklyTrendsChartProps {
   activities: ScheduleActivity[];
@@ -43,7 +44,7 @@ export function WeeklyTrendsChart({
     // Generate daily data points
     const currentDate = new Date(startDate);
     while (currentDate <= now) {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = toDateKey(currentDate);
       
       // Activities for this date
       const dayActivities = activities.filter(activity => 

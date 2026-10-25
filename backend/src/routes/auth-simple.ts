@@ -1,18 +1,28 @@
-import { Router } from 'express';
+import { Router, CookieOptions } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth-simple';
 import { registerSchema, loginSchema } from '../utils/validation';
 import { logger } from '../utils/logger';
-import { generateAccessToken, generateRefreshToken } from '../utils/simpleAuth';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken, REFRESH_TOKEN_TTL_MS } from '../utils/simpleAuth';
+import { env } from '../config/env';
 
 const router = Router();
+
+const REFRESH_COOKIE = 'refreshToken';
+// clearCookie() only removes a cookie when these options match the ones it was set with.
+const refreshCookieOptions: CookieOptions = {
+  httpOnly: true,
+  secure: env.isProduction,
+  sameSite: 'strict',
+  path: '/api/auth',
+};
 
 // Register new user
 router.post('/register', async (req: AuthRequest, res) => {
   // Validate input
   const validatedData = registerSchema.parse(req.body);
-  const { email, username, password, firstName, lastName } = validatedData;
+  const { email, username, password, firstName, lastName, timezone } = validatedData;
 
   // Check if user already exists
   const existingUser = await prisma.user.findFirst({
@@ -32,8 +42,7 @@ router.post('/register', async (req: AuthRequest, res) => {
   }
 
   // Hash password
-  const saltRounds = parseInt(process.env.BCRYPT_ROUNDS || '12');
-  const hashedPassword = await bcrypt.hash(password, saltRounds);
+  const hashedPassword = await bcrypt.hash(password, env.BCRYPT_ROUNDS);
 
   // Create user
   const user = await prisma.user.create({
@@ -43,6 +52,7 @@ router.post('/register', async (req: AuthRequest, res) => {
       password: hashedPassword,
       firstName,
       lastName,
+      ...(timezone && { timezone }),
     },
     select: {
       id: true,
@@ -60,14 +70,9 @@ router.post('/register', async (req: AuthRequest, res) => {
   const refreshToken = generateRefreshToken(user);
 
   // Set refresh token in HTTP-only cookie
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
+  res.cookie(REFRESH_COOKIE, refreshToken, { ...refreshCookieOptions, maxAge: REFRESH_TOKEN_TTL_MS });
 
-  logger.info('User registered successfully', { userId: user.id, email: user.email });
+  logger.info('User registered', { userId: user.id });
 
   res.status(201).json({
     success: true,
@@ -120,16 +125,11 @@ router.post('/login', async (req: AuthRequest, res) => {
   const refreshToken = generateRefreshToken(user);
 
   // Set refresh token in HTTP-only cookie
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
+  res.cookie(REFRESH_COOKIE, refreshToken, { ...refreshCookieOptions, maxAge: REFRESH_TOKEN_TTL_MS });
 
   const { password: _, ...userWithoutPassword } = user;
 
-  logger.info('User logged in successfully', { userId: user.id, email: user.email });
+  logger.info('User logged in', { userId: user.id });
 
   res.json({
     success: true,
@@ -144,7 +144,7 @@ router.post('/login', async (req: AuthRequest, res) => {
 // Refresh access token
 router.post('/refresh', async (req: AuthRequest, res) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
+    const refreshToken = req.cookies[REFRESH_COOKIE];
 
     if (!refreshToken) {
       return res.status(401).json({
@@ -153,12 +153,7 @@ router.post('/refresh', async (req: AuthRequest, res) => {
       });
     }
 
-    const { verifyToken } = await import('../utils/simpleAuth');
-    const decoded = verifyToken(refreshToken);
-
-    if (decoded.type !== 'refresh') {
-      return res.status(401).json({ success: false, error: 'Invalid refresh token' });
-    }
+    const decoded = verifyRefreshToken(refreshToken);
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
@@ -177,7 +172,7 @@ router.post('/refresh', async (req: AuthRequest, res) => {
       data: { accessToken }
     });
   } catch (error) {
-    logger.error('Token refresh error:', error);
+    logger.warn('Token refresh rejected', { reason: error instanceof Error ? error.message : 'unknown' });
     res.status(401).json({
       success: false,
       error: 'Invalid refresh token'
@@ -185,12 +180,10 @@ router.post('/refresh', async (req: AuthRequest, res) => {
   }
 });
 
-// Logout user
-router.post('/logout', authenticate, async (req: AuthRequest, res) => {
-  // Clear refresh token cookie
-  res.clearCookie('refreshToken');
-
-  logger.info('User logged out successfully', { userId: req.user?.id });
+// Logout user. Deliberately unauthenticated: clearing the cookie must work
+// even after the access token has expired.
+router.post('/logout', async (_req, res) => {
+  res.clearCookie(REFRESH_COOKIE, refreshCookieOptions);
 
   res.json({
     success: true,

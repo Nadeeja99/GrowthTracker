@@ -1,4 +1,5 @@
 import { ScheduleActivity } from '@/types';
+import { toDateKey } from '@/lib/dates';
 
 interface BackendSchedule {
   id: string;
@@ -40,7 +41,6 @@ export function mapBackendScheduleToFrontend(schedule: BackendSchedule): Schedul
 
   const pad = (n: number) => String(n).padStart(2, '0');
   const timeStr = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
   return {
     id: schedule.id,
@@ -50,7 +50,7 @@ export function mapBackendScheduleToFrontend(schedule: BackendSchedule): Schedul
     title: schedule.title,
     startTime: timeStr(startDate),
     endTime: timeStr(endDate),
-    date: localDateStr(startDate),
+    date: toDateKey(startDate),
     status: STATUS_MAP[schedule.status] ?? 'pending',
     notes: schedule.notes,
     actualTimeSpent: schedule.actualTimeSpent,

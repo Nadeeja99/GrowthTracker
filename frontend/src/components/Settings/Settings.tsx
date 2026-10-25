@@ -73,11 +73,13 @@ export function Settings({ isDarkMode, onThemeToggle, isMobile }: SettingsProps)
     }));
   };
 
-  const timezones = [
+  const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezones = Array.from(new Set([
+    detectedTimezone, timezone,
     'UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
-    'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Asia/Tokyo', 'Asia/Shanghai',
-    'Asia/Kolkata', 'Australia/Sydney',
-  ];
+    'Europe/London', 'Europe/Dublin', 'Europe/Paris', 'Europe/Berlin', 'Asia/Colombo', 'Asia/Kolkata',
+    'Asia/Tokyo', 'Asia/Shanghai', 'Australia/Sydney',
+  ]));
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">

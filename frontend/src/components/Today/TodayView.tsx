@@ -9,6 +9,7 @@ import { Goal, ScheduleActivity, Task, Habit, DailyRating } from '@/types';
 import { cn } from '@/lib/utils';
 import { WeeklyOverview } from './WeeklyOverview';
 import { GoalProgress } from './GoalProgress';
+import { toDateKey } from '@/lib/dates';
 
 interface TodayViewProps {
   goals: Goal[];
@@ -61,7 +62,7 @@ export function TodayView({
   onViewChange,
   isMobile,
 }: TodayViewProps) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toDateKey();
   const now = new Date();
   const hour = now.getHours();
 

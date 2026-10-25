@@ -64,8 +64,8 @@ cp env.development .env
 # Generate Prisma client
 npm run db:generate
 
-# Push schema to database
-npm run db:push
+# Apply migrations to the database
+npm run db:migrate:deploy
 
 # (Optional) Open Prisma Studio
 npm run db:studio
@@ -146,8 +146,9 @@ npm run lint:fix     # Fix ESLint issues
 
 ```bash
 npm run db:generate  # Generate Prisma client
-npm run db:push      # Push schema changes to database
-npm run db:migrate   # Run database migrations
+npm run db:migrate            # Create + apply a new migration (development)
+npm run db:migrate:deploy     # Apply pending migrations (production/CI)
+npm run db:migrate:baseline   # One-time: mark 0_init applied on a db created via db push
 npm run db:studio    # Open Prisma Studio
 npm run db:seed      # Seed database with sample data
 ```

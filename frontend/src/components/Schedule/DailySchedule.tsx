@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Calendar, Clock, Plus, CheckCircle2, XCircle, Play, SkipForward, CheckSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Goal, ScheduleActivity, Task } from '@/types';
 import { cn } from '@/lib/utils';
+import { parseDateKey, toDateKey } from '@/lib/dates';
 
 interface DailyScheduleProps {
   goals: Goal[];
@@ -95,8 +96,8 @@ export function DailySchedule({
   });
 
   const dayActivities = getActivitiesForDate(selectedDate);
-  const selectedDateObj = new Date(selectedDate);
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+  const selectedDateObj = parseDateKey(selectedDate);
+  const isToday = selectedDate === toDateKey();
 
   const getActivitiesForTimeSlot = (timeSlot: string) => {
     const hour = parseInt(timeSlot.split(':')[0]);
@@ -108,9 +109,9 @@ export function DailySchedule({
   };
 
   const navigateDate = (direction: 'prev' | 'next') => {
-    const newDate = new Date(selectedDate);
+    const newDate = parseDateKey(selectedDate);
     newDate.setDate(selectedDateObj.getDate() + (direction === 'next' ? 1 : -1));
-    onDateSelect(newDate.toISOString().split('T')[0]);
+    onDateSelect(toDateKey(newDate));
   };
 
   return (

@@ -10,6 +10,7 @@ import { DailySchedule } from './DailySchedule';
 import { ActivityForm } from './ActivityForm';
 import { TemplateForm } from './TemplateForm';
 import { RecurringScheduleForm } from './RecurringScheduleForm';
+import { toDateKey } from '@/lib/dates';
 
 interface ScheduleProps {
   goals: Goal[];
@@ -46,7 +47,7 @@ export function Schedule({
   isMobile,
 }: ScheduleProps) {
   const [currentView, setCurrentView] = useState<ScheduleView>('calendar');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(toDateKey());
   const [modal, setModal] = useState<ModalType>(null);
   const [editingActivity, setEditingActivity] = useState<ScheduleActivity | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<ScheduleTemplate | null>(null);

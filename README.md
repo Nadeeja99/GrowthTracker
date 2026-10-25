@@ -121,23 +121,16 @@ cd backend
 npm install
 ```
 
-Create a `.env` file in the `backend/` directory:
+Copy `backend/env.example` to `backend/.env` and fill in real values. The server validates its configuration at startup and refuses to boot if, for example, a JWT secret is missing or shorter than 32 characters.
 
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/growthtracker"
-JWT_SECRET="your-secret-key-here"
-NODE_ENV=development
-PORT=5000
-CORS_ORIGIN="http://localhost:3000"
-BCRYPT_ROUNDS=12
-```
-
-Apply the database schema and start the server:
+Apply the database migrations and start the server:
 
 ```bash
-npx prisma db push
+npm run db:migrate:deploy
 npm run dev
 ```
+
+> **Existing database created with `prisma db push`?** Mark the baseline as already applied once, then deploy the rest: `npm run db:migrate:baseline && npm run db:migrate:deploy`.
 
 The API will be available at `http://localhost:5000`.
 
@@ -197,10 +190,14 @@ The app will be available at `http://localhost:3000`.
 | Variable | Description | Default |
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL connection string | — |
-| `JWT_SECRET` | Secret key for signing JWT tokens | — |
+| `DIRECT_URL` | Direct (non-pooled) connection used by migrations | — |
+| `JWT_SECRET` | Secret for access tokens (min. 32 chars) | — |
+| `JWT_REFRESH_SECRET` | Secret for refresh tokens (min. 32 chars, must differ) | — |
+| `TRUST_PROXY` | Reverse-proxy hops in front of the API (`1` on Render/Fly) | `0` |
+| `AUTH_RATE_LIMIT_MAX` | Failed login/register attempts per IP per window | `10` |
 | `PORT` | Server port | `5000` |
 | `NODE_ENV` | Environment (`development` / `production`) | `development` |
-| `CORS_ORIGIN` | Allowed frontend origin | `http://localhost:3000` |
+| `CORS_ORIGIN` | Allowed frontend origins (comma-separated) | `http://localhost:3000` |
 | `BCRYPT_ROUNDS` | bcrypt hashing rounds | `12` |
 
 ### Frontend

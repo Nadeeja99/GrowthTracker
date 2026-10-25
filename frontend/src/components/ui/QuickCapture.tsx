@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Plus, X, Zap, CheckSquare, Calendar } from 'lucide-react';
 import { Goal } from '@/types';
 import { cn } from '@/lib/utils';
+import { toDateKey } from '@/lib/dates';
 
 interface QuickCaptureProps {
   goals: Goal[];
@@ -17,7 +18,7 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
   const [title, setTitle] = useState('');
   const [goalId, setGoalId] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(toDateKey());
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [saving, setSaving] = useState(false);

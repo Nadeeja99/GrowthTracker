@@ -1,8 +1,16 @@
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth-simple';
-import { createScheduleSchema, updateScheduleSchema } from '../utils/validation';
+import { createScheduleSchema, updateScheduleSchema, scheduleRangeSchema } from '../utils/validation';
 import { logger } from '../utils/logger';
+import { assertGoalOwned, assertTaskOwned } from '../utils/ownership';
+import { relationUpdate } from '../utils/prismaRelations';
+
+async function assertRelationsOwned(userId: string, data: { goalId?: string | null; taskId?: string | null }) {
+  if (data.goalId) await assertGoalOwned(userId, data.goalId);
+  if (data.taskId) await assertTaskOwned(userId, data.taskId);
+}
 
 const router = Router();
 
@@ -16,6 +24,7 @@ const scheduleInclude = {
 router.post('/', async (req: AuthRequest, res) => {
   const validatedData = createScheduleSchema.parse(req.body);
   const userId = req.user!.id;
+  await assertRelationsOwned(userId, validatedData);
 
   const schedule = await prisma.schedule.create({
     data: {
@@ -46,14 +55,14 @@ router.post('/', async (req: AuthRequest, res) => {
 
 router.get('/', async (req: AuthRequest, res) => {
   const userId = req.user!.id;
-  const { startDate, endDate } = req.query;
+  const { startDate, endDate } = scheduleRangeSchema.parse(req.query);
 
-  const where: any = { userId };
+  const where: Prisma.ScheduleWhereInput = { userId };
 
-  if (startDate && endDate) {
+  if (startDate || endDate) {
     where.startTime = {
-      gte: new Date(startDate as string),
-      lte: new Date(endDate as string),
+      ...(startDate && { gte: new Date(startDate) }),
+      ...(endDate && { lte: new Date(endDate) }),
     };
   }
 
@@ -93,6 +102,8 @@ router.put('/:id', async (req: AuthRequest, res) => {
     return res.status(404).json({ success: false, error: 'Schedule not found' });
   }
 
+  await assertRelationsOwned(userId, validatedData);
+
   const updatedSchedule = await prisma.schedule.update({
     where: { id },
     data: {
@@ -105,16 +116,8 @@ router.put('/:id', async (req: AuthRequest, res) => {
       status: validatedData.status,
       notes: validatedData.notes,
       actualTimeSpent: validatedData.actualTimeSpent,
-      goal: validatedData.goalId !== undefined
-        ? validatedData.goalId
-          ? { connect: { id: validatedData.goalId } }
-          : { disconnect: true }
-        : undefined,
-      task: validatedData.taskId !== undefined
-        ? validatedData.taskId
-          ? { connect: { id: validatedData.taskId } }
-          : { disconnect: true }
-        : undefined,
+      goal: relationUpdate(validatedData.goalId),
+      task: relationUpdate(validatedData.taskId),
     },
     include: scheduleInclude,
   });

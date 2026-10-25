@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, Calendar, Clock, CheckSquare } from 'lucide-react';
 import { Goal, ScheduleActivity, Task } from '@/types';
 import { cn } from '@/lib/utils';
+import { toDateKey } from '@/lib/dates';
 
 interface ActivityFormProps {
   goals: Goal[];
@@ -27,7 +28,7 @@ export function ActivityForm({ goals, tasks, activity, onSubmit, onCancel, isMob
     title: '',
     startTime: '09:00',
     endTime: '10:00',
-    date: new Date().toISOString().split('T')[0],
+    date: toDateKey(),
     notes: '',
     status: 'pending' as ScheduleActivity['status'],
   });

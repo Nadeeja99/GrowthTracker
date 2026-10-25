@@ -2,92 +2,86 @@ import { Router } from 'express';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth-simple';
 import { dateRangeSchema } from '../utils/validation';
+import { addDays, dateKeyInZone, dateOnly, daysBetween, resolveRange } from '../utils/dates';
 
 const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
 
+const percent = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+
 // Get user analytics overview
 router.get('/overview', async (req: AuthRequest, res) => {
-  const userId = req.user!.id;
-  const { startDate, endDate } = dateRangeSchema.parse(req.query);
+  const { id: userId, timezone } = req.user!;
+  const range = resolveRange(dateRangeSchema.parse(req.query), timezone, 30);
+  const createdInRange = { gte: range.start, lt: range.endExclusive };
 
-  const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
-  const end = endDate ? new Date(endDate) : new Date();
-
-  const [goals, tasks, habits] = await Promise.all([
-    prisma.goal.findMany({
-      where: {
-        userId,
-        createdAt: { gte: start, lte: end }
-      },
-      select: { status: true, progress: true }
+  const [goalsByStatus, activeGoalProgress, tasksByStatus, taskTime, habits, completionsByHabit] = await Promise.all([
+    // Goals are a current snapshot, not filtered by creation date.
+    prisma.goal.groupBy({ by: ['status'], where: { userId }, _count: { _all: true } }),
+    prisma.goal.aggregate({ where: { userId, status: 'ACTIVE' }, _avg: { progress: true } }),
+    prisma.task.groupBy({ by: ['status'], where: { userId, createdAt: createdInRange }, _count: { _all: true } }),
+    prisma.task.aggregate({
+      where: { userId, createdAt: createdInRange },
+      _sum: { estimatedTime: true, actualTime: true },
     }),
-    prisma.task.findMany({
-      where: {
-        userId,
-        createdAt: { gte: start, lte: end }
-      },
-      select: { status: true, estimatedTime: true, actualTime: true }
+    // Every habit counts, not only those created inside the range.
+    prisma.habit.findMany({ where: { userId }, select: { id: true, frequency: true, targetCount: true, createdAt: true } }),
+    prisma.habitCompletion.groupBy({
+      by: ['habitId'],
+      where: { habit: { userId }, date: { gte: dateOnly(range.startKey), lte: dateOnly(range.endKey) } },
+      _count: { _all: true },
     }),
-    prisma.habit.findMany({
-      where: {
-        userId,
-        createdAt: { gte: start, lte: end }
-      },
-      include: {
-        completions: {
-          where: {
-            date: { gte: start, lte: end }
-          }
-        }
-      }
-    })
   ]);
 
-  // Calculate analytics
-  const totalGoals = goals.length;
-  const completedGoals = goals.filter(g => g.status === 'COMPLETED').length;
-  const goalProgress = goals.reduce((sum, g) => sum + g.progress, 0) / totalGoals || 0;
+  const countFor = (groups: Array<{ status: string; _count: { _all: number } }>, status: string) =>
+    groups.find(g => g.status === status)?._count._all ?? 0;
+  const totalGoals = goalsByStatus.reduce((sum, g) => sum + g._count._all, 0);
+  const totalTasks = tasksByStatus.reduce((sum, g) => sum + g._count._all, 0);
+  const completedTasks = countFor(tasksByStatus, 'COMPLETED');
+  const totalEstimatedTime = taskTime._sum.estimatedTime ?? 0;
+  const totalActualTime = taskTime._sum.actualTime ?? 0;
 
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length;
-  const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-
-  const totalEstimatedTime = tasks.reduce((sum, t) => sum + (t.estimatedTime || 0), 0);
-  const totalActualTime = tasks.reduce((sum, t) => sum + (t.actualTime || 0), 0);
-  const timeEfficiency = totalEstimatedTime > 0 ? (totalActualTime / totalEstimatedTime) * 100 : 0;
-
-  const habitStreak = habits.reduce((total, habit) => {
-    const completions = habit.completions.length;
-    const expectedCompletions = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
-    return total + (completions / expectedCompletions);
-  }, 0) / habits.length || 0;
+  // Habit completion rate: days with a completion vs. days the habit was
+  // expected, counted only from when each habit was created.
+  const completionsById = new Map(completionsByHabit.map(c => [c.habitId, c._count._all]));
+  const habitRates = habits.flatMap(habit => {
+    const createdKey = dateKeyInZone(habit.createdAt, timezone);
+    const activeFrom = createdKey > range.startKey ? createdKey : range.startKey;
+    if (activeFrom > range.endKey) return [];
+    const activeDays = daysBetween(activeFrom, range.endKey);
+    const periods = habit.frequency === 'DAILY' ? activeDays
+      : habit.frequency === 'WEEKLY' ? Math.ceil(activeDays / 7)
+      : Math.ceil(activeDays / 30);
+    const expected = habit.frequency === 'DAILY' ? periods : periods * habit.targetCount;
+    return [Math.min(1, (completionsById.get(habit.id) ?? 0) / expected)];
+  });
+  const habitCompletionRate = habitRates.length
+    ? Math.round((habitRates.reduce((a, b) => a + b, 0) / habitRates.length) * 100)
+    : 0;
 
   const analytics = {
-    period: { start, end },
+    period: { startDate: range.startKey, endDate: range.endKey, timezone },
     goals: {
       total: totalGoals,
-      completed: completedGoals,
-      completionRate: totalGoals > 0 ? (completedGoals / totalGoals) * 100 : 0,
-      averageProgress: Math.round(goalProgress),
+      active: countFor(goalsByStatus, 'ACTIVE'),
+      completed: countFor(goalsByStatus, 'COMPLETED'),
+      completionRate: percent(countFor(goalsByStatus, 'COMPLETED'), totalGoals),
+      averageActiveProgress: Math.round(activeGoalProgress._avg.progress ?? 0),
     },
     tasks: {
       total: totalTasks,
       completed: completedTasks,
-      completionRate: Math.round(taskCompletionRate),
-      timeEfficiency: Math.round(timeEfficiency),
+      completionRate: percent(completedTasks, totalTasks),
+      timeEfficiency: percent(totalActualTime, totalEstimatedTime),
       totalEstimatedTime,
       totalActualTime,
     },
     habits: {
       total: habits.length,
-      averageStreak: Math.round(habitStreak * 100),
+      completionRate: habitCompletionRate,
     },
-    productivity: {
-      overall: Math.round((goalProgress + taskCompletionRate + habitStreak * 100) / 3),
-    }
   };
 
   res.json({
@@ -96,43 +90,35 @@ router.get('/overview', async (req: AuthRequest, res) => {
   });
 });
 
-// Get weekly trends
+// Get weekly trends: two queries for the whole range, bucketed in memory
 router.get('/weekly-trends', async (req: AuthRequest, res) => {
-  const userId = req.user!.id;
-  const { startDate, endDate } = dateRangeSchema.parse(req.query);
+  const { id: userId, timezone } = req.user!;
+  const range = resolveRange(dateRangeSchema.parse(req.query), timezone, 28);
 
-  const start = startDate ? new Date(startDate) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
-  const end = endDate ? new Date(endDate) : new Date();
+  const [tasks, completions] = await Promise.all([
+    prisma.task.findMany({
+      where: { userId, createdAt: { gte: range.start, lt: range.endExclusive } },
+      select: { createdAt: true },
+    }),
+    prisma.habitCompletion.findMany({
+      where: { habit: { userId }, date: { gte: dateOnly(range.startKey), lte: dateOnly(range.endKey) } },
+      select: { date: true },
+    }),
+  ]);
 
-  const weeklyData: Array<{ week: string; tasks: number; habitCompletions: number }> = [];
-  const current = new Date(start);
+  const weekCount = Math.ceil(daysBetween(range.startKey, range.endKey) / 7);
+  const weeklyData = Array.from({ length: weekCount }, (_, i) => ({
+    week: addDays(range.startKey, i * 7),
+    tasks: 0,
+    habitCompletions: 0,
+  }));
+  const weekIndex = (dateKey: string) => Math.floor((daysBetween(range.startKey, dateKey) - 1) / 7);
 
-  while (current <= end) {
-    const weekStart = new Date(current);
-    const weekEnd = new Date(current.getTime() + 6 * 24 * 60 * 60 * 1000);
-
-    const [weekTasks, weekHabits] = await Promise.all([
-      prisma.task.count({
-        where: {
-          userId,
-          createdAt: { gte: weekStart, lte: weekEnd }
-        }
-      }),
-      prisma.habitCompletion.count({
-        where: {
-          habit: { userId },
-          date: { gte: weekStart, lte: weekEnd }
-        }
-      })
-    ]);
-
-    weeklyData.push({
-      week: weekStart.toISOString().split('T')[0],
-      tasks: weekTasks,
-      habitCompletions: weekHabits,
-    });
-
-    current.setDate(current.getDate() + 7);
+  for (const task of tasks) {
+    weeklyData[weekIndex(dateKeyInZone(task.createdAt, timezone))].tasks++;
+  }
+  for (const completion of completions) {
+    weeklyData[weekIndex(completion.date.toISOString().slice(0, 10))].habitCompletions++;
   }
 
   res.json({
@@ -173,38 +159,39 @@ router.get('/goal-progress', async (req: AuthRequest, res) => {
   });
 });
 
-// Get time allocation analytics
+// Get time allocation analytics (logged task minutes per goal)
 router.get('/time-allocation', async (req: AuthRequest, res) => {
-  const userId = req.user!.id;
-  const { startDate, endDate } = dateRangeSchema.parse(req.query);
+  const { id: userId, timezone } = req.user!;
+  const range = resolveRange(dateRangeSchema.parse(req.query), timezone, 30);
 
-  const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const end = endDate ? new Date(endDate) : new Date();
-
-  const tasks = await prisma.task.findMany({
+  const byGoal = await prisma.task.groupBy({
+    by: ['goalId'],
     where: {
       userId,
-      createdAt: { gte: start, lte: end },
-      actualTime: { not: null }
+      createdAt: { gte: range.start, lt: range.endExclusive },
+      actualTime: { not: null },
     },
-    select: {
-      actualTime: true,
-      goal: { select: { title: true } }
-    }
+    _sum: { actualTime: true },
   });
 
-  const timeByGoal = tasks.reduce((acc: Record<string, number>, task) => {
-    const goalTitle = task.goal?.title || 'No Goal';
-    acc[goalTitle] = (acc[goalTitle] || 0) + (task.actualTime || 0);
-    return acc;
-  }, {} as Record<string, number>);
+  const goalIds = byGoal.map(g => g.goalId).filter((id): id is string => id !== null);
+  const goals = goalIds.length
+    ? await prisma.goal.findMany({ where: { id: { in: goalIds }, userId }, select: { id: true, title: true } })
+    : [];
+  const titleById = new Map(goals.map(g => [g.id, g.title]));
 
-  const totalTime = Object.values(timeByGoal).reduce((sum: number, time: number) => sum + time, 0);
-  const timeAllocation = Object.entries(timeByGoal).map(([goal, time]) => ({
-    goal,
-    time,
-    percentage: Math.round((time / totalTime) * 100)
-  })).sort((a, b) => b.time - a.time);
+  const totalTime = byGoal.reduce((sum, g) => sum + (g._sum.actualTime ?? 0), 0);
+  const timeAllocation = byGoal
+    .map(g => {
+      const time = g._sum.actualTime ?? 0;
+      return {
+        goalId: g.goalId,
+        goal: (g.goalId && titleById.get(g.goalId)) || 'No Goal',
+        time,
+        percentage: percent(time, totalTime),
+      };
+    })
+    .sort((a, b) => b.time - a.time);
 
   res.json({
     success: true,

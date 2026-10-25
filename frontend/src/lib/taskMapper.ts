@@ -50,7 +50,8 @@ export function mapBackendTaskToFrontend(backendTask: BackendTask): Task {
     description: backendTask.description,
     priority: PRIORITY_MAP[backendTask.priority] ?? 'medium',
     status: STATUS_MAP[backendTask.status] ?? 'todo',
-    dueDate: backendTask.dueDate ? new Date(backendTask.dueDate).toISOString().split('T')[0] : undefined,
+    // Due dates are calendar days sent as UTC midnight, so the UTC date is the intended day.
+    dueDate: backendTask.dueDate ? backendTask.dueDate.slice(0, 10) : undefined,
     createdAt: backendTask.createdAt,
     completedAt: backendTask.completedAt,
     subtasks: [],
@@ -84,7 +85,7 @@ export function mapFrontendTaskUpdateToBackend(updates: Partial<Task>): {
   description?: string;
   priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-  dueDate?: string;
+  dueDate?: string | null;
   goalId?: string | null;
   estimatedTime?: number;
 } {
@@ -94,7 +95,7 @@ export function mapFrontendTaskUpdateToBackend(updates: Partial<Task>): {
   if (updates.description !== undefined) result.description = updates.description;
   if (updates.priority !== undefined) result.priority = PRIORITY_TO_BACKEND[updates.priority];
   if (updates.status !== undefined) result.status = STATUS_TO_BACKEND[updates.status];
-  if (updates.dueDate !== undefined) result.dueDate = updates.dueDate ? new Date(updates.dueDate).toISOString() : undefined;
+  if (updates.dueDate !== undefined) result.dueDate = updates.dueDate ? new Date(updates.dueDate).toISOString() : null;
   if (updates.goalId !== undefined) result.goalId = updates.goalId || null;
   if (updates.estimatedTime !== undefined) result.estimatedTime = updates.estimatedTime;
 

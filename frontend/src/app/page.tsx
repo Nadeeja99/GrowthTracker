@@ -23,6 +23,7 @@ import { mapBackendGoalToFrontend, mapFrontendGoalToBackend, mapFrontendGoalUpda
 import { mapBackendTaskToFrontend, mapFrontendTaskToBackend, mapFrontendTaskUpdateToBackend } from '@/lib/taskMapper';
 import { mapBackendScheduleToFrontend, mapFrontendActivityToBackend, mapFrontendActivityUpdateToBackend } from '@/lib/scheduleMapper';
 import { mapBackendHabitToFrontend } from '@/lib/habitMapper';
+import { toDateKey } from '@/lib/dates';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState('today');
@@ -62,7 +63,7 @@ export default function Home() {
   const [scheduleTemplates, setScheduleTemplates] = useLocalStorage<ScheduleTemplate[]>('dev-tracker-templates', []);
   const [dailyRatings, setDailyRatings] = useLocalStorage<DailyRating[]>('dev-tracker-ratings', []);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = toDateKey();
   const todayRating = dailyRatings.find(r => r.date === today) ?? null;
 
   const fetchAllData = useCallback(async () => {

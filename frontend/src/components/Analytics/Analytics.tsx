@@ -8,6 +8,7 @@ import { TimeAllocationChart } from './TimeAllocationChart';
 import { WeeklyTrendsChart } from './WeeklyTrendsChart';
 import { CompletionRateChart } from './CompletionRateChart';
 import { ProductivityInsights } from './ProductivityInsights';
+import { parseDateKey, toDateKey } from '@/lib/dates';
 
 interface AnalyticsProps {
   goals: Goal[];
@@ -53,7 +54,7 @@ export function Analytics({
 
     // Filter data by time range
     const filteredActivities = activities.filter(activity => 
-      new Date(activity.date) >= startDate && new Date(activity.date) <= now
+      parseDateKey(activity.date) >= startDate && parseDateKey(activity.date) <= now
     );
 
     const filteredTasks = tasks.filter(task => 
@@ -61,7 +62,7 @@ export function Analytics({
     );
 
     const filteredRatings = dailyRatings.filter(rating => 
-      new Date(rating.date) >= startDate && new Date(rating.date) <= now
+      parseDateKey(rating.date) >= startDate && parseDateKey(rating.date) <= now
     );
 
     // Goal-specific filtering
@@ -139,7 +140,7 @@ export function Analytics({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `growth-tracker-analytics-${timeRange}-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `growth-tracker-analytics-${timeRange}-${toDateKey()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

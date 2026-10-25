@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { X, Save, RotateCcw, Calendar, CheckSquare, ChevronRight } from 'lucide-react';
 import { Goal, ScheduleActivity, Task } from '@/types';
 import { cn } from '@/lib/utils';
+import { toDateKey } from '@/lib/dates';
 
 interface RecurringScheduleFormProps {
   goals: Goal[];
@@ -54,7 +55,7 @@ function generateDates(startDate: string, endDate: string, selectedDays: number[
 }
 
 export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobile }: RecurringScheduleFormProps) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = toDateKey();
   const twoWeeksLater = addDays(today, 13);
 
   const [title, setTitle] = useState('');

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, Clock, CheckCircle2, XCircle, Play, SkipForward, CheckSquare } from 'lucide-react';
 import { Goal, ScheduleActivity } from '@/types';
 import { cn } from '@/lib/utils';
+import { parseDateKey, toDateKey } from '@/lib/dates';
 
 interface ScheduleCalendarProps {
   goals: Goal[];
@@ -24,7 +25,7 @@ export function ScheduleCalendar({
   onActivityStatusChange,
   isMobile
 }: ScheduleCalendarProps) {
-  const [currentWeek, setCurrentWeek] = useState<Date>(new Date(selectedDate));
+  const [currentWeek, setCurrentWeek] = useState<Date>(parseDateKey(selectedDate));
 
   const getWeekDates = (date: Date) => {
     const startOfWeek = new Date(date);
@@ -85,8 +86,8 @@ export function ScheduleCalendar({
   };
 
   const weekDates = getWeekDates(currentWeek);
-  const isToday = (date: Date) => date.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
-  const isSelected = (date: Date) => date.toISOString().split('T')[0] === selectedDate;
+  const isToday = (date: Date) => toDateKey(date) === toDateKey();
+  const isSelected = (date: Date) => toDateKey(date) === selectedDate;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
@@ -133,7 +134,7 @@ export function ScheduleCalendar({
 
         {/* Day Cells */}
         {weekDates.map((date, index) => {
-          const dateStr = date.toISOString().split('T')[0];
+          const dateStr = toDateKey(date);
           const dayActivities = getActivitiesForDate(dateStr);
           const completedCount = dayActivities.filter(a => a.status === 'completed').length;
           const totalCount = dayActivities.length;

@@ -3,6 +3,8 @@ import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth-simple';
 import { createTaskSchema, updateTaskSchema, paginationSchema } from '../utils/validation';
 import { logger } from '../utils/logger';
+import { assertGoalOwned } from '../utils/ownership';
+import { relationUpdate, optionalDate } from '../utils/prismaRelations';
 
 const router = Router();
 
@@ -13,6 +15,10 @@ router.use(authenticate);
 router.post('/', async (req: AuthRequest, res) => {
   const validatedData = createTaskSchema.parse(req.body);
   const userId = req.user!.id;
+
+  if (validatedData.goalId) {
+    await assertGoalOwned(userId, validatedData.goalId);
+  }
 
   const task = await prisma.task.create({
     data: {
@@ -126,6 +132,19 @@ router.put('/:id', async (req: AuthRequest, res) => {
     });
   }
 
+  if (validatedData.goalId) {
+    await assertGoalOwned(userId, validatedData.goalId);
+  }
+
+  // Keep the original completion time when a completed task is re-saved;
+  // clear it when the task is reopened so completion analytics stay correct.
+  let completedAt: Date | null | undefined;
+  if (validatedData.status === 'COMPLETED') {
+    completedAt = task.completedAt ?? new Date();
+  } else if (validatedData.status !== undefined) {
+    completedAt = null;
+  }
+
   const updatedTask = await prisma.task.update({
     where: { id },
     data: {
@@ -133,13 +152,11 @@ router.put('/:id', async (req: AuthRequest, res) => {
       description: validatedData.description,
       priority: validatedData.priority,
       status: validatedData.status,
-      dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : undefined,
+      dueDate: optionalDate(validatedData.dueDate),
       estimatedTime: validatedData.estimatedTime,
       actualTime: validatedData.actualTime,
-      goal: validatedData.goalId ? {
-        connect: { id: validatedData.goalId }
-      } : undefined,
-      completedAt: validatedData.status === 'COMPLETED' ? new Date() : undefined,
+      goal: relationUpdate(validatedData.goalId),
+      completedAt,
     },
     include: {
       goal: {

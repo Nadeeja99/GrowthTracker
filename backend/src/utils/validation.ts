@@ -1,11 +1,24 @@
 import { z } from 'zod';
 
+const isValidTimeZone = (tz: string) => {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const timeZoneSchema = z.string().max(64).refine(isValidTimeZone, 'Invalid IANA time zone');
+const dateKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
+
 export const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   username: z.string().min(3).max(30),
   password: z.string().min(8),
   firstName: z.string().min(1).max(50).optional(),
   lastName: z.string().min(1).max(50).optional(),
+  timezone: timeZoneSchema.optional(),
 });
 
 export const loginSchema = z.object({
@@ -16,7 +29,7 @@ export const loginSchema = z.object({
 export const updateUserSchema = z.object({
   firstName: z.string().min(1).max(50).optional(),
   lastName: z.string().min(1).max(50).optional(),
-  timezone: z.string().optional(),
+  timezone: timeZoneSchema.optional(),
   avatar: z.string().url().optional(),
 });
 
@@ -29,8 +42,8 @@ export const createGoalSchema = z.object({
 
 export const updateGoalSchema = z.object({
   title: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
-  targetDate: z.string().datetime().optional(),
+  description: z.string().max(500).nullable().optional(),
+  targetDate: z.string().datetime().nullable().optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   status: z.enum(['ACTIVE', 'COMPLETED', 'PAUSED', 'CANCELLED']).optional(),
   progress: z.number().min(0).max(100).optional(),
@@ -48,10 +61,10 @@ export const createTaskSchema = z.object({
 
 export const updateTaskSchema = z.object({
   title: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
+  description: z.string().max(500).nullable().optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
-  dueDate: z.string().datetime().optional(),
+  dueDate: z.string().datetime().nullable().optional(),
   estimatedTime: z.number().min(1).optional(),
   actualTime: z.number().min(1).optional(),
   goalId: z.string().optional().nullable(),
@@ -109,7 +122,7 @@ export const updateHabitSchema = z.object({
 });
 
 export const createHabitCompletionSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: dateKeySchema,
   count: z.number().min(1).default(1),
   notes: z.string().max(500).optional(),
 });
@@ -119,9 +132,21 @@ export const paginationSchema = z.object({
   limit: z.string().transform(Number).pipe(z.number().min(1).max(500)).default('50'),
 });
 
+// Calendar days (YYYY-MM-DD) interpreted in the user's time zone, inclusive.
 export const dateRangeSchema = z.object({
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  startDate: dateKeySchema.optional(),
+  endDate: dateKeySchema.optional(),
+}).refine(r => !r.startDate || !r.endDate || r.startDate <= r.endDate, {
+  message: 'startDate must be on or before endDate',
+  path: ['startDate'],
+});
+
+export const scheduleRangeSchema = z.object({
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+}).refine(r => !r.startDate || !r.endDate || new Date(r.startDate) <= new Date(r.endDate), {
+  message: 'startDate must be on or before endDate',
+  path: ['startDate'],
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

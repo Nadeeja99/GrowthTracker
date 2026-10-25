@@ -3,6 +3,7 @@ import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth-simple';
 import { createGoalSchema, updateGoalSchema, paginationSchema } from '../utils/validation';
 import { logger } from '../utils/logger';
+import { optionalDate } from '../utils/prismaRelations';
 
 const router = Router();
 
@@ -13,19 +14,6 @@ router.use(authenticate);
 router.post('/', async (req: AuthRequest, res) => {
   const validatedData = createGoalSchema.parse(req.body);
   const userId = req.user!.id;
-
-  // Check if user exists (since auth is mocked, we need to verify)
-  const user = await prisma.user.findUnique({
-    where: { id: userId }
-  });
-
-  if (!user) {
-    logger.error('User not found', { userId });
-    return res.status(404).json({
-      success: false,
-      error: 'User not found. Please register first.'
-    });
-  }
 
   const goal = await prisma.goal.create({
     data: {
@@ -145,7 +133,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
       priority: validatedData.priority,
       status: validatedData.status,
       progress: validatedData.progress,
-      targetDate: validatedData.targetDate ? new Date(validatedData.targetDate) : undefined,
+      targetDate: optionalDate(validatedData.targetDate),
     },
     include: {
       milestones: true,

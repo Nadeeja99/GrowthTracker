@@ -4,6 +4,7 @@ import React from 'react';
 import { Calendar, CheckCircle2, Clock } from 'lucide-react';
 import { Goal, ScheduleActivity } from '@/types';
 import { cn } from '@/lib/utils';
+import { toDateKey } from '@/lib/dates';
 
 interface WeeklyOverviewProps {
   goals: Goal[];
@@ -23,7 +24,7 @@ export function WeeklyOverview({ goals, activities, isMobile }: WeeklyOverviewPr
   });
 
   const getActivitiesForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = toDateKey(date);
     return activities.filter(activity => activity.date === dateStr);
   };
 

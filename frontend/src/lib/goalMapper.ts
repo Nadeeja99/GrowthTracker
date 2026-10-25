@@ -1,4 +1,5 @@
 import { Goal, ScheduleActivity } from '@/types';
+import { parseDateKey, toDateKey } from '@/lib/dates';
 
 interface BackendGoal {
   id: string;
@@ -44,7 +45,7 @@ function computeCurrentWeeklyHours(goalId: string, activities: ScheduleActivity[
   startOfWeek.setHours(0, 0, 0, 0);
 
   return activities
-    .filter(a => a.goalId === goalId && a.status === 'completed' && new Date(a.date) >= startOfWeek)
+    .filter(a => a.goalId === goalId && a.status === 'completed' && parseDateKey(a.date) >= startOfWeek)
     .reduce((total, a) => {
       const start = new Date(`2000-01-01T${a.startTime}`);
       const end = new Date(`2000-01-01T${a.endTime}`);
@@ -66,7 +67,7 @@ function computeStreakDays(goalId: string, activities: ScheduleActivity[]): numb
   for (let i = 0; i < 365; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = toDateKey(d);
     if (completedDates.has(dateStr)) {
       streak++;
     } else if (i > 0) {
