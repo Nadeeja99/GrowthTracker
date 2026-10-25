@@ -6,6 +6,7 @@ import { Habit } from '@/types';
 import { cn } from '@/lib/utils';
 import { HabitForm } from './HabitForm';
 import { toDateKey } from '@/lib/dates';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 interface HabitTrackerProps {
   habits: Habit[];
@@ -41,7 +42,7 @@ function HabitCard({
   const frequencyColor = {
     daily: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300',
     weekly: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300',
-    monthly: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-300',
+    monthly: 'text-orange-700 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-300',
   }[habit.frequency];
 
   return (
@@ -49,13 +50,13 @@ function HabitCard({
       <div className="p-4">
         <div className="flex items-start gap-3">
           {/* Complete toggle */}
-          <button
+          <button aria-label={habit.completedToday ? `${habit.name}: done today` : `Mark ${habit.name} done for today`} aria-pressed={habit.completedToday}
             onClick={() => onComplete(habit.id)}
             className={cn(
               'mt-0.5 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all',
               habit.completedToday
                 ? 'bg-emerald-500 text-white shadow-emerald-200 shadow-md'
-                : 'border-2 border-gray-300 dark:border-gray-600 text-gray-400 hover:border-emerald-400 hover:text-emerald-500'
+                : 'border-2 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-emerald-400 hover:text-emerald-500'
             )}
           >
             {habit.completedToday ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
@@ -64,9 +65,9 @@ function HabitCard({
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={cn('font-semibold text-gray-900 dark:text-white', habit.completedToday && 'line-through text-gray-400 dark:text-gray-500')}>
+              <h2 className={cn('font-semibold text-gray-900 dark:text-white', habit.completedToday && 'line-through text-gray-500 dark:text-gray-400')}>
                 {habit.name}
-              </h3>
+              </h2>
               <span className={cn('px-2 py-0.5 rounded text-xs font-medium capitalize', frequencyColor)}>
                 {habit.frequency}
               </span>
@@ -76,12 +77,12 @@ function HabitCard({
             )}
             <div className="flex items-center gap-4 mt-2">
               {habit.streak > 0 && (
-                <div className="flex items-center gap-1 text-orange-500">
+                <div className="flex items-center gap-1 text-orange-700 dark:text-orange-400">
                   <Flame className="w-4 h-4" />
                   <span className="text-sm font-semibold">{habit.streak} day streak</span>
                 </div>
               )}
-              <span className="text-xs text-gray-400 dark:text-gray-500">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 {habit.totalCompletions} total completions
               </span>
             </div>
@@ -89,21 +90,21 @@ function HabitCard({
 
           {/* Actions */}
           <div className="flex items-center gap-1 flex-shrink-0">
-            <button
+            <button aria-label={expanded ? `Hide history for ${habit.name}` : `Show history for ${habit.name}`} aria-expanded={expanded}
               onClick={() => setExpanded(p => !p)}
-              className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded transition-colors"
+              className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded transition-colors"
             >
               {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
-            <button
+            <button aria-label={`Edit ${habit.name}`}
               onClick={() => onEdit(habit)}
-              className="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors"
+              className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors"
             >
               <Edit className="w-4 h-4" />
             </button>
-            <button
+            <button aria-label={`Delete ${habit.name}`}
               onClick={() => onDelete(habit.id)}
-              className="p-1.5 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors"
+              className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -115,7 +116,7 @@ function HabitCard({
       {expanded && (
         <div className="border-t border-gray-100 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-700/30">
           <div className="flex items-center gap-2 mb-3">
-            <BarChart2 className="w-4 h-4 text-gray-500" />
+            <BarChart2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Last 30 days</span>
           </div>
           <div className="flex gap-1 flex-wrap">
@@ -137,7 +138,7 @@ function HabitCard({
               );
             })}
           </div>
-          <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
+          <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
             <span>30 days ago</span>
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-600" /> Less
@@ -159,6 +160,7 @@ export function HabitTracker({
   onCompleteHabit,
   isMobile,
 }: HabitTrackerProps) {
+  const confirm = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [filter, setFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
@@ -178,7 +180,8 @@ export function HabitTracker({
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Delete this habit?')) {
+    const habit = habits.find(h => h.id === id);
+    if (await confirm({ title: `Delete "${habit?.name ?? 'this habit'}"?`, message: 'Its completion history and streak are deleted too.' })) {
       await onDeleteHabit(id);
     }
   };
@@ -197,11 +200,11 @@ export function HabitTracker({
               <Repeat className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">Habits</h2>
+              <h1 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">Habits</h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">Build consistency through daily practice</p>
             </div>
           </div>
-          <button
+          <button aria-label="New habit"
             onClick={() => setShowForm(true)}
             className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
           >
@@ -262,7 +265,7 @@ export function HabitTracker({
       {filteredHabits.length === 0 && (
         <div className="text-center py-16">
           <Repeat className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No habits yet</h3>
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No habits yet</h2>
           <p className="text-gray-500 dark:text-gray-400 mb-6">
             {filter === 'all' ? 'Start building consistency by adding your first habit' : `No ${filter} habits found`}
           </p>

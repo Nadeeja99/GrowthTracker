@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { MobileDrawer } from '@/components/ui/MobileDrawer';
 import { MilestoneList } from './MilestoneList';
 import { submitOnModEnter } from '@/lib/forms';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 interface GoalManagerProps {
   goals: Goal[];
@@ -24,6 +25,7 @@ interface GoalManagerProps {
 export function GoalManager({
   goals, onCreateGoal, onUpdateGoal, onDeleteGoal, onAddMilestone, onToggleMilestone, onDeleteMilestone, isMobile, isLoading = false,
 }: GoalManagerProps) {
+  const confirm = useConfirm();
   const [isCreating, setIsCreating] = useState(false);
   const [editingGoal, setEditingGoal] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,7 +96,11 @@ export function GoalManager({
   };
 
   const handleDelete = async (goalId: string) => {
-    if (window.confirm('Are you sure you want to delete this goal?')) {
+    const goal = goals.find(g => g.id === goalId);
+    if (await confirm({
+      title: `Delete "${goal?.name ?? 'this goal'}"?`,
+      message: 'Its milestones are deleted. Linked tasks and time blocks are kept, just unlinked.',
+    })) {
       try {
         await onDeleteGoal(goalId);
       } catch (error) {
@@ -111,7 +117,7 @@ export function GoalManager({
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Goal Name
           </label>
-          <input autoFocus
+          <input aria-label="Goal name" autoFocus
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -123,7 +129,7 @@ export function GoalManager({
 
         <div>
           <label htmlFor="goal-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Why it matters <span className="font-normal text-gray-400">(optional)</span>
+            Why it matters <span className="font-normal text-gray-500 dark:text-gray-400">(optional)</span>
           </label>
           <textarea
             id="goal-description"
@@ -138,7 +144,7 @@ export function GoalManager({
 
         <div>
           <label htmlFor="goal-target-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Target date <span className="font-normal text-gray-400">(optional)</span>
+            Target date <span className="font-normal text-gray-500 dark:text-gray-400">(optional)</span>
           </label>
           <input
             id="goal-target-date"
@@ -154,7 +160,7 @@ export function GoalManager({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Category
             </label>
-            <select
+            <select aria-label="Category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value as Goal['category'] })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -169,7 +175,7 @@ export function GoalManager({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Weekly Target (hours)
             </label>
-            <input
+            <input aria-label="Weekly target in hours"
               type="number"
               value={formData.targetHoursWeekly}
               onChange={(e) => setFormData({ ...formData, targetHoursWeekly: Number(e.target.value) })}
@@ -185,7 +191,7 @@ export function GoalManager({
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Daily Target (hours)
           </label>
-          <input
+          <input aria-label="Daily target in hours"
             type="number"
             value={formData.targetHoursDaily}
             onChange={(e) => setFormData({ ...formData, targetHoursDaily: Number(e.target.value) })}
@@ -244,7 +250,7 @@ export function GoalManager({
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Target className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-          <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Goals</h2>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Goals</h1>
         </div>
         <button
           onClick={() => setIsCreating(true)}
@@ -258,9 +264,9 @@ export function GoalManager({
       {/* Desktop Create/Edit Form */}
       {!isMobile && isCreating && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             {editingGoal ? 'Edit Goal' : 'Create New Goal'}
-          </h3>
+          </h2>
           {GoalForm}
         </div>
       )}
@@ -307,23 +313,23 @@ export function GoalManager({
                     className="w-4 h-4 rounded-full flex-shrink-0"
                     style={{ backgroundColor: goal.color }}
                   />
-                  <h3 className={cn(
+                  <h2 className={cn(
                     'font-semibold text-gray-900 dark:text-white truncate',
                     isMobile ? 'text-base' : 'text-base'
                   )}>
                     {goal.name}
-                  </h3>
+                  </h2>
                 </div>
                 <div className="flex items-center space-x-1 flex-shrink-0">
-                  <button
+                  <button aria-label={`Edit ${goal.name}`}
                     onClick={() => handleEdit(goal)}
-                    className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  <button
+                  <button aria-label={`Delete ${goal.name}`}
                     onClick={() => handleDelete(goal.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -343,7 +349,7 @@ export function GoalManager({
                   )}>
                     {goal.category.toUpperCase()}
                   </span>
-                  <div className={cn('flex items-center space-x-1', goal.streakDays > 0 ? 'text-orange-500' : 'text-gray-400')}>
+                  <div className={cn('flex items-center space-x-1', goal.streakDays > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-gray-500 dark:text-gray-400')}>
                     <Flame className="w-4 h-4" />
                     <span className={cn('font-medium', isMobile ? 'text-sm' : 'text-sm')}>
                       {goal.streakDays} days
@@ -404,12 +410,12 @@ export function GoalManager({
       {!isLoading && goals.length === 0 && !isCreating && (
         <div className="text-center py-12">
           <Target className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-          <h3 className={cn(
+          <h2 className={cn(
             'font-medium text-gray-900 dark:text-white mb-2',
             isMobile ? 'text-base' : 'text-lg'
           )}>
             No goals yet
-          </h3>
+          </h2>
           <p className={cn(
             'text-gray-500 dark:text-gray-400 mb-6',
             isMobile ? 'text-sm' : 'text-base'

@@ -32,17 +32,20 @@ export function useScheduleMutations() {
   };
 
   const create = useMutation({
+    meta: { action: 'add the time block' },
     mutationFn: (activity: ActivityInput) => apiClient.createSchedule(mapFrontendActivityToBackend(activity)),
     onSuccess: res => putActivity(res.data!.schedule),
   });
 
   // Recurring schedules: one request for all blocks, then refetch.
   const createMany = useMutation({
+    meta: { action: 'create the recurring blocks' },
     mutationFn: (activities: ActivityInput[]) => apiClient.createSchedulesBulk(activities.map(mapFrontendActivityToBackend)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.schedules }),
   });
 
   const update = useMutation({
+    meta: { action: 'save the time block' },
     mutationFn: ({ id, updates }: { id: string; updates: Partial<ScheduleActivity> }) => {
       const current = queryClient.getQueryData<ScheduleActivity[]>(queryKeys.schedules)?.find(a => a.id === id);
       return apiClient.updateSchedule(id, mapFrontendActivityUpdateToBackend(updates, current?.date));
@@ -51,6 +54,7 @@ export function useScheduleMutations() {
   });
 
   const remove = useMutation({
+    meta: { action: 'delete the time block' },
     mutationFn: (id: string) => apiClient.deleteSchedule(id),
     onSuccess: (_res, id) => {
       queryClient.setQueryData<ScheduleActivity[]>(queryKeys.schedules, old => old?.filter(a => a.id !== id));

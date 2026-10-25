@@ -1,7 +1,8 @@
 'use client';
 
 import { GoalManager } from '@/components/Goals/GoalManager';
-import { PageError, PageLoader, combineQueries } from '@/components/ui/PageState';
+import { PageError, combineQueries } from '@/components/ui/PageState';
+import { GoalsSkeleton } from '@/components/ui/Skeleton';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useGoalMutations, useGoalsWithStats } from '@/hooks/data/useGoals';
 
@@ -11,7 +12,7 @@ export default function GoalsPage() {
   const m = useGoalMutations();
 
   const status = combineQueries(goals);
-  if (status.isLoading) return <PageLoader />;
+  if (status.isLoading) return <GoalsSkeleton />;
   if (status.error) return <PageError error={status.error} onRetry={status.retry} />;
 
   return (

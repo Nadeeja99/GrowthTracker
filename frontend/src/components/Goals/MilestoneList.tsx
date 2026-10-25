@@ -59,7 +59,7 @@ export function MilestoneList({ milestones, onAdd, onToggle, onDelete }: Milesto
                 type="button"
                 onClick={() => run(() => onToggle(milestone.id, !milestone.completed))}
                 aria-label={milestone.completed ? `Mark "${milestone.title}" as not done` : `Mark "${milestone.title}" as done`}
-                className="flex-shrink-0 text-gray-400 hover:text-emerald-500"
+                className="flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-emerald-500"
               >
                 {milestone.completed
                   ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -67,7 +67,7 @@ export function MilestoneList({ milestones, onAdd, onToggle, onDelete }: Milesto
               </button>
               <span className={cn(
                 'flex-1 text-sm truncate',
-                milestone.completed ? 'line-through text-gray-400' : 'text-gray-800 dark:text-gray-200'
+                milestone.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-200'
               )}>
                 {milestone.title}
               </span>

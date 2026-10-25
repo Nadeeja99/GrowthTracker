@@ -35,10 +35,13 @@ function RatingSlider({ label, value, onChange }: { label: string; value: number
         <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
         <span className="text-lg">{emojis[value] || '—'}</span>
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2" role="radiogroup" aria-label={label}>
         {[1, 2, 3, 4, 5].map(n => (
           <button
             key={n}
+            role="radio"
+            aria-checked={value === n}
+            aria-label={`${label}: ${n} of 5`}
             onClick={() => onChange(n)}
             className={cn(
               'flex-1 h-2 rounded-full transition-all',
@@ -96,10 +99,10 @@ export function TodayView({
 
   const statusIcon = {
     completed: <CheckCircle2 className="w-4 h-4 text-emerald-500" />,
-    'in-progress': <Play className="w-4 h-4 text-blue-500" />,
-    skipped: <XCircle className="w-4 h-4 text-red-500" />,
+    'in-progress': <Play className="w-4 h-4 text-blue-600 dark:text-blue-400" />,
+    skipped: <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />,
     rescheduled: <SkipForward className="w-4 h-4 text-yellow-500" />,
-    pending: <Clock className="w-4 h-4 text-gray-400" />,
+    pending: <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />,
   };
 
   const completedActivities = todayActivities.filter(a => a.status === 'completed').length;
@@ -141,13 +144,25 @@ export function TodayView({
         </dl>
       </header>
 
+      {/* First run: nothing set up yet, so point to the three building blocks. */}
+      {goals.length === 0 && tasks.length === 0 && habits.length === 0 && (
+        <section aria-labelledby="getting-started" className="rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 p-4 md:p-6">
+          <h2 id="getting-started" className="font-semibold text-gray-900 dark:text-white">Get started in three steps</h2>
+          <ol className="mt-3 space-y-2 text-sm text-gray-700 dark:text-gray-300 list-decimal list-inside">
+            <li><button onClick={() => onNavigate('/goals')} className="font-medium text-blue-700 dark:text-blue-300 hover:underline">Set a goal</button> and how many hours a week it deserves.</li>
+            <li><button onClick={() => onNavigate('/plan')} className="font-medium text-blue-700 dark:text-blue-300 hover:underline">Plan a task</button> and drop it on your week as a time block.</li>
+            <li><button onClick={() => onNavigate('/habits')} className="font-medium text-blue-700 dark:text-blue-300 hover:underline">Add a habit</button> you want to do every day.</li>
+          </ol>
+        </section>
+      )}
+
       {/* Today's Schedule */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-500" />
+          <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Today&apos;s Schedule
-          </h3>
+          </h2>
           <button
             onClick={() => onNavigate('/plan')}
             className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline"
@@ -179,7 +194,7 @@ export function TodayView({
                   style={{ backgroundColor: getGoalColor(activity.goalId) }}
                 />
                 <div className="flex-1 min-w-0">
-                  <p className={cn('font-medium text-sm text-gray-900 dark:text-white', activity.status === 'completed' && 'line-through text-gray-400')}>
+                  <p className={cn('font-medium text-sm text-gray-900 dark:text-white', activity.status === 'completed' && 'line-through text-gray-500 dark:text-gray-400')}>
                     {activity.title}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -193,7 +208,7 @@ export function TodayView({
                     <button
                       onClick={() => onStartFocus({ scheduleId: activity.id, goalId: activity.goalId, taskId: activity.taskId, label: activity.title })}
                       aria-label={`Focus on ${activity.title}`}
-                      className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors"
+                      className="p-1 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors"
                     >
                       <Timer className="w-4 h-4" />
                     </button>
@@ -217,10 +232,10 @@ export function TodayView({
       {dailyHabits.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Repeat className="w-5 h-5 text-green-500" />
               Habits
-            </h3>
+            </h2>
             <button
               onClick={() => onNavigate('/habits')}
               className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline"
@@ -231,24 +246,24 @@ export function TodayView({
           <div className="space-y-2">
             {dailyHabits.map(habit => (
               <div key={habit.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                <button
+                <button aria-label={habit.completedToday ? `${habit.name}: done today` : `Mark ${habit.name} done for today`} aria-pressed={habit.completedToday}
                   onClick={() => onCompleteHabit(habit.id, today)}
                   className={cn(
                     'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all',
                     habit.completedToday
                       ? 'bg-emerald-500 text-white'
-                      : 'border-2 border-gray-300 dark:border-gray-600 hover:border-emerald-400 text-gray-400 hover:text-emerald-500'
+                      : 'border-2 border-gray-300 dark:border-gray-600 hover:border-emerald-400 text-gray-500 dark:text-gray-400 hover:text-emerald-500'
                   )}
                 >
                   {habit.completedToday ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className={cn('text-sm font-medium text-gray-900 dark:text-white', habit.completedToday && 'line-through text-gray-400')}>
+                  <p className={cn('text-sm font-medium text-gray-900 dark:text-white', habit.completedToday && 'line-through text-gray-500 dark:text-gray-400')}>
                     {habit.name}
                   </p>
                 </div>
                 {habit.streak > 0 && (
-                  <div className="flex items-center gap-1 text-orange-500 text-xs font-semibold flex-shrink-0">
+                  <div className="flex items-center gap-1 text-orange-700 dark:text-orange-400 text-xs font-semibold flex-shrink-0">
                     <Flame className="w-3 h-3" />
                     {habit.streak}
                   </div>
@@ -263,10 +278,10 @@ export function TodayView({
       {dueTasks.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Target className="w-5 h-5 text-blue-500" />
+            <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Target className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               Tasks Due
-            </h3>
+            </h2>
             <button
               onClick={() => onNavigate('/plan')}
               className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline"
@@ -279,7 +294,7 @@ export function TodayView({
               const isOverdue = task.dueDate && task.dueDate.split('T')[0] < today;
               return (
                 <div key={task.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                  <button
+                  <button aria-label={task.status === 'completed' ? `Mark "${task.title}" as not done` : `Mark "${task.title}" as done`} aria-pressed={task.status === 'completed'}
                     onClick={() => onTaskStatusChange(task.id, task.status === 'completed' ? 'todo' : 'completed')}
                     className={cn(
                       'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all',
@@ -291,11 +306,11 @@ export function TodayView({
                     {task.status === 'completed' && <CheckCircle2 className="w-3 h-3" />}
                   </button>
                   <div className="flex-1 min-w-0">
-                    <p className={cn('text-sm font-medium text-gray-900 dark:text-white truncate', task.status === 'completed' && 'line-through text-gray-400')}>
+                    <p className={cn('text-sm font-medium text-gray-900 dark:text-white truncate', task.status === 'completed' && 'line-through text-gray-500 dark:text-gray-400')}>
                       {task.title}
                     </p>
                     {task.dueDate && (
-                      <p className={cn('text-xs', isOverdue ? 'text-red-500' : 'text-gray-400')}>
+                      <p className={cn('text-xs', isOverdue ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400')}>
                         Due {isOverdue ? 'overdue' : task.dueDate.split('T')[0]}
                       </p>
                     )}
@@ -311,7 +326,7 @@ export function TodayView({
                   <button
                     onClick={() => onStartFocus({ taskId: task.id, goalId: task.goalId, label: task.title })}
                     aria-label={`Focus on ${task.title}`}
-                    className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors flex-shrink-0"
+                    className="p-1 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors flex-shrink-0"
                   >
                     <Timer className="w-4 h-4" />
                   </button>
@@ -324,20 +339,20 @@ export function TodayView({
 
       {/* Daily Review */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
-        <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <h2 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <Sun className="w-5 h-5 text-amber-500" />
           Daily Review
           {reviewSaved && (
             <span className="ml-2 text-xs text-emerald-600 dark:text-emerald-400 font-normal">✓ Saved</span>
           )}
-        </h3>
+        </h2>
         <div className="space-y-4">
           <RatingSlider label="Performance" value={reviewPerformance} onChange={v => { setReviewPerformance(v); setReviewSaved(false); }} />
           <RatingSlider label="Energy" value={reviewEnergy} onChange={v => { setReviewEnergy(v); setReviewSaved(false); }} />
           <RatingSlider label="Mood" value={reviewMood} onChange={v => { setReviewMood(v); setReviewSaved(false); }} />
           <div>
             <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Notes</label>
-            <textarea
+            <textarea aria-label="Review notes"
               value={reviewNotes}
               onChange={e => { setReviewNotes(e.target.value); setReviewSaved(false); }}
               placeholder="What went well? What could be better?"

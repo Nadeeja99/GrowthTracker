@@ -41,6 +41,7 @@ export function useReflections() {
 export function useSaveReflection() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { silent: true }, // shown inline by the calling UI
     mutationFn: ({ date, rating }: { date: string; rating: Omit<DailyRating, 'date'> }) =>
       apiClient.saveReflection(date, mapRatingToReflectionPayload(rating)),
     onSuccess: res => {

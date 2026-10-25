@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDialog } from '@/hooks/useDialog';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -19,17 +20,7 @@ export function MobileDrawer({
   title, 
   position = 'bottom' 
 }: MobileDrawerProps) {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
+  const dialogRef = useDialog<HTMLDivElement>(onClose, isOpen);
 
   const transformClasses = {
     left: isOpen ? 'translate-x-0' : '-translate-x-full',
@@ -48,8 +39,14 @@ export function MobileDrawer({
         onClick={onClose}
       />
 
-      {/* Drawer */}
+      {/* Drawer: stays mounted for the slide animation, so it's inert while closed. */}
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        aria-hidden={!isOpen}
+        inert={!isOpen}
         className={cn(
           'fixed z-50 bg-white dark:bg-gray-900 shadow-xl transition-transform duration-300 ease-out',
           position === 'bottom' && 'bottom-0 left-0 right-0 max-h-[80vh] rounded-t-2xl',
@@ -71,9 +68,9 @@ export function MobileDrawer({
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               {title}
             </h2>
-            <button
+            <button aria-label="Close"
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>

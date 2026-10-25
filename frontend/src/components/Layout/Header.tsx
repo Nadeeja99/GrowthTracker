@@ -91,16 +91,16 @@ export function Header() {
               onClick={() => setShowUserMenu(prev => !prev)}
               aria-haspopup="menu"
               aria-expanded={showUserMenu}
-              aria-label="Account menu"
               className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
-              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-200 text-sm font-semibold">
+              <span className="sr-only">Account menu</span>
+              <div aria-hidden="true" className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-200 text-sm font-semibold">
                 {getUserInitials()}
               </div>
               <span className="hidden md:inline text-sm font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate">
                 {getUserDisplayName()}
               </span>
-              <ChevronDown className="hidden md:inline w-4 h-4 text-gray-400" />
+              <ChevronDown className="hidden md:inline w-4 h-4 text-gray-500 dark:text-gray-400" />
             </button>
 
             {showUserMenu && (

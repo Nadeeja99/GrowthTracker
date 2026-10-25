@@ -82,7 +82,7 @@ export function CompletionRateChart({
   if (!completionData || completionData.totalTasks === 0) {
     return (
       <div className="text-center py-12">
-        <Award className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+        <Award className="w-16 h-16 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
           No task data available
         </h3>
@@ -98,9 +98,9 @@ export function CompletionRateChart({
       {/* Chart Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Task Completion Analytics
-          </h4>
+          </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Success rates and completion patterns
           </p>
@@ -140,7 +140,7 @@ export function CompletionRateChart({
         </div>
         
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600 text-center">
-          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-1">
+          <div className="text-2xl font-bold text-orange-700 dark:text-orange-400 mb-1">
             {completionData.avgCompletionTime.toFixed(1)}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Avg. Days</div>
@@ -149,9 +149,9 @@ export function CompletionRateChart({
 
       {/* Goal Completion Rates */}
       <div>
-        <h5 className="font-semibold text-gray-900 dark:text-white mb-4">
+        <h4 className="font-semibold text-gray-900 dark:text-white mb-4">
           Completion by Goal Area
-        </h5>
+        </h4>
         <div className="space-y-3">
           {completionData.goalCompletion.map((item) => (
             <div key={item.goal.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
@@ -217,9 +217,9 @@ export function CompletionRateChart({
 
       {/* Priority Completion */}
       <div>
-        <h5 className="font-semibold text-gray-900 dark:text-white mb-4">
+        <h4 className="font-semibold text-gray-900 dark:text-white mb-4">
           Completion by Priority
-        </h5>
+        </h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Object.entries(completionData.priorityCompletion).map(([priority, data]) => {
             if (data.total === 0) return null;
@@ -276,9 +276,9 @@ export function CompletionRateChart({
 
       {/* Completion Insights */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
-        <h5 className="font-medium text-blue-900 dark:text-blue-100 mb-3">
+        <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-3">
           Completion Insights
-        </h5>
+        </h4>
         <div className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
           {(() => {
             const highPriorityCompletion = completionData.priorityCompletion.high.total > 0 

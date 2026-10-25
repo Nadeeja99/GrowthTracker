@@ -210,7 +210,7 @@ export function Analytics({
                 className={cn(
                   'px-3 py-1 rounded-md text-sm font-medium transition-all duration-200',
                   timeRange === option.id
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 )}
               >
@@ -220,7 +220,7 @@ export function Analytics({
           </div>
 
           {/* Goal Filter */}
-          <select
+          <select aria-label="Filter by goal"
             value={selectedGoal}
             onChange={(e) => setSelectedGoal(e.target.value)}
             className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -246,7 +246,7 @@ export function Analytics({
               <Icon className="w-4 h-4" /> {label}
             </div>
             <div className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{value}</div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 h-4">{hint}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 h-4">{hint}</div>
           </div>
         ))}
       </div>
@@ -265,7 +265,7 @@ export function Analytics({
                 className={cn(
                   'flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200',
                   isActive
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 )}
               >
@@ -283,9 +283,9 @@ export function Analytics({
       {/* Chart Content */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
             {getGoalName(selectedGoal)} - {timeRangeOptions.find(opt => opt.id === timeRange)?.label}
-          </h3>
+          </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {analyticsData.startDate.toLocaleDateString()} - {analyticsData.endDate.toLocaleDateString()}
           </p>

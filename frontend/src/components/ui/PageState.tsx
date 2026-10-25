@@ -6,12 +6,17 @@ import { AlertCircle, RotateCw } from 'lucide-react';
 interface QueryLike {
   isLoading: boolean;
   error: Error | null;
+  data?: unknown;
   refetch?: () => unknown;
 }
 
-/** Combines several queries into one loading/error status for a page. */
+/**
+ * Combines several queries into one loading/error status for a page. Only a
+ * query with no data at all blocks the page; one whose background refresh
+ * failed keeps showing its cached data (the query cache raises a toast).
+ */
 export function combineQueries(...queries: QueryLike[]) {
-  const failed = queries.find(q => q.error);
+  const failed = queries.find(q => q.error && q.data === undefined);
   return {
     isLoading: queries.some(q => q.isLoading),
     error: failed?.error ?? null,
@@ -31,7 +36,7 @@ export function PageLoader({ label = 'Loading…' }: { label?: string }) {
 export function PageError({ error, onRetry }: { error: Error; onRetry: () => void }) {
   return (
     <div className="max-w-md mx-auto text-center py-24" role="alert">
-      <AlertCircle className="w-10 h-10 mx-auto text-red-500" />
+      <AlertCircle className="w-10 h-10 mx-auto text-red-600 dark:text-red-400" />
       <h2 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">Couldn&apos;t load this page</h2>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{error.message}</p>
       <button

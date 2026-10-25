@@ -1,7 +1,8 @@
 'use client';
 
 import { PlanView } from '@/components/Plan/PlanView';
-import { PageError, PageLoader, combineQueries } from '@/components/ui/PageState';
+import { PageError, combineQueries } from '@/components/ui/PageState';
+import { PlanSkeleton } from '@/components/ui/Skeleton';
 import { useFocus } from '@/contexts/FocusContext';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useGoalsWithStats } from '@/hooks/data/useGoals';
@@ -18,7 +19,7 @@ export default function PlanPage() {
   const s = useScheduleMutations();
 
   const status = combineQueries(goals, tasks, schedules);
-  if (status.isLoading) return <PageLoader />;
+  if (status.isLoading) return <PlanSkeleton />;
   if (status.error) return <PageError error={status.error} onRetry={status.retry} />;
 
   return (

@@ -21,22 +21,26 @@ export function useHabitMutations() {
   const refetch = () => queryClient.invalidateQueries({ queryKey: queryKeys.habits });
 
   const create = useMutation({
+    meta: { action: 'create the habit' },
     mutationFn: (data: HabitInput) => apiClient.createHabit({ ...data, frequency: data.frequency.toUpperCase() }),
     onSuccess: refetch,
   });
 
   const update = useMutation({
+    meta: { action: 'save the habit' },
     mutationFn: ({ id, data }: { id: string; data: Partial<HabitInput> }) =>
       apiClient.updateHabit(id, { ...data, ...(data.frequency ? { frequency: data.frequency.toUpperCase() } : {}) }),
     onSuccess: refetch,
   });
 
   const remove = useMutation({
+    meta: { action: 'delete the habit' },
     mutationFn: (id: string) => apiClient.deleteHabit(id),
     onSuccess: (_res, id) => queryClient.setQueryData<Habit[]>(queryKeys.habits, old => old?.filter(h => h.id !== id)),
   });
 
   const complete = useMutation({
+    meta: { action: 'complete the habit' },
     mutationFn: ({ id, date }: { id: string; date: string }) => apiClient.completeHabit(id, { date }),
     onSuccess: refetch, // streaks and "done today" are derived from completions
   });

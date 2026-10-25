@@ -203,7 +203,7 @@ export function ProductivityInsights({
       case 'moderate':
         return 'text-yellow-600 dark:text-yellow-400';
       case 'improvement':
-        return 'text-orange-600 dark:text-orange-400';
+        return 'text-orange-700 dark:text-orange-400';
       default:
         return 'text-gray-600 dark:text-gray-400';
     }
@@ -213,7 +213,7 @@ export function ProductivityInsights({
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="text-center">
-          <Lightbulb className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+          <Lightbulb className="w-16 h-16 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
             No insights available yet
           </h3>
@@ -253,9 +253,9 @@ export function ProductivityInsights({
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  <h3 className="font-medium text-gray-900 dark:text-white mb-1">
                     {insight.title}
-                  </h4>
+                  </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                     {insight.message}
                   </p>
@@ -273,9 +273,9 @@ export function ProductivityInsights({
 
       {/* Summary Recommendations */}
       <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-        <h4 className="font-medium text-gray-900 dark:text-white mb-3">
+        <h3 className="font-medium text-gray-900 dark:text-white mb-3">
           Key Recommendations
-        </h4>
+        </h3>
         <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
           {(() => {
             const excellentCount = insights.filter(i => i.type === 'excellent').length;
@@ -289,7 +289,7 @@ export function ProductivityInsights({
               );
             } else if (improvementCount >= insights.length * 0.5) {
               return (
-                <p className="text-orange-600 dark:text-orange-400">
+                <p className="text-orange-700 dark:text-orange-400">
                   📈 Several areas need attention. Focus on one improvement at a time for sustainable progress.
                 </p>
               );

@@ -55,7 +55,7 @@ export function TimeAllocationChart({
   if (timeData.data.length === 0) {
     return (
       <div className="text-center py-12">
-        <Clock className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+        <Clock className="w-16 h-16 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
           No time data available
         </h3>
@@ -71,9 +71,9 @@ export function TimeAllocationChart({
       {/* Chart Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Time Allocation
-          </h4>
+          </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             How your time is distributed across goals
           </p>
@@ -93,7 +93,12 @@ export function TimeAllocationChart({
       <div className="flex flex-col lg:flex-row items-center gap-8">
         {/* Pie Chart */}
         <div className="relative w-64 h-64 flex-shrink-0">
-          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+          <svg
+            className="w-full h-full transform -rotate-90"
+            viewBox="0 0 100 100"
+            role="img"
+            aria-label={`Time by goal: ${timeData.data.map(d => `${d.name} ${d.hours.toFixed(1)} hours`).join(', ') || 'no time logged'}`}
+          >
             {(() => {
               // Each slice starts where the previous one ended (cumulative angles).
               const angles = timeData.data.map(item => (item.hours / timeData.totalHours) * 360);
@@ -194,7 +199,7 @@ export function TimeAllocationChart({
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
           <div className="flex items-center space-x-3 mb-2">
             <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h5 className="font-medium text-gray-900 dark:text-white">Most Active Goal</h5>
+            <h4 className="font-medium text-gray-900 dark:text-white">Most Active Goal</h4>
           </div>
           {timeData.data.length > 0 && (
             <div>
@@ -211,7 +216,7 @@ export function TimeAllocationChart({
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
           <div className="flex items-center space-x-3 mb-2">
             <Target className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <h5 className="font-medium text-gray-900 dark:text-white">Goals with Activity</h5>
+            <h4 className="font-medium text-gray-900 dark:text-white">Goals with Activity</h4>
           </div>
           <div className="text-lg font-bold text-gray-900 dark:text-white">
             {timeData.data.length}
@@ -224,7 +229,7 @@ export function TimeAllocationChart({
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
           <div className="flex items-center space-x-3 mb-2">
             <PieChart className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h5 className="font-medium text-gray-900 dark:text-white">Avg. Session Length</h5>
+            <h4 className="font-medium text-gray-900 dark:text-white">Avg. Session Length</h4>
           </div>
           <div className="text-lg font-bold text-gray-900 dark:text-white">
             {timeData.totalActivities > 0 ? (timeData.totalHours / timeData.totalActivities).toFixed(1) : 0}h
@@ -238,9 +243,9 @@ export function TimeAllocationChart({
       {/* Time Efficiency Insights */}
       {timeData.data.length > 1 && (
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
-          <h5 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
+          <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
             Time Distribution Insights
-          </h5>
+          </h4>
           <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
             <p>
               • <strong>{timeData.data[0].name}</strong> receives the most attention with{' '}

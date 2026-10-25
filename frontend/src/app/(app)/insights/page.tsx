@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Analytics, TimeRange, getRangeStart } from '@/components/Analytics/Analytics';
-import { PageError, PageLoader, combineQueries } from '@/components/ui/PageState';
+import { PageError, combineQueries } from '@/components/ui/PageState';
+import { InsightsSkeleton } from '@/components/ui/Skeleton';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useGoalsWithStats } from '@/hooks/data/useGoals';
 import { useSchedules } from '@/hooks/data/useSchedules';
@@ -22,7 +23,7 @@ export default function InsightsPage() {
   const summary = useAnalyticsOverview(toDateKey(getRangeStart(timeRange)), toDateKey());
 
   const status = combineQueries(goals, schedules, tasks, reflections);
-  if (status.isLoading) return <PageLoader />;
+  if (status.isLoading) return <InsightsSkeleton />;
   if (status.error) return <PageError error={status.error} onRetry={status.retry} />;
 
   return (

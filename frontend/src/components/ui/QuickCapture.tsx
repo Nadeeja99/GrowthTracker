@@ -6,6 +6,7 @@ import { Goal } from '@/types';
 import { cn } from '@/lib/utils';
 import { toDateKey } from '@/lib/dates';
 import { submitOnModEnter } from '@/lib/forms';
+import { useDialog } from '@/hooks/useDialog';
 
 interface QuickCaptureProps {
   goals: Goal[];
@@ -23,6 +24,7 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [saving, setSaving] = useState(false);
+  const dialogRef = useDialog<HTMLDivElement>(() => setOpen(false), open);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -30,7 +32,6 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
         e.preventDefault();
         setOpen(p => !p);
       }
-      if (e.key === 'Escape') setOpen(false);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -72,13 +73,13 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
           className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-[15vh] px-4"
           onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}
         >
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="quick-capture-title" className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             {/* Header */}
             <div className="flex items-center gap-3 px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-700">
-              <Zap className="w-5 h-5 text-blue-500" />
-              <span className="font-semibold text-gray-900 dark:text-white text-sm">Quick Capture</span>
+              <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <h2 id="quick-capture-title" className="font-semibold text-gray-900 dark:text-white text-sm">Quick Capture</h2>
               <kbd className="ml-auto text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded">⌘K</kbd>
-              <button onClick={() => setOpen(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors">
+              <button aria-label="Close quick capture" onClick={() => setOpen(false)} className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-600 rounded transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -108,7 +109,7 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
               </div>
 
               {/* Title */}
-              <input
+              <input aria-label={type === 'task' ? 'Task title' : 'Activity title'}
                 autoFocus
                 type="text"
                 value={title}
@@ -118,7 +119,7 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
               />
 
               {/* Goal */}
-              <select
+              <select aria-label="Goal"
                 value={goalId}
                 onChange={e => setGoalId(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -141,7 +142,7 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
                         'flex-1 py-1.5 rounded-lg text-xs font-medium capitalize transition-all border',
                         priority === p
                           ? p === 'high' ? 'bg-red-500 border-red-500 text-white' :
-                            p === 'medium' ? 'bg-yellow-500 border-yellow-500 text-white' :
+                            p === 'medium' ? 'bg-amber-400 border-amber-400 text-gray-900' :
                             'bg-green-500 border-green-500 text-white'
                           : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400'
                       )}
@@ -156,18 +157,18 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
               {type === 'activity' && (
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Date</label>
-                    <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Date</label>
+                    <input aria-label="Date" type="date" value={date} onChange={e => setDate(e.target.value)}
                       className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Start</label>
-                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Start</label>
+                    <input aria-label="Start time" type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                       className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">End</label>
-                    <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">End</label>
+                    <input aria-label="End time" type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
                       className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                   </div>
                 </div>

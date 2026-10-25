@@ -50,7 +50,7 @@ export function WeeklyOverview({ activities, isMobile }: WeeklyOverviewProps) {
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
       <div className="flex items-center justify-between mb-4 md:mb-6">
         <div className="flex items-center space-x-3">
-          <Calendar className="w-5 h-5 text-blue-500" />
+          <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           <h2 className="font-semibold text-gray-900 dark:text-white">
             Weekly Overview
           </h2>
@@ -120,7 +120,7 @@ export function WeeklyOverview({ activities, isMobile }: WeeklyOverviewProps) {
                       </div>
                     </>
                   ) : (
-                    <div className="text-gray-400 dark:text-gray-500">
+                    <div className="text-gray-500 dark:text-gray-400">
                       {isMobile ? '—' : 'No plans'}
                     </div>
                   )}

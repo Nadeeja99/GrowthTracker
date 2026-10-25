@@ -6,6 +6,7 @@ import { Task, Goal, SubTask } from '@/types';
 import { cn } from '@/lib/utils';
 import { TaskForm } from './TaskForm';
 import { TaskDetails } from './TaskDetails';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 interface TaskManagerProps {
   goals: Goal[];
@@ -35,6 +36,7 @@ export function TaskManager({
   onStartFocus,
   isMobile
 }: TaskManagerProps) {
+  const confirm = useConfirm();
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -103,8 +105,9 @@ export function TaskManager({
     setEditingTask(null);
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
+  const handleDeleteTask = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (await confirm({ title: `Delete "${task?.title ?? 'this task'}"?`, message: 'Its subtasks are deleted too. This can’t be undone.' })) {
       onDeleteTask(taskId);
     }
   };
@@ -169,7 +172,7 @@ export function TaskManager({
       case 'overdue':
         return 'text-red-600 dark:text-red-400';
       case 'due-today':
-        return 'text-orange-600 dark:text-orange-400';
+        return 'text-orange-700 dark:text-orange-400';
       case 'due-soon':
         return 'text-yellow-600 dark:text-yellow-400';
       case 'due-later':
@@ -221,8 +224,8 @@ export function TaskManager({
         <div className="space-y-4">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <input aria-label="Search tasks"
               type="text"
               placeholder="Search tasks..."
               value={searchQuery}
@@ -280,7 +283,7 @@ export function TaskManager({
             </div>
 
             {/* Goal Filter */}
-            <select
+            <select aria-label="Filter by goal"
               value={goalFilter}
               onChange={(e) => setGoalFilter(e.target.value)}
               className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -292,7 +295,7 @@ export function TaskManager({
             </select>
 
             {/* Sort */}
-            <select
+            <select aria-label="Sort tasks"
               value={`${sortBy}-${sortOrder}`}
               onChange={(e) => {
                 const [newSortBy, newSortOrder] = e.target.value.split('-');
@@ -318,7 +321,7 @@ export function TaskManager({
       <div className="space-y-3">
         {filteredAndSortedTasks.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-            <CheckSquare className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <CheckSquare className="w-16 h-16 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
               No tasks found
             </h3>
@@ -346,14 +349,14 @@ export function TaskManager({
             >
               <div className="flex items-start gap-3">
                 {/* Status Checkbox */}
-                <button
+                <button aria-label={task.status === 'completed' ? `Mark "${task.title}" as not done` : `Mark "${task.title}" as done`} aria-pressed={task.status === 'completed'}
                   onClick={() => handleStatusChange(task.id, task.status === 'completed' ? 'todo' : 'completed')}
                   className="flex-shrink-0 mt-1"
                 >
                   {task.status === 'completed' ? (
                     <CheckSquare className="w-5 h-5 text-emerald-500" />
                   ) : (
-                    <Square className="w-5 h-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+                    <Square className="w-5 h-5 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                   )}
                 </button>
 
@@ -370,7 +373,7 @@ export function TaskManager({
                       {task.description && (
                         <p className={cn(
                           "text-gray-600 dark:text-gray-400 text-sm mb-2",
-                          task.status === 'completed' && "line-through text-gray-400 dark:text-gray-500"
+                          task.status === 'completed' && "line-through text-gray-500 dark:text-gray-400"
                         )}>
                           {task.description}
                         </p>
@@ -426,20 +429,20 @@ export function TaskManager({
                       <div className="space-y-1">
                         {task.subtasks.map((subTask) => (
                           <div key={subTask.id} className="flex items-center space-x-2">
-                            <button
+                            <button aria-label={subTask.completed ? `Mark "${subTask.title}" as not done` : `Mark "${subTask.title}" as done`} aria-pressed={subTask.completed}
                               onClick={() => subTask.id && handleSubTaskToggle(task.id, subTask.id, !subTask.completed)}
                               className="flex-shrink-0"
                             >
                               {subTask.completed ? (
                                 <CheckSquare className="w-4 h-4 text-emerald-500" />
                               ) : (
-                                <Square className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+                                <Square className="w-4 h-4 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                               )}
                             </button>
                             <span className={cn(
                               "text-sm",
                               subTask.completed 
-                                ? "text-gray-400 dark:text-gray-500 line-through" 
+                                ? "text-gray-500 dark:text-gray-400 line-through" 
                                 : "text-gray-600 dark:text-gray-400"
                             )}>
                               {subTask.title}
@@ -471,7 +474,7 @@ export function TaskManager({
                     <button
                       onClick={() => onStartFocus(task)}
                       aria-label={`Focus on ${task.title}`}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                      className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                     >
                       <Timer className="w-4 h-4" />
                     </button>
@@ -480,26 +483,26 @@ export function TaskManager({
                     <button
                       onClick={() => onScheduleTask(task)}
                       aria-label={`Schedule a time block for ${task.title}`}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                      className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                     >
                       <CalendarPlus className="w-4 h-4" />
                     </button>
                   )}
-                  <button
+                  <button aria-label={`Details for ${task.title}`}
                     onClick={() => setSelectedTask(task)}
-                    className="p-1.5 text-gray-400 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
                     <MoreVertical className="w-4 h-4" />
                   </button>
-                  <button
+                  <button aria-label={`Edit ${task.title}`}
                     onClick={() => handleEditTask(task)}
-                    className="p-1.5 text-gray-400 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                    className="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
-                  <button
+                  <button aria-label={`Delete ${task.title}`}
                     onClick={() => handleDeleteTask(task.id)}
-                    className="p-1.5 text-gray-400 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    className="p-1.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

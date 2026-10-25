@@ -5,6 +5,7 @@ import { X, Save, Repeat } from 'lucide-react';
 import { Habit } from '@/types';
 import { cn } from '@/lib/utils';
 import { submitOnModEnter } from '@/lib/forms';
+import { useDialog } from '@/hooks/useDialog';
 
 interface HabitFormProps {
   habit?: Habit | null;
@@ -13,6 +14,7 @@ interface HabitFormProps {
 }
 
 export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
+  const dialogRef = useDialog<HTMLDivElement>(onCancel);
   // The form mounts fresh each time it opens, so `habit` only seeds initial state.
   const [name, setName] = useState(habit?.name ?? '');
   const [description, setDescription] = useState(habit?.description ?? '');
@@ -43,18 +45,18 @@ export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="habit-form-title" className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                 <Repeat className="w-4 h-4" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 id="habit-form-title" className="text-xl font-semibold text-gray-900 dark:text-white">
                 {habit ? 'Edit Habit' : 'New Habit'}
               </h2>
             </div>
-            <button
+            <button aria-label="Close"
               onClick={onCancel}
               className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
@@ -65,7 +67,7 @@ export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
           <form onKeyDown={submitOnModEnter} onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Habit Name</label>
-              <input
+              <input aria-label="Habit name"
                 type="text"
                 value={name}
                 onChange={e => { setName(e.target.value); setErrors(p => ({ ...p, name: '' })); }}
@@ -73,12 +75,12 @@ export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 autoFocus
               />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+              {errors.name && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.name}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description (optional)</label>
-              <textarea
+              <textarea aria-label="Description"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Why is this habit important to you?"
@@ -114,9 +116,9 @@ export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Target Count
-                <span className="text-gray-400 font-normal ml-1">(times per {frequency})</span>
+                <span className="text-gray-500 dark:text-gray-400 font-normal ml-1">(times per {frequency})</span>
               </label>
-              <input
+              <input aria-label="Target count"
                 type="number"
                 min={1}
                 max={100}
@@ -124,7 +126,7 @@ export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
                 onChange={e => { setTargetCount(Number(e.target.value)); setErrors(p => ({ ...p, targetCount: '' })); }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              {errors.targetCount && <p className="text-red-500 text-xs mt-1">{errors.targetCount}</p>}
+              {errors.targetCount && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.targetCount}</p>}
             </div>
 
             <div className="flex items-center justify-end space-x-3 pt-2">

@@ -140,14 +140,14 @@ export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
 
         {/* Controls */}
         <div className="flex items-center justify-center space-x-4">
-          <button
+          <button aria-label="Reset timer"
             onClick={resetTimer}
             className="w-12 h-12 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
           >
             <RotateCcw className="w-5 h-5" />
           </button>
 
-          <button
+          <button aria-label={isRunning ? 'Pause timer' : 'Start timer'}
             onClick={isRunning ? pauseTimer : startTimer}
             className={cn(
               'w-20 h-20 rounded-full flex items-center justify-center text-white shadow-sm transition-colors active:scale-95',
@@ -160,7 +160,7 @@ export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
             }
           </button>
 
-          <button
+          <button aria-label="Skip to the next session"
             onClick={skipSession}
             className="w-12 h-12 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
           >
@@ -183,7 +183,7 @@ export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Goal</label>
-            <select
+            <select aria-label="Goal"
               value={selectedGoalId}
               onChange={e => setSelectedGoalId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -197,7 +197,7 @@ export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
 
           <div>
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Task</label>
-            <select
+            <select aria-label="Task"
               value={selectedTaskId}
               onChange={e => setSelectedTaskId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"

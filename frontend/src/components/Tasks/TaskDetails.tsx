@@ -4,6 +4,7 @@ import React from 'react';
 import { X, Edit, Trash2, CheckSquare, Square, Calendar, Flag } from 'lucide-react';
 import { Task, Goal } from '@/types';
 import { cn } from '@/lib/utils';
+import { useDialog } from '@/hooks/useDialog';
 
 interface TaskDetailsProps {
   task: Task;
@@ -26,6 +27,7 @@ export function TaskDetails({
   onSubTaskToggle,
   isMobile
 }: TaskDetailsProps) {
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
   const getPriorityColor = (priority: Task['priority']) => {
     switch (priority) {
       case 'high':
@@ -68,7 +70,7 @@ export function TaskDetails({
       case 'overdue':
         return 'text-red-600 dark:text-red-400';
       case 'due-today':
-        return 'text-orange-600 dark:text-orange-400';
+        return 'text-orange-700 dark:text-orange-400';
       case 'due-soon':
         return 'text-yellow-600 dark:text-yellow-400';
       case 'due-later':
@@ -107,7 +109,7 @@ export function TaskDetails({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className={cn(
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="task-details-title" className={cn(
         'bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto',
         isMobile && 'max-w-full mx-4'
       )}>
@@ -118,24 +120,24 @@ export function TaskDetails({
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                 <CheckSquare className="w-4 h-4" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 id="task-details-title" className="text-xl font-semibold text-gray-900 dark:text-white">
                 Task Details
               </h2>
             </div>
             <div className="flex items-center space-x-2">
-              <button
+              <button aria-label="Edit task"
                 onClick={onEdit}
                 className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
               >
                 <Edit className="w-4 h-4" />
               </button>
-              <button
+              <button aria-label="Delete task"
                 onClick={onDelete}
                 className="p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
-              <button
+              <button aria-label="Close"
                 onClick={onClose}
                 className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
@@ -180,7 +182,7 @@ export function TaskDetails({
                 </h4>
                 <p className={cn(
                   "text-gray-600 dark:text-gray-400",
-                  task.status === 'completed' && "line-through text-gray-400 dark:text-gray-500"
+                  task.status === 'completed' && "line-through text-gray-500 dark:text-gray-400"
                 )}>
                   {task.description}
                 </p>
@@ -275,20 +277,20 @@ export function TaskDetails({
                       key={subTask.id}
                       className="flex items-center space-x-3 p-3 bg-white dark:bg-gray-600 rounded-lg border border-gray-200 dark:border-gray-500"
                     >
-                      <button
+                      <button aria-label={subTask.completed ? `Mark "${subTask.title}" as not done` : `Mark "${subTask.title}" as done`} aria-pressed={subTask.completed}
                         onClick={() => subTask.id && onSubTaskToggle(task.id, subTask.id, !subTask.completed)}
                         className="flex-shrink-0"
                       >
                         {subTask.completed ? (
                           <CheckSquare className="w-4 h-4 text-emerald-500" />
                         ) : (
-                          <Square className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+                          <Square className="w-4 h-4 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                         )}
                       </button>
                       <span className={cn(
                         "flex-1 text-sm",
                         subTask.completed 
-                          ? "text-gray-400 dark:text-gray-500 line-through" 
+                          ? "text-gray-500 dark:text-gray-400 line-through" 
                           : "text-gray-900 dark:text-white"
                       )}>
                         {subTask.title}

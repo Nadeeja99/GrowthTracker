@@ -52,13 +52,13 @@ export function ScheduleCalendar({
       case 'completed':
         return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
       case 'in-progress':
-        return <Play className="w-4 h-4 text-blue-500" />;
+        return <Play className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
       case 'skipped':
-        return <XCircle className="w-4 h-4 text-red-500" />;
+        return <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />;
       case 'rescheduled':
         return <SkipForward className="w-4 h-4 text-yellow-500" />;
       default:
-        return <Clock className="w-4 h-4 text-gray-400" />;
+        return <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />;
     }
   };
 
@@ -99,7 +99,7 @@ export function ScheduleCalendar({
         </div>
         
         <div className="flex items-center space-x-2">
-          <button
+          <button aria-label="Previous week"
             onClick={() => navigateWeek('prev')}
             className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
@@ -110,7 +110,7 @@ export function ScheduleCalendar({
             {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
           
-          <button
+          <button aria-label="Next week"
             onClick={() => navigateWeek('next')}
             className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
@@ -209,8 +209,8 @@ export function ScheduleCalendar({
                     </div>
                     {activity.taskTitle && (
                       <div className="flex items-center gap-0.5 mt-0.5">
-                        <CheckSquare className="w-2.5 h-2.5 text-blue-500 flex-shrink-0" />
-                        <span className="text-xs text-blue-500 truncate">{activity.taskTitle}</span>
+                        <CheckSquare className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <span className="text-xs text-blue-600 dark:text-blue-400 truncate">{activity.taskTitle}</span>
                       </div>
                     )}
                   </div>
@@ -235,11 +235,11 @@ export function ScheduleCalendar({
             <span className="text-gray-600 dark:text-gray-400">Completed</span>
           </div>
           <div className="flex items-center space-x-2">
-            <Play className="w-4 h-4 text-blue-500" />
+            <Play className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span className="text-gray-600 dark:text-gray-400">In Progress</span>
           </div>
           <div className="flex items-center space-x-2">
-            <XCircle className="w-4 h-4 text-red-500" />
+            <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
             <span className="text-gray-600 dark:text-gray-400">Skipped</span>
           </div>
           <div className="flex items-center space-x-2">

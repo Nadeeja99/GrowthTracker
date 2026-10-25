@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { TodayView } from '@/components/Today/TodayView';
-import { PageError, PageLoader, combineQueries } from '@/components/ui/PageState';
+import { PageError, combineQueries } from '@/components/ui/PageState';
+import { TodaySkeleton } from '@/components/ui/Skeleton';
 import { useFocus } from '@/contexts/FocusContext';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useGoalsWithStats } from '@/hooks/data/useGoals';
@@ -28,7 +29,7 @@ export default function TodayPage() {
   const saveReflection = useSaveReflection();
 
   const status = combineQueries(goals, schedules, tasks, habits, reflections);
-  if (status.isLoading) return <PageLoader />;
+  if (status.isLoading) return <TodaySkeleton />;
   if (status.error) return <PageError error={status.error} onRetry={status.retry} />;
 
   const today = toDateKey();

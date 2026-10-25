@@ -5,6 +5,7 @@ import { X, Save, CheckSquare, Square, Plus, Trash2, Flag } from 'lucide-react';
 import { Task, Goal, SubTask } from '@/types';
 import { cn } from '@/lib/utils';
 import { submitOnModEnter } from '@/lib/forms';
+import { useDialog } from '@/hooks/useDialog';
 
 interface TaskFormProps {
   goals: Goal[];
@@ -21,6 +22,7 @@ export function TaskForm({
   onCancel,
   isMobile
 }: TaskFormProps) {
+  const dialogRef = useDialog<HTMLDivElement>(onCancel);
   // The form mounts fresh each time it opens, so `task` only seeds initial state.
   const [formData, setFormData] = useState(() => ({
     goalId: task ? task.goalId || '' : goals[0]?.id ?? '',
@@ -123,7 +125,7 @@ export function TaskForm({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className={cn(
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="task-form-title" className={cn(
         'bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto',
         isMobile && 'max-w-full mx-4'
       )}>
@@ -134,11 +136,11 @@ export function TaskForm({
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                 <CheckSquare className="w-4 h-4" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 id="task-form-title" className="text-xl font-semibold text-gray-900 dark:text-white">
                 {task ? 'Edit Task' : 'Create Task'}
               </h2>
             </div>
-            <button
+            <button aria-label="Close"
               onClick={onCancel}
               className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
@@ -180,7 +182,7 @@ export function TaskForm({
                   ))}
                 </div>
                 {errors.goalId && (
-                  <p className="text-red-500 text-sm mt-1">{errors.goalId}</p>
+                  <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.goalId}</p>
                 )}
               </div>
 
@@ -218,7 +220,7 @@ export function TaskForm({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Task Title
               </label>
-              <input autoFocus
+              <input aria-label="Task title" autoFocus
                 type="text"
                 value={formData.title}
                 onChange={(e) => handleInputChange('title', e.target.value)}
@@ -226,7 +228,7 @@ export function TaskForm({
                 placeholder="Enter task title"
               />
               {errors.title && (
-                <p className="text-red-500 text-sm mt-1">{errors.title}</p>
+                <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.title}</p>
               )}
             </div>
 
@@ -234,7 +236,7 @@ export function TaskForm({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Description (Optional)
               </label>
-              <textarea
+              <textarea aria-label="Description"
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={3}
@@ -249,7 +251,7 @@ export function TaskForm({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Due Date (Optional)
                 </label>
-                <input
+                <input aria-label="Due date"
                   type="date"
                   value={formData.dueDate}
                   onChange={(e) => handleInputChange('dueDate', e.target.value)}
@@ -261,7 +263,7 @@ export function TaskForm({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Status
                 </label>
-                <select
+                <select aria-label="Status"
                   value={formData.status}
                   onChange={(e) => handleInputChange('status', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -281,7 +283,7 @@ export function TaskForm({
               <div className="space-y-3">
                 {/* Add Tag Input */}
                 <div className="flex space-x-2">
-                  <input
+                  <input aria-label="New tag"
                     type="text"
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
@@ -289,7 +291,7 @@ export function TaskForm({
                     placeholder="Add a tag..."
                     className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <button
+                  <button aria-label="Add tag"
                     type="button"
                     onClick={addTag}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
@@ -308,7 +310,7 @@ export function TaskForm({
                       >
                         <Flag className="w-3 h-3" />
                         <span>{tag}</span>
-                        <button
+                        <button aria-label={`Remove tag ${tag}`}
                           type="button"
                           onClick={() => removeTag(tag)}
                           className="ml-1 text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-200"
@@ -330,7 +332,7 @@ export function TaskForm({
               <div className="space-y-3">
                 {/* Add Sub-task Input */}
                 <div className="flex space-x-2">
-                  <input
+                  <input aria-label="New subtask"
                     type="text"
                     value={newSubTask}
                     onChange={(e) => setNewSubTask(e.target.value)}
@@ -338,7 +340,7 @@ export function TaskForm({
                     placeholder="Add a sub-task..."
                     className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <button
+                  <button aria-label="Add subtask"
                     type="button"
                     onClick={addSubTask}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
@@ -352,7 +354,7 @@ export function TaskForm({
                   <div className="space-y-2">
                     {formData.subtasks.map((subTask, index) => (
                       <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-                        <button
+                        <button aria-label={subTask.completed ? `Mark "${subTask.title}" as not done` : `Mark "${subTask.title}" as done`} aria-pressed={subTask.completed}
                           type="button"
                           onClick={() => updateSubTask(index, 'completed', !subTask.completed)}
                           className="flex-shrink-0"
@@ -360,19 +362,19 @@ export function TaskForm({
                           {subTask.completed ? (
                             <CheckSquare className="w-4 h-4 text-emerald-500" />
                           ) : (
-                            <Square className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+                            <Square className="w-4 h-4 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                           )}
                         </button>
-                        <input
+                        <input aria-label={`Subtask ${index + 1}`}
                           type="text"
                           value={subTask.title}
                           onChange={(e) => updateSubTask(index, 'title', e.target.value)}
                           className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
-                        <button
+                        <button aria-label={`Remove subtask ${subTask.title}`}
                           type="button"
                           onClick={() => removeSubTask(index)}
-                          className="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded transition-colors"
+                          className="p-1 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

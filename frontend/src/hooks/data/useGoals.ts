@@ -25,7 +25,13 @@ export function useGoalsWithStats() {
     () => (goals.data ?? []).map(goal => applyGoalStats(goal, schedules.data ?? [], focus.data ?? [])),
     [goals.data, schedules.data, focus.data]
   );
-  return { data, isLoading: goals.isLoading || schedules.isLoading || focus.isLoading, error: goals.error };
+  return {
+    data,
+    isLoading: goals.isLoading || schedules.isLoading || focus.isLoading,
+    // Only blocking when there's nothing to show (see combineQueries).
+    error: goals.data ? null : goals.error,
+    refetch: goals.refetch,
+  };
 }
 
 export function useGoalMutations() {
@@ -39,17 +45,20 @@ export function useGoalMutations() {
   };
 
   const create = useMutation({
+    meta: { action: 'create the goal' },
     mutationFn: (input: GoalInput) => apiClient.createGoal(mapGoalInputToBackend(input)),
     onSuccess: res => putGoal(res.data!.goal),
   });
 
   const update = useMutation({
+    meta: { action: 'save the goal' },
     mutationFn: ({ id, updates }: { id: string; updates: Partial<GoalInput> }) =>
       apiClient.updateGoal(id, mapGoalUpdateToBackend(updates)),
     onSuccess: res => putGoal(res.data!.goal),
   });
 
   const remove = useMutation({
+    meta: { action: 'delete the goal' },
     mutationFn: (id: string) => apiClient.deleteGoal(id),
     onSuccess: (_res, id) => {
       queryClient.setQueryData<Goal[]>(queryKeys.goals, old => old?.filter(g => g.id !== id));
@@ -61,16 +70,19 @@ export function useGoalMutations() {
 
   // Milestone responses carry the parent goal with its recalculated progress.
   const addMilestone = useMutation({
+    meta: { silent: true },
     mutationFn: ({ goalId, title }: { goalId: string; title: string }) => apiClient.createMilestone(goalId, { title }),
     onSuccess: res => putGoal(res.data!.goal),
   });
 
   const toggleMilestone = useMutation({
+    meta: { silent: true },
     mutationFn: ({ id, completed }: { id: string; completed: boolean }) => apiClient.updateMilestone(id, { completed }),
     onSuccess: res => putGoal(res.data!.goal),
   });
 
   const deleteMilestone = useMutation({
+    meta: { silent: true },
     mutationFn: (id: string) => apiClient.deleteMilestone(id),
     onSuccess: res => putGoal(res.data!.goal),
   });

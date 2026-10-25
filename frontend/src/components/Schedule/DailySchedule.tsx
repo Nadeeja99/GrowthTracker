@@ -49,13 +49,13 @@ export function DailySchedule({
       case 'completed':
         return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
       case 'in-progress':
-        return <Play className="w-4 h-4 text-blue-500" />;
+        return <Play className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
       case 'skipped':
-        return <XCircle className="w-4 h-4 text-red-500" />;
+        return <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />;
       case 'rescheduled':
         return <SkipForward className="w-4 h-4 text-yellow-500" />;
       default:
-        return <Clock className="w-4 h-4 text-gray-400" />;
+        return <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />;
     }
   };
 
@@ -125,7 +125,7 @@ export function DailySchedule({
         </div>
         
         <div className="flex items-center space-x-2">
-          <button
+          <button aria-label="Previous day"
             onClick={() => navigateDate('prev')}
             className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
@@ -147,7 +147,7 @@ export function DailySchedule({
             )}
           </div>
 
-          <button
+          <button aria-label="Next day"
             onClick={() => navigateDate('next')}
             className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
@@ -241,7 +241,7 @@ export function DailySchedule({
                           </div>
                           {activity.taskTitle && (
                             <div className="flex items-center gap-1 mt-1.5">
-                              <CheckSquare className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                              <CheckSquare className="w-3 h-3 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                               <span className="text-xs text-blue-600 dark:text-blue-400 font-medium truncate">
                                 {activity.taskTitle}
                               </span>
@@ -259,7 +259,7 @@ export function DailySchedule({
                             <button
                               onClick={e => { e.stopPropagation(); onStartFocus(activity); }}
                               aria-label={`Focus on ${activity.title}`}
-                              className="p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-white/60 dark:hover:bg-gray-700"
+                              className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:bg-white/60 dark:hover:bg-gray-700"
                             >
                               <Timer className="w-4 h-4" />
                             </button>
@@ -279,7 +279,7 @@ export function DailySchedule({
                     </div>
                   ))
                 ) : (
-                  <div className="text-gray-400 dark:text-gray-500 text-sm italic">
+                  <div className="text-gray-500 dark:text-gray-400 text-sm italic">
                     No activities scheduled
                   </div>
                 )}

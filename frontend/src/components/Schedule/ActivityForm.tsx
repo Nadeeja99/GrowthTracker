@@ -6,6 +6,7 @@ import { Goal, ScheduleActivity, Task } from '@/types';
 import { cn } from '@/lib/utils';
 import { toDateKey } from '@/lib/dates';
 import { submitOnModEnter } from '@/lib/forms';
+import { useDialog } from '@/hooks/useDialog';
 
 interface ActivityFormProps {
   goals: Goal[];
@@ -27,6 +28,7 @@ const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
 });
 
 export function ActivityForm({ goals, tasks, activity, initialValues, onSubmit, onCancel, onDelete, isMobile }: ActivityFormProps) {
+  const dialogRef = useDialog<HTMLDivElement>(onCancel);
   // The form mounts fresh each time it opens, so props only seed initial state.
   const [formData, setFormData] = useState(() => activity
     ? {
@@ -119,7 +121,7 @@ export function ActivityForm({ goals, tasks, activity, initialValues, onSubmit, 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className={cn(
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="activity-form-title" className={cn(
         'bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto',
         isMobile && 'max-w-full mx-2'
       )}>
@@ -129,11 +131,11 @@ export function ActivityForm({ goals, tasks, activity, initialValues, onSubmit, 
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                 <Calendar className="w-4 h-4" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 id="activity-form-title" className="text-xl font-semibold text-gray-900 dark:text-white">
                 {activity ? 'Edit Activity' : 'Add Activity'}
               </h2>
             </div>
-            <button onClick={onCancel} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <button aria-label="Close" onClick={onCancel} className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -183,10 +185,10 @@ export function ActivityForm({ goals, tasks, activity, initialValues, onSubmit, 
                   <span className="flex items-center gap-1.5">
                     <CheckSquare className="w-3.5 h-3.5" />
                     Link to Task
-                    <span className="text-gray-400 font-normal">(optional)</span>
+                    <span className="text-gray-500 dark:text-gray-400 font-normal">(optional)</span>
                   </span>
                 </label>
-                <select
+                <select aria-label="Link to task"
                   value={formData.taskId}
                   onChange={e => handleTaskChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -210,31 +212,31 @@ export function ActivityForm({ goals, tasks, activity, initialValues, onSubmit, 
             {/* Title */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Activity Title</label>
-              <input autoFocus
+              <input aria-label="Activity title" autoFocus
                 type="text"
                 value={formData.title}
                 onChange={e => set('title', e.target.value)}
                 placeholder="e.g. Deep work session"
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
+              {errors.title && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.title}</p>}
             </div>
 
             {/* Date + Times */}
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Date</label>
-                <input
+                <input aria-label="Date"
                   type="date"
                   value={formData.date}
                   onChange={e => set('date', e.target.value)}
                   className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date}</p>}
+                {errors.date && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.date}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Start</label>
-                <select
+                <select aria-label="Start time"
                   value={formData.startTime}
                   onChange={e => set('startTime', e.target.value)}
                   className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -244,14 +246,14 @@ export function ActivityForm({ goals, tasks, activity, initialValues, onSubmit, 
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">End</label>
-                <select
+                <select aria-label="End time"
                   value={formData.endTime}
                   onChange={e => set('endTime', e.target.value)}
                   className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
-                {errors.endTime && <p className="text-red-500 text-xs mt-1">{errors.endTime}</p>}
+                {errors.endTime && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.endTime}</p>}
               </div>
             </div>
 
@@ -266,7 +268,7 @@ export function ActivityForm({ goals, tasks, activity, initialValues, onSubmit, 
             {activity && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Status</label>
-                <select
+                <select aria-label="Status"
                   value={formData.status}
                   onChange={e => set('status', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -283,9 +285,9 @@ export function ActivityForm({ goals, tasks, activity, initialValues, onSubmit, 
             {/* Notes */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Notes <span className="text-gray-400 font-normal">(optional)</span>
+                Notes <span className="text-gray-500 dark:text-gray-400 font-normal">(optional)</span>
               </label>
-              <textarea
+              <textarea aria-label="Notes"
                 value={formData.notes}
                 onChange={e => set('notes', e.target.value)}
                 rows={2}

@@ -6,6 +6,7 @@ import { Goal, ScheduleActivity, Task } from '@/types';
 import { cn } from '@/lib/utils';
 import { toDateKey } from '@/lib/dates';
 import { submitOnModEnter } from '@/lib/forms';
+import { useDialog } from '@/hooks/useDialog';
 
 interface RecurringScheduleFormProps {
   goals: Goal[];
@@ -56,6 +57,7 @@ function generateDates(startDate: string, endDate: string, selectedDays: number[
 }
 
 export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobile }: RecurringScheduleFormProps) {
+  const dialogRef = useDialog<HTMLDivElement>(onCancel);
   const today = toDateKey();
   const twoWeeksLater = addDays(today, 13);
 
@@ -131,7 +133,7 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className={cn(
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="recurring-form-title" className={cn(
         'bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto',
         isMobile && 'max-w-full mx-2'
       )}>
@@ -143,11 +145,11 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
                 <RotateCcw className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Recurring Schedule</h2>
+                <h2 id="recurring-form-title" className="text-xl font-semibold text-gray-900 dark:text-white">Recurring Schedule</h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Create multiple entries across a date range</p>
               </div>
             </div>
-            <button onClick={onCancel} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <button aria-label="Close" onClick={onCancel} className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -156,7 +158,7 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
             {/* Title */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Activity Title</label>
-              <input
+              <input aria-label="Activity title"
                 type="text"
                 value={title}
                 onChange={e => { setTitle(e.target.value); setErrors(p => ({ ...p, title: '' })); }}
@@ -164,13 +166,13 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
                 autoFocus
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
+              {errors.title && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.title}</p>}
             </div>
 
             {/* Goal */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Goal Area</label>
-              <select
+              <select aria-label="Goal area"
                 value={goalId}
                 onChange={e => { setGoalId(e.target.value); setTaskId(''); }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -188,10 +190,10 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   <span className="flex items-center gap-1.5">
                     <CheckSquare className="w-3.5 h-3.5" />
-                    Link to Task <span className="text-gray-400 font-normal">(optional)</span>
+                    Link to Task <span className="text-gray-500 dark:text-gray-400 font-normal">(optional)</span>
                   </span>
                 </label>
-                <select
+                <select aria-label="Link to task"
                   value={taskId}
                   onChange={e => setTaskId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -209,25 +211,25 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Date Range</label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">From</label>
-                  <input
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">From</label>
+                  <input aria-label="From date"
                     type="date"
                     value={startDate}
                     onChange={e => { setStartDate(e.target.value); setErrors(p => ({ ...p, startDate: '', endDate: '' })); }}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  {errors.startDate && <p className="text-red-500 text-xs mt-1">{errors.startDate}</p>}
+                  {errors.startDate && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.startDate}</p>}
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">To</label>
-                  <input
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">To</label>
+                  <input aria-label="To date"
                     type="date"
                     value={endDate}
                     min={startDate}
                     onChange={e => { setEndDate(e.target.value); setErrors(p => ({ ...p, endDate: '' })); }}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  {errors.endDate && <p className="text-red-500 text-xs mt-1">{errors.endDate}</p>}
+                  {errors.endDate && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.endDate}</p>}
                 </div>
               </div>
             </div>
@@ -258,7 +260,7 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
                 <button type="button" onClick={() => setSelectedDays([0, 6])} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Weekends</button>
                 <button type="button" onClick={() => setSelectedDays([0, 1, 2, 3, 4, 5, 6])} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Every day</button>
               </div>
-              {errors.days && <p className="text-red-500 text-xs mt-1">{errors.days}</p>}
+              {errors.days && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.days}</p>}
             </div>
 
             {/* Time */}
@@ -266,8 +268,8 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Time Slot</label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Start</label>
-                  <select
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Start</label>
+                  <select aria-label="Start time"
                     value={startTime}
                     onChange={e => setStartTime(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -276,15 +278,15 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">End</label>
-                  <select
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">End</label>
+                  <select aria-label="End time"
                     value={endTime}
                     onChange={e => { setEndTime(e.target.value); setErrors(p => ({ ...p, endTime: '' })); }}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
-                  {errors.endTime && <p className="text-red-500 text-xs mt-1">{errors.endTime}</p>}
+                  {errors.endTime && <p className="text-red-600 dark:text-red-400 text-xs mt-1">{errors.endTime}</p>}
                 </div>
               </div>
               {duration && (
@@ -295,9 +297,9 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
             {/* Notes */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Notes <span className="text-gray-400 font-normal">(optional, applied to all)</span>
+                Notes <span className="text-gray-500 dark:text-gray-400 font-normal">(optional, applied to all)</span>
               </label>
-              <textarea
+              <textarea aria-label="Notes"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 rows={2}
@@ -320,7 +322,7 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
                       {previewDates.length} sessions will be created
                     </span>
                   </div>
-                  <ChevronRight className={cn('w-4 h-4 text-blue-500 transition-transform', showPreview && 'rotate-90')} />
+                  <ChevronRight className={cn('w-4 h-4 text-blue-600 dark:text-blue-400 transition-transform', showPreview && 'rotate-90')} />
                 </button>
 
                 {showPreview && (
@@ -332,12 +334,12 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
                           <span className="text-blue-700 dark:text-blue-300">
                             {d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                           </span>
-                          <span className="text-blue-500 dark:text-blue-400 text-xs">{startTime} – {endTime}</span>
+                          <span className="text-blue-600 dark:text-blue-400 text-xs">{startTime} – {endTime}</span>
                         </div>
                       );
                     })}
                     {previewDates.length > 20 && (
-                      <p className="text-xs text-blue-500 dark:text-blue-400 pt-1">
+                      <p className="text-xs text-blue-600 dark:text-blue-400 pt-1">
                         ...and {previewDates.length - 20} more
                       </p>
                     )}

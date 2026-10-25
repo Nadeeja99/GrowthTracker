@@ -42,6 +42,8 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 - **Design**: one blue accent on warm zinc neutrals, 1px borders instead of heavy shadows, Inter typography
 - **Theme**: Light / Dark / System picker in Settings (System by default), applied before first paint so there's no flash
 - **Installable**: PWA manifest with app icons (including a maskable icon for Android)
+- **Resilient UX**: page-shaped loading skeletons, a first-run guide, toasts for any failed save (with the reason, or "you seem to be offline"), cached data kept on screen if a refresh fails, error boundaries and a 404 page
+- **Accessible**: zero axe-core violations (WCAG 2.1 AA) in light and dark mode; dialogs trap and restore focus and close on Escape; confirmations replace `window.confirm`; every control is labelled; charts have text alternatives; skip link; honours "reduce motion"; pinch-zoom allowed
 - **Security**: short-lived access token kept in memory only, silent refresh via an httpOnly cookie, and "sign out everywhere" in Settings
 
 ---

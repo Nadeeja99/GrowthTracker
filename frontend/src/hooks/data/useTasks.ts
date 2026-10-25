@@ -25,17 +25,20 @@ export function useTaskMutations() {
   };
 
   const create = useMutation({
+    meta: { action: 'create the task' },
     mutationFn: (task: Omit<Task, 'id' | 'createdAt'>) => apiClient.createTask(mapFrontendTaskToBackend(task)),
     onSuccess: res => putTask(res.data!.task, { prepend: true }),
   });
 
   const update = useMutation({
+    meta: { action: 'save the task' },
     mutationFn: ({ id, updates }: { id: string; updates: Partial<Task> }) =>
       apiClient.updateTask(id, mapFrontendTaskUpdateToBackend(updates)),
     onSuccess: res => putTask(res.data!.task),
   });
 
   const remove = useMutation({
+    meta: { action: 'delete the task' },
     mutationFn: (id: string) => apiClient.deleteTask(id),
     onSuccess: (_res, id) => {
       queryClient.setQueryData<Task[]>(queryKeys.tasks, old => old?.filter(t => t.id !== id));
@@ -45,6 +48,7 @@ export function useTaskMutations() {
 
   // Optimistic: the checkbox flips immediately and rolls back if the save fails.
   const updateSubtask = useMutation({
+    meta: { action: 'update the subtask' },
     mutationFn: ({ taskId, subtaskId, updates }: { taskId: string; subtaskId: string; updates: Partial<SubTask> }) =>
       apiClient.updateSubtask(taskId, subtaskId, { title: updates.title, completed: updates.completed }),
     onMutate: async ({ taskId, subtaskId, updates }) => {

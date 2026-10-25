@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Timer, X } from 'lucide-react';
 import { useFocus } from '@/contexts/FocusContext';
 import { useGoals } from '@/hooks/data/useGoals';
@@ -8,6 +8,7 @@ import { useTasks } from '@/hooks/data/useTasks';
 import { useFocusSessions } from '@/hooks/data/useFocusSessions';
 import { cn } from '@/lib/utils';
 import { FocusTimer } from './FocusTimer';
+import { useDialog } from '@/hooks/useDialog';
 
 /** Slide-over that hosts the focus timer; the timer keeps running when it's closed. */
 export function FocusPanel() {
@@ -16,19 +17,14 @@ export function FocusPanel() {
   const tasks = useTasks().data ?? [];
   const sessions = useFocusSessions().data ?? [];
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && close();
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, close]);
+  const dialogRef = useDialog<HTMLDivElement>(close, isOpen);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-labelledby="focus-panel-title">
+    <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={close} aria-hidden="true" />
-      <div className="relative w-full sm:max-w-md h-full overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 shadow-xl">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="focus-panel-title" className="relative w-full sm:max-w-md h-full overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <h2 id="focus-panel-title" className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Timer className="w-5 h-5" /> Focus
@@ -36,7 +32,7 @@ export function FocusPanel() {
           <button
             onClick={close}
             aria-label="Close focus timer (keeps running)"
-            className="p-2 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <X className="w-5 h-5" />
           </button>

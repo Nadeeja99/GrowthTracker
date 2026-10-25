@@ -83,7 +83,7 @@ export function WeeklyTrendsChart({
   if (trendsData.length === 0) {
     return (
       <div className="text-center py-12">
-        <TrendingUp className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+        <TrendingUp className="w-16 h-16 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
           No trend data available
         </h3>
@@ -113,9 +113,9 @@ export function WeeklyTrendsChart({
       {/* Chart Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Performance Trends
-          </h4>
+          </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Your daily progress over time
           </p>
@@ -139,7 +139,11 @@ export function WeeklyTrendsChart({
 
       {/* Chart */}
       <div className="relative">
-        <div className="h-64 flex items-end space-x-1 md:space-x-2">
+        {/* The bars are visual only; screen readers get the same numbers as a summary. */}
+        <p className="sr-only">
+          {`Daily focus hours: ${trendsData.filter(d => d.totalHours > 0).map(d => `${d.date} ${d.totalHours.toFixed(1)} hours`).join(', ') || 'none in this range'}.`}
+        </p>
+        <div aria-hidden="true" className="h-64 flex items-end space-x-1 md:space-x-2">
           {trendsData.map((day) => {
             const hoursHeight = maxHours > 0 ? (day.totalHours / maxHours) * 100 : 0;
             const tasksHeight = maxTasks > 0 ? (day.completedTasks / maxTasks) * 100 : 0;
@@ -202,7 +206,7 @@ export function WeeklyTrendsChart({
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
           <div className="flex items-center space-x-3 mb-2">
             <Activity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h5 className="font-medium text-gray-900 dark:text-white">Total Hours</h5>
+            <h4 className="font-medium text-gray-900 dark:text-white">Total Hours</h4>
           </div>
           <div className="text-lg font-bold text-gray-900 dark:text-white">
             {trendsData.reduce((sum, day) => sum + day.totalHours, 0).toFixed(1)}h
@@ -215,7 +219,7 @@ export function WeeklyTrendsChart({
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
           <div className="flex items-center space-x-3 mb-2">
             <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <h5 className="font-medium text-gray-900 dark:text-white">Total Tasks</h5>
+            <h4 className="font-medium text-gray-900 dark:text-white">Total Tasks</h4>
           </div>
           <div className="text-lg font-bold text-gray-900 dark:text-white">
             {trendsData.reduce((sum, day) => sum + day.completedTasks, 0)}
@@ -228,7 +232,7 @@ export function WeeklyTrendsChart({
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
           <div className="flex items-center space-x-3 mb-2">
             <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h5 className="font-medium text-gray-900 dark:text-white">Avg. Rating</h5>
+            <h4 className="font-medium text-gray-900 dark:text-white">Avg. Rating</h4>
           </div>
           <div className="text-lg font-bold text-gray-900 dark:text-white">
             {(trendsData.reduce((sum, day) => sum + day.rating, 0) / trendsData.filter(d => d.rating > 0).length || 0).toFixed(1)}
@@ -240,8 +244,8 @@ export function WeeklyTrendsChart({
 
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
           <div className="flex items-center space-x-3 mb-2">
-            <TrendingUp className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-            <h5 className="font-medium text-gray-900 dark:text-white">Active Days</h5>
+            <TrendingUp className="w-5 h-5 text-orange-700 dark:text-orange-400" />
+            <h4 className="font-medium text-gray-900 dark:text-white">Active Days</h4>
           </div>
           <div className="text-lg font-bold text-gray-900 dark:text-white">
             {trendsData.filter(day => day.totalHours > 0 || day.completedTasks > 0).length}
@@ -255,9 +259,9 @@ export function WeeklyTrendsChart({
       {/* Trend Insights */}
       {trendsData.length > 1 && (
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
-          <h5 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
+          <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
             Trend Analysis
-          </h5>
+          </h4>
           <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
             {(() => {
               const activeDays = trendsData.filter(day => day.totalHours > 0 || day.completedTasks > 0).length;

@@ -1,7 +1,8 @@
 'use client';
 
 import { HabitTracker } from '@/components/Habits/HabitTracker';
-import { PageError, PageLoader, combineQueries } from '@/components/ui/PageState';
+import { PageError, combineQueries } from '@/components/ui/PageState';
+import { HabitsSkeleton } from '@/components/ui/Skeleton';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useHabitMutations, useHabits } from '@/hooks/data/useHabits';
 
@@ -11,7 +12,7 @@ export default function HabitsPage() {
   const m = useHabitMutations();
 
   const status = combineQueries(habits);
-  if (status.isLoading) return <PageLoader />;
+  if (status.isLoading) return <HabitsSkeleton />;
   if (status.error) return <PageError error={status.error} onRetry={status.retry} />;
 
   return (

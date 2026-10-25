@@ -17,6 +17,7 @@ export function useFocusSessions() {
 export function useRecordFocusSession() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { silent: true }, // shown inline by the calling UI
     mutationFn: (payload: FocusSessionPayload) => apiClient.createFocusSession(payload),
     onSuccess: res => {
       const session = mapBackendFocusSession(res.data!.session);

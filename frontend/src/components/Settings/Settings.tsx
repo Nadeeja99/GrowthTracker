@@ -82,6 +82,7 @@ export function Settings() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center space-x-3 mb-6">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
@@ -97,7 +98,7 @@ export function Settings() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">First Name</label>
-              <input
+              <input aria-label="First name"
                 type="text"
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
@@ -107,7 +108,7 @@ export function Settings() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name</label>
-              <input
+              <input aria-label="Last name"
                 type="text"
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
@@ -119,7 +120,7 @@ export function Settings() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
-            <input
+            <input aria-label="Username"
               type="text"
               value={user?.username || ''}
               disabled
@@ -129,7 +130,7 @@ export function Settings() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Timezone</label>
-            <select
+            <select aria-label="Timezone"
               value={timezone}
               onChange={e => setTimezone(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -214,7 +215,7 @@ export function Settings() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Time</label>
-            <input
+            <input aria-label="Working hours start"
               type="time"
               value={appSettings.workingHours.start}
               onChange={e => updateWorkingHours('start', e.target.value)}
@@ -223,7 +224,7 @@ export function Settings() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Time</label>
-            <input
+            <input aria-label="Working hours end"
               type="time"
               value={appSettings.workingHours.end}
               onChange={e => updateWorkingHours('end', e.target.value)}
@@ -254,7 +255,7 @@ export function Settings() {
           ].map(({ key, label }) => (
             <div key={key}>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
-              <input
+              <input aria-label={label}
                 type="number"
                 min={1}
                 max={120}
@@ -265,7 +266,7 @@ export function Settings() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">Settings are saved automatically</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">Settings are saved automatically</p>
       </div>
 
       {/* Security */}

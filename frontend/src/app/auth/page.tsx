@@ -18,7 +18,7 @@ export default function AuthPage() {
   }, [isAuthenticated, router]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="mx-auto mb-4 w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
@@ -36,6 +36,6 @@ export default function AuthPage() {
           <RegisterForm onSwitchToLogin={() => setIsLogin(true)} />
         )}
       </div>
-    </div>
+    </main>
   );
 }
