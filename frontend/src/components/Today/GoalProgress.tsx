@@ -16,8 +16,8 @@ export function GoalProgress({ goals, onGoalClick, isMobile }: GoalProgressProps
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
       <div className="flex items-center space-x-3 mb-4 md:mb-6">
-        <Target className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-400" />
-        <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">
+        <Target className="w-5 h-5 text-blue-500" />
+        <h2 className="font-semibold text-gray-900 dark:text-white">
           Goal Progress
         </h2>
       </div>
@@ -30,7 +30,7 @@ export function GoalProgress({ goals, onGoalClick, isMobile }: GoalProgressProps
             <div
               key={goal.id}
               onClick={() => onGoalClick(goal.id)}
-              className="p-3 md:p-4 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 cursor-pointer transition-all duration-200 hover:shadow-md active:scale-95"
+              className="p-3 md:p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 cursor-pointer transition-colors"
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3 flex-1 min-w-0">

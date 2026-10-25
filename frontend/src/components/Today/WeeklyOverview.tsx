@@ -12,7 +12,7 @@ interface WeeklyOverviewProps {
   isMobile: boolean;
 }
 
-export function WeeklyOverview({ goals, activities, isMobile }: WeeklyOverviewProps) {
+export function WeeklyOverview({ activities, isMobile }: WeeklyOverviewProps) {
   const today = new Date();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay());
@@ -43,12 +43,15 @@ export function WeeklyOverview({ goals, activities, isMobile }: WeeklyOverviewPr
     return 'bg-gray-300 dark:bg-gray-600';
   };
 
+  const weekActivities = weekDays.flatMap(getActivitiesForDate);
+  const weekCompleted = weekActivities.filter(a => a.status === 'completed').length;
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
       <div className="flex items-center justify-between mb-4 md:mb-6">
         <div className="flex items-center space-x-3">
-          <Calendar className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-400" />
-          <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">
+          <Calendar className="w-5 h-5 text-blue-500" />
+          <h2 className="font-semibold text-gray-900 dark:text-white">
             Weekly Overview
           </h2>
         </div>
@@ -75,7 +78,7 @@ export function WeeklyOverview({ goals, activities, isMobile }: WeeklyOverviewPr
                 isMobile ? 'p-2' : 'p-4',
                 isToday
                   ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
-                  : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
               )}
             >
               <div className="text-center">
@@ -128,54 +131,19 @@ export function WeeklyOverview({ goals, activities, isMobile }: WeeklyOverviewPr
         })}
       </div>
 
-      {/* Week summary */}
-      <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-200 dark:border-gray-700">
-        <div className={cn(
-          'grid gap-3 md:gap-4',
-          isMobile ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'
-        )}>
-          <div className="text-center">
-            <div className={cn(
-              'font-bold text-emerald-600 dark:text-emerald-400',
-              isMobile ? 'text-lg' : 'text-2xl'
-            )}>
-              {activities.filter(a => a.status === 'completed').length}
-            </div>
-            <div className={cn(
-              'text-gray-500 dark:text-gray-400',
-              isMobile ? 'text-xs' : 'text-sm'
-            )}>Completed</div>
+      {/* Week summary (this week's blocks only) */}
+      <dl className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-200 dark:border-gray-700 grid grid-cols-3 gap-3 text-center">
+        {[
+          { label: 'Completed', value: weekCompleted },
+          { label: 'Planned', value: weekActivities.length },
+          { label: 'Completion', value: `${Math.round((weekCompleted / Math.max(weekActivities.length, 1)) * 100)}%` },
+        ].map(stat => (
+          <div key={stat.label}>
+            <dd className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white tabular-nums">{stat.value}</dd>
+            <dt className="text-xs md:text-sm text-gray-500 dark:text-gray-400">{stat.label}</dt>
           </div>
-          <div className="text-center">
-            <div className={cn(
-              'font-bold text-blue-600 dark:text-blue-400',
-              isMobile ? 'text-lg' : 'text-2xl'
-            )}>
-              {activities.length}
-            </div>
-            <div className={cn(
-              'text-gray-500 dark:text-gray-400',
-              isMobile ? 'text-xs' : 'text-sm'
-            )}>Total</div>
-          </div>
-          {!isMobile && (
-            <>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                  {Math.round((activities.filter(a => a.status === 'completed').length / Math.max(activities.length, 1)) * 100)}%
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Success Rate</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                  {goals.reduce((sum, goal) => sum + goal.streakDays, 0)}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Total Streaks</div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+        ))}
+      </dl>
     </div>
   );
 }

@@ -42,14 +42,14 @@ export function Header() {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 md:px-6 py-3 sticky top-0 z-20">
-      <div className="flex items-center justify-between">
+    <header className="bg-white/85 dark:bg-gray-900/85 backdrop-blur border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3 md:gap-8">
           <Link href="/today" className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Target className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+            <span className="text-base md:text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
               <span className="md:hidden">{currentLabel}</span>
               <span className="hidden md:inline">GrowthTracker</span>
             </span>
@@ -62,10 +62,10 @@ export function Header() {
                 href={item.href}
                 aria-current={isActivePath(pathname, item.href) ? 'page' : undefined}
                 className={cn(
-                  'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
                   isActivePath(pathname, item.href)
-                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 )}
               >
                 {item.label}
@@ -94,7 +94,7 @@ export function Header() {
               aria-label="Account menu"
               className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-200 text-sm font-semibold">
                 {getUserInitials()}
               </div>
               <span className="hidden md:inline text-sm font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate">

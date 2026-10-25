@@ -343,7 +343,7 @@ export function GoalManager({
                   )}>
                     {goal.category.toUpperCase()}
                   </span>
-                  <div className="flex items-center space-x-1 text-orange-500">
+                  <div className={cn('flex items-center space-x-1', goal.streakDays > 0 ? 'text-orange-500' : 'text-gray-400')}>
                     <Flame className="w-4 h-4" />
                     <span className={cn('font-medium', isMobile ? 'text-sm' : 'text-sm')}>
                       {goal.streakDays} days

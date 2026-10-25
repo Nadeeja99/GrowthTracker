@@ -241,8 +241,8 @@ export function DailySchedule({
                           </div>
                           {activity.taskTitle && (
                             <div className="flex items-center gap-1 mt-1.5">
-                              <CheckSquare className="w-3 h-3 text-purple-500 flex-shrink-0" />
-                              <span className="text-xs text-purple-600 dark:text-purple-400 font-medium truncate">
+                              <CheckSquare className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium truncate">
                                 {activity.taskTitle}
                               </span>
                             </div>

@@ -39,7 +39,9 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 ### Everywhere
 - **Quick Capture**: `Cmd/Ctrl+K` to add a task or block from any page
 - **Forms**: first field focused, `Cmd/Ctrl+Enter` submits
-- **Theme**: light/dark that follows your system by default, applied before first paint
+- **Design**: one blue accent on warm zinc neutrals, 1px borders instead of heavy shadows, Inter typography
+- **Theme**: Light / Dark / System picker in Settings (System by default), applied before first paint so there's no flash
+- **Installable**: PWA manifest with app icons (including a maskable icon for Android)
 - **Security**: short-lived access token kept in memory only, silent refresh via an httpOnly cookie, and "sign out everywhere" in Settings
 
 ---

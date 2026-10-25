@@ -2,50 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens (HSL channels). They mirror the Tailwind `gray` scale in
+ * tailwind.config.ts and a single blue accent, so token-based and
+ * class-based styling agree in both themes.
+ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 60 9% 98%;          /* gray-50 */
+    --foreground: 240 6% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 240 6% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --popover-foreground: 240 6% 10%;
+    --primary: 221 83% 53%;           /* blue-600 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 60 5% 96%;           /* gray-100 */
+    --secondary-foreground: 240 6% 10%;
+    --muted: 60 5% 96%;
+    --muted-foreground: 240 4% 46%;   /* gray-500 */
+    --accent: 60 5% 96%;
+    --accent-foreground: 240 6% 10%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;             /* gray-200 */
+    --input: 240 6% 90%;
+    --ring: 221 83% 53%;
     --radius: 0.75rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 94.1%;
+    --background: 240 5% 7%;          /* gray-900 */
+    --foreground: 0 0% 98%;
+    --card: 240 5% 11%;               /* gray-800 */
+    --card-foreground: 0 0% 98%;
+    --popover: 240 5% 11%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 213 94% 68%;           /* blue-400 */
+    --primary-foreground: 240 5% 7%;
+    --secondary: 240 5% 19%;          /* gray-700 */
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 5% 19%;
+    --muted-foreground: 240 5% 65%;   /* gray-400 */
+    --accent: 240 5% 19%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5% 19%;
+    --input: 240 5% 19%;
+    --ring: 213 94% 68%;
   }
 }
 
@@ -54,7 +59,22 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    /* Inter stylistic options: cv11 = single-storey a, ss01 = open digits (calmer numerals). */
+    font-feature-settings: 'cv11', 'ss01';
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3 {
+    @apply tracking-tight;
+  }
+  ::selection {
+    @apply bg-blue-600/20;
+  }
+  /* Visible keyboard focus for links and buttons (inputs draw their own ring). */
+  a:focus-visible,
+  button:focus-visible,
+  [role='tab']:focus-visible {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
   }
 }
 

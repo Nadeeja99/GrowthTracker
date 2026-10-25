@@ -48,11 +48,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // drop it whenever the API reports it can no longer be renewed.
   useEffect(() => {
     let cancelled = false;
-    apiClient.refreshSession().then(restored => {
-      if (cancelled) return;
-      setUser(restored);
-      setIsLoading(false);
-    });
+    apiClient.refreshSession()
+      // If the session can't be checked (e.g. offline), fall back to signing in.
+      .catch(() => null)
+      .then(restored => {
+        if (cancelled) return;
+        setUser(restored);
+        setIsLoading(false);
+      });
     apiClient.onSessionExpired(endSession);
     return () => {
       cancelled = true;

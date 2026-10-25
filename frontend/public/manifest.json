@@ -1,27 +1,19 @@
 {
-  "name": "DevTracker - Personal Development & Schedule Tracking",
-  "short_name": "DevTracker",
-  "description": "A comprehensive personal development tracking web app",
-  "start_url": "/",
+  "name": "GrowthTracker",
+  "short_name": "GrowthTracker",
+  "description": "Plan your week, do the day, review it, and see what actually moves your goals.",
+  "start_url": "/today",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#3B82F6",
+  "background_color": "#fafaf9",
+  "theme_color": "#2563eb",
   "orientation": "portrait-primary",
   "icons": [
-    {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable any"
-    }
+    { "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
-  "categories": ["productivity", "lifestyle", "education"],
+  "categories": ["productivity", "lifestyle"],
   "lang": "en",
   "dir": "ltr"
 }

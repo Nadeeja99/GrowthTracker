@@ -133,7 +133,7 @@ export function CompletionRateChart({
         </div>
         
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600 text-center">
-          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
             {completionData.totalTasks}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Total</div>

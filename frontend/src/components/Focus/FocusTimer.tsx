@@ -44,9 +44,10 @@ export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
   const todaysMinutes = Math.round(todaysSessions.reduce((sum, s) => sum + s.durationSeconds, 0) / 60);
 
   const sessionConfig = {
-    work: { label: 'Focus', color: 'from-red-500 to-pink-600', textColor: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20', icon: Zap },
-    break: { label: 'Short Break', color: 'from-blue-500 to-cyan-500', textColor: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20', icon: Coffee },
-    longBreak: { label: 'Long Break', color: 'from-green-500 to-emerald-500', textColor: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-900/20', icon: Coffee },
+    // Focus uses the app's accent; breaks use a calm green.
+    work: { label: 'Focus', button: 'bg-blue-600 hover:bg-blue-700', stroke: 'stroke-blue-600 dark:stroke-blue-400', textColor: 'text-blue-600 dark:text-blue-400', icon: Zap },
+    break: { label: 'Short Break', button: 'bg-emerald-600 hover:bg-emerald-700', stroke: 'stroke-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400', icon: Coffee },
+    longBreak: { label: 'Long Break', button: 'bg-emerald-600 hover:bg-emerald-700', stroke: 'stroke-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400', icon: Coffee },
   };
 
   const session = sessionConfig[currentSession];
@@ -100,11 +101,7 @@ export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
                 strokeLinecap="round"
                 strokeDasharray={circumference}
                 strokeDashoffset={dashOffset}
-                className={cn(
-                  'transition-all duration-1000',
-                  currentSession === 'work' ? 'stroke-red-500' :
-                  currentSession === 'break' ? 'stroke-blue-500' : 'stroke-green-500'
-                )}
+                className={cn('transition-all duration-1000', session.stroke)}
               />
             </svg>
 
@@ -127,7 +124,7 @@ export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
                 key={i}
                 className={cn(
                   'w-3 h-3 rounded-full transition-all',
-                  i < (cycleCount % 4) ? 'bg-red-500' : 'bg-gray-200 dark:bg-gray-600'
+                  i < (cycleCount % 4) ? 'bg-blue-600 dark:bg-blue-400' : 'bg-gray-200 dark:bg-gray-600'
                 )}
               />
             ))}
@@ -153,8 +150,8 @@ export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
           <button
             onClick={isRunning ? pauseTimer : startTimer}
             className={cn(
-              'w-20 h-20 rounded-full flex items-center justify-center text-white shadow-lg transition-all hover:scale-105 active:scale-95 bg-gradient-to-br',
-              session.color
+              'w-20 h-20 rounded-full flex items-center justify-center text-white shadow-sm transition-colors active:scale-95',
+              session.button
             )}
           >
             {isRunning
@@ -189,7 +186,7 @@ export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
             <select
               value={selectedGoalId}
               onChange={e => setSelectedGoalId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">No goal selected</option>
               {goals.filter(g => g.status === 'ACTIVE').map(g => (
@@ -203,7 +200,7 @@ export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
             <select
               value={selectedTaskId}
               onChange={e => setSelectedTaskId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">No task selected</option>
               {goalTasks.map(t => (
@@ -215,17 +212,13 @@ export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
       </div>
 
       {/* Tips */}
-      <div className={cn('rounded-xl p-4 border', session.bg,
-        currentSession === 'work' ? 'border-red-200 dark:border-red-800' :
-        currentSession === 'break' ? 'border-blue-200 dark:border-blue-800' :
-        'border-green-200 dark:border-green-800'
-      )}>
-        <p className={cn('text-sm font-medium', session.textColor)}>
+      <div className="rounded-xl p-4 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           {currentSession === 'work'
-            ? '🎯 Stay focused. Close distractions and work on a single task.'
+            ? 'Stay with one task. Close what you don’t need.'
             : currentSession === 'break'
-            ? '☕ Take a short break. Stretch, breathe, or grab water.'
-            : '🌿 Great work! Take a longer break. Step outside or rest your eyes.'}
+            ? 'Short break: stand up, stretch, drink some water.'
+            : 'Long break: step away from the screen for a while.'}
         </p>
       </div>
     </div>

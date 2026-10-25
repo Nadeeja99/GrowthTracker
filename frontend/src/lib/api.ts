@@ -185,6 +185,14 @@ export interface BackendHabitWithCompletions extends BackendHabit {
   completions: BackendHabitCompletion[];
 }
 
+/** An error response from the API, with its HTTP status. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 // Auth endpoints that must never trigger the refresh-and-retry path.
 const NO_REFRESH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'];
 
@@ -236,7 +244,7 @@ class ApiClient {
 
     if (!response.ok) {
       const fieldError: string | undefined = data.validationErrors?.[0]?.message;
-      throw new Error(fieldError || data.error || `HTTP ${response.status}`);
+      throw new ApiError(fieldError || data.error || `HTTP ${response.status}`, response.status);
     }
 
     return data;
@@ -268,7 +276,9 @@ class ApiClient {
 
   /**
    * Exchanges the refresh cookie for a new access token. Concurrent callers
-   * share one request. Resolves to the user, or null when there's no session.
+   * share one request. Resolves to the user, or null when there is no valid
+   * session (401). Other failures (rate limit, server or network errors) are
+   * thrown instead, so a temporary problem never signs the user out.
    */
   refreshSession(): Promise<User | null> {
     this.refreshInFlight ??= this.request<{ user: User; accessToken: string }>('/auth/refresh', { method: 'POST' })
@@ -277,9 +287,12 @@ class ApiClient {
         this.setToken(res.data.accessToken);
         return res.data.user;
       })
-      .catch(() => {
-        this.clearToken();
-        return null;
+      .catch(error => {
+        if (error instanceof ApiError && error.status === 401) {
+          this.clearToken();
+          return null;
+        }
+        throw error;
       })
       .finally(() => {
         this.refreshInFlight = null;

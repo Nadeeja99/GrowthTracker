@@ -40,7 +40,7 @@ function HabitCard({
 
   const frequencyColor = {
     daily: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300',
-    weekly: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-300',
+    weekly: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300',
     monthly: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-300',
   }[habit.frequency];
 
@@ -193,8 +193,8 @@ export function HabitTracker({
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-              <Repeat className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              <Repeat className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">Habits</h2>
@@ -203,7 +203,7 @@ export function HabitTracker({
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
+            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
           >
             <Plus className="w-4 h-4" />
             {!isMobile && <span>New Habit</span>}
@@ -269,7 +269,7 @@ export function HabitTracker({
           {filter === 'all' && (
             <button
               onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2 mx-auto"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2 mx-auto"
             >
               <Plus className="w-4 h-4" />
               <span>Add Your First Habit</span>

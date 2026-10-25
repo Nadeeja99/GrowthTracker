@@ -62,7 +62,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <FocusProvider>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Header />
-        <main className="px-4 md:px-6 py-4 md:py-6 pb-24 md:pb-6">{children}</main>
+        {/* One centred column; bottom padding clears the mobile tab bar. */}
+        <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 pb-28 md:pb-12">{children}</main>
         <MobileNavigation />
         <AppQuickCapture />
         <FocusPanel />

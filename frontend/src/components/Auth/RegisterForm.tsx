@@ -66,8 +66,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) =
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg px-8 pt-6 pb-8 mb-4">
-        <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-6">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-xl px-6 sm:px-8 pt-6 pb-8 mb-4">
+        <h2 className="text-xl font-semibold text-center text-gray-900 dark:text-white mb-6">
           Create Account
         </h2>
         

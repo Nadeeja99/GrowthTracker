@@ -47,8 +47,8 @@ export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                <Repeat className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                <Repeat className="w-4 h-4" />
               </div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 {habit ? 'Edit Habit' : 'New Habit'}
@@ -70,7 +70,7 @@ export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
                 value={name}
                 onChange={e => { setName(e.target.value); setErrors(p => ({ ...p, name: '' })); }}
                 placeholder="e.g. Morning meditation"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 autoFocus
               />
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
@@ -83,7 +83,7 @@ export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Why is this habit important to you?"
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               />
             </div>
 
@@ -122,7 +122,7 @@ export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
                 max={100}
                 value={targetCount}
                 onChange={e => { setTargetCount(Number(e.target.value)); setErrors(p => ({ ...p, targetCount: '' })); }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               {errors.targetCount && <p className="text-red-500 text-xs mt-1">{errors.targetCount}</p>}
             </div>
@@ -137,7 +137,7 @@ export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
               >
                 <Save className="w-4 h-4" />
                 <span>{habit ? 'Update' : 'Create'} Habit</span>

@@ -126,8 +126,8 @@ export function ActivityForm({ goals, tasks, activity, initialValues, onSubmit, 
         <div className="p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Calendar className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                <Calendar className="w-4 h-4" />
               </div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 {activity ? 'Edit Activity' : 'Add Activity'}

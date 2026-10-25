@@ -24,7 +24,9 @@ const envSchema = z
     TRUST_PROXY: numberFromEnv(0),
 
     RATE_LIMIT_WINDOW_MS: numberFromEnv(15 * 60 * 1000),
-    RATE_LIMIT_MAX_REQUESTS: numberFromEnv(100),
+    // An app page load makes ~8 API calls (plus refetches on focus), so this
+    // must leave real headroom; it still stops scripted abuse.
+    RATE_LIMIT_MAX_REQUESTS: numberFromEnv(600),
     AUTH_RATE_LIMIT_MAX: numberFromEnv(10),
 
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),

@@ -228,8 +228,8 @@ export function ProductivityInsights({
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
       <div className="flex items-center space-x-3 mb-6">
-        <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
-          <Lightbulb className="w-5 h-5 text-white" />
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          <Lightbulb className="w-5 h-5" />
         </div>
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">

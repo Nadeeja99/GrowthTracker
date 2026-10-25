@@ -60,7 +60,7 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
       {/* FAB */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all z-30 flex items-center justify-center"
+        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all z-30 flex items-center justify-center"
         title="Quick Capture (⌘K)"
       >
         <Plus className="w-6 h-6" />

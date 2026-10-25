@@ -175,8 +175,8 @@ export function Analytics({
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              <BarChart3 className="w-5 h-5" />
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
@@ -191,7 +191,7 @@ export function Analytics({
           <div className="flex items-center space-x-2">
             <button
               onClick={handleExportData}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
             >
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline">Export Data</span>
@@ -223,7 +223,7 @@ export function Analytics({
           <select
             value={selectedGoal}
             onChange={(e) => setSelectedGoal(e.target.value)}
-            className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">All Goals</option>
             {goals.map((goal) => (

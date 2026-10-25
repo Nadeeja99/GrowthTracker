@@ -108,6 +108,12 @@ export function TimeAllocationChart({
                 const x2 = 50 + 40 * Math.cos((endAngle * Math.PI) / 180);
                 const y2 = 50 + 40 * Math.sin((endAngle * Math.PI) / 180);
                 
+                // An SVG arc whose start and end coincide draws nothing, so a
+                // single goal with 100% of the time is drawn as a full circle.
+                if (angle >= 359.99) {
+                  return <circle key={index} cx="50" cy="50" r="40" fill={item.color} />;
+                }
+
                 const largeArcFlag = angle > 180 ? 1 : 0;
                 
                 const pathData = [
@@ -122,13 +128,14 @@ export function TimeAllocationChart({
                     key={index}
                     d={pathData}
                     fill={item.color}
-                    stroke="white"
                     strokeWidth="2"
-                    className="transition-all duration-300 hover:opacity-80"
+                    className="stroke-white dark:stroke-gray-800 transition-all duration-300 hover:opacity-80"
                   />
                 );
               });
             })()}
+            {/* Donut hole, so the centre total stays readable */}
+            <circle cx="50" cy="50" r="26" className="fill-white dark:fill-gray-800" />
           </svg>
           
           {/* Center Text */}
@@ -216,7 +223,7 @@ export function TimeAllocationChart({
 
         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
           <div className="flex items-center space-x-3 mb-2">
-            <PieChart className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            <PieChart className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             <h5 className="font-medium text-gray-900 dark:text-white">Avg. Session Length</h5>
           </div>
           <div className="text-lg font-bold text-gray-900 dark:text-white">

@@ -143,7 +143,7 @@ export function ScheduleCalendar({
               className={cn(
                 'min-h-[120px] md:min-h-[140px] p-2 md:p-3 rounded-lg border transition-all duration-200 cursor-pointer hover:shadow-md',
                 isToday(date) && 'ring-2 ring-blue-500 ring-opacity-50',
-                isSelected(date) && 'ring-2 ring-purple-500 ring-opacity-50',
+                isSelected(date) && 'ring-2 ring-blue-500 ring-opacity-50',
                 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
               )}
               onClick={() => onDateSelect(dateStr)}
@@ -209,8 +209,8 @@ export function ScheduleCalendar({
                     </div>
                     {activity.taskTitle && (
                       <div className="flex items-center gap-0.5 mt-0.5">
-                        <CheckSquare className="w-2.5 h-2.5 text-purple-500 flex-shrink-0" />
-                        <span className="text-xs text-purple-500 truncate">{activity.taskTitle}</span>
+                        <CheckSquare className="w-2.5 h-2.5 text-blue-500 flex-shrink-0" />
+                        <span className="text-xs text-blue-500 truncate">{activity.taskTitle}</span>
                       </div>
                     )}
                   </div>

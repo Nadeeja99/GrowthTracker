@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Sun, Moon, Clock, Save, CheckCircle, AlertCircle, ShieldCheck, LogOut } from 'lucide-react';
+import { User, Sun, Moon, Monitor, Clock, Save, CheckCircle, AlertCircle, ShieldCheck, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { apiClient } from '@/lib/api';
@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 export function Settings() {
   const { user, updateUser, logoutEverywhere } = useAuth();
-  const { isDark: isDarkMode, toggle: onThemeToggle } = useTheme();
+  const { isDark: isDarkMode, preference: themePreference, setPreference: setThemePreference } = useTheme();
   const router = useRouter();
   const [signingOutEverywhere, setSigningOutEverywhere] = useState(false);
   const [appSettings, setAppSettings] = useLocalStorage<AppSettings>('dev-tracker-settings', DEFAULT_SETTINGS);
@@ -84,8 +84,8 @@ export function Settings() {
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <User className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            <User className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">Profile</h2>
@@ -168,37 +168,45 @@ export function Settings() {
       {/* Appearance */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
-            {isDarkMode ? <Moon className="w-5 h-5 text-white" /> : <Sun className="w-5 h-5 text-white" />}
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            {isDarkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
           </div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Appearance</h2>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Appearance</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">System follows your device&apos;s light/dark setting</p>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-white">Dark Mode</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Toggle between light and dark theme</p>
-          </div>
-          <button
-            onClick={onThemeToggle}
-            className={cn(
-              'relative w-12 h-6 rounded-full transition-colors',
-              isDarkMode ? 'bg-blue-600' : 'bg-gray-300'
-            )}
-          >
-            <div className={cn(
-              'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
-              isDarkMode ? 'translate-x-6' : 'translate-x-0.5'
-            )} />
-          </button>
+        <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-2 bg-gray-100 dark:bg-gray-900 rounded-lg p-1">
+          {([
+            { value: 'light', label: 'Light', icon: Sun },
+            { value: 'dark', label: 'Dark', icon: Moon },
+            { value: 'system', label: 'System', icon: Monitor },
+          ] as const).map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              role="radio"
+              aria-checked={themePreference === value}
+              onClick={() => setThemePreference(value)}
+              className={cn(
+                'flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                themePreference === value
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Working Hours */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-            <Clock className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            <Clock className="w-5 h-5" />
           </div>
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Working Hours</h2>
         </div>
@@ -210,7 +218,7 @@ export function Settings() {
               type="time"
               value={appSettings.workingHours.start}
               onChange={e => updateWorkingHours('start', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div>
@@ -219,7 +227,7 @@ export function Settings() {
               type="time"
               value={appSettings.workingHours.end}
               onChange={e => updateWorkingHours('end', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
         </div>
@@ -228,8 +236,8 @@ export function Settings() {
       {/* Pomodoro */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-600 rounded-lg flex items-center justify-center">
-            <Clock className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            <Clock className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">Pomodoro Timer</h2>
@@ -252,7 +260,7 @@ export function Settings() {
                 max={120}
                 value={appSettings.pomodoroSettings[key]}
                 onChange={e => updatePomodoro(key, Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           ))}

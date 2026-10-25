@@ -4,30 +4,33 @@ import './globals.css'
 import { Providers } from './providers'
 import { themeInitScript } from '@/contexts/ThemeContext'
 
-const inter = Inter({ subsets: ['latin'] })
+// Exposed as a CSS variable so Tailwind's `font-sans` (see tailwind.config.ts) uses it.
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' })
 
 export const metadata: Metadata = {
-  title: 'DevTracker - Personal Development & Schedule Tracking',
-  description: 'A comprehensive personal development tracking web app that combines schedule management, habit tracking, progress analytics, and goal monitoring.',
-  keywords: 'personal development, goal tracking, schedule management, habit tracking, productivity',
-  authors: [{ name: 'DevTracker Team' }],
+  title: {
+    default: 'GrowthTracker',
+    template: '%s · GrowthTracker',
+  },
+  description: 'Plan your week, do the day, review it, and see what actually moves your goals.',
+  applicationName: 'GrowthTracker',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'DevTracker'
-  }
+    title: 'GrowthTracker',
+  },
+  formatDetection: { telephone: false },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Browser chrome matches the page background in each theme.
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#111827' }
-  ]
+    { media: '(prefers-color-scheme: light)', color: '#fafaf9' },
+    { media: '(prefers-color-scheme: dark)', color: '#121214' },
+  ],
 }
 
 export default function RootLayout({
@@ -36,18 +39,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         {/* Applies the saved theme before first paint to avoid a light flash. */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="DevTracker" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="format-detection" content="telephone=no" />
-        <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className="font-sans" suppressHydrationWarning>
         <Providers>
           {children}
         </Providers>

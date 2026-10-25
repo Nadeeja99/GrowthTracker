@@ -12,7 +12,7 @@ export function MobileNavigation() {
   return (
     <nav
       aria-label="Primary"
-      className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-1 py-1 safe-area-pb"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-t border-gray-200 dark:border-gray-700 px-1 py-1 safe-area-pb"
     >
       <ul className="flex items-center justify-around">
         {NAV_ITEMS.map(item => {
@@ -26,8 +26,8 @@ export function MobileNavigation() {
                 className={cn(
                   'flex flex-col items-center justify-center px-2 py-1.5 rounded-lg transition-colors',
                   isActive
-                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 )}
               >
                 <Icon className="w-5 h-5" />
