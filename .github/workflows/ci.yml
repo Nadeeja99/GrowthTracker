@@ -89,9 +89,8 @@ jobs:
       # Throwaway values for a disposable CI database; never used anywhere else.
       JWT_SECRET: ci-only-jwt-secret-0123456789abcdef0123456789abcdef
       JWT_REFRESH_SECRET: ci-only-refresh-secret-0123456789abcdef0123456789
-      # Production mode, so the run covers the same path as Render: the API only
-      # accepts requests that come through the Next.js proxy (x-proxy-secret).
-      NODE_ENV: production
+      # NODE_ENV=production is set only on the API process (below). Set here it
+      # would make `npm ci` skip devDependencies (ts-node, Playwright).
       API_PROXY_SECRET: ci-only-proxy-secret-0123456789abcdef0123456789ab
       PORT: 5000
       CORS_ORIGIN: http://localhost:3100
@@ -117,20 +116,22 @@ jobs:
       - name: Start the API with demo data
         working-directory: backend
         run: |
-          npm ci
+          npm ci --include=dev
           npx prisma generate
           npx prisma migrate deploy
-          npm run db:seed
           npm run build
+          # Same commands as Render's start: compiled seed, then the API in
+          # production mode (it only accepts requests through the app's proxy).
+          node dist/scripts/seed.js
           nohup npx ts-node --transpile-only tests/fake-openai-server.ts > fake-openai.log 2>&1 &
-          nohup npm start > api.log 2>&1 &
+          NODE_ENV=production nohup npm start > api.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:5000/health && exit 0; sleep 1; done
           cat api.log; exit 1
 
       - name: Install frontend and browser
         working-directory: frontend
         run: |
-          npm ci
+          npm ci --include=dev
           npx playwright install --with-deps chromium
 
       - name: Run Playwright
