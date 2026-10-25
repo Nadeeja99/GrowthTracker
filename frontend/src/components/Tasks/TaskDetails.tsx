@@ -72,9 +72,9 @@ export function TaskDetails({
       case 'due-today':
         return 'text-orange-700 dark:text-orange-400';
       case 'due-soon':
-        return 'text-yellow-600 dark:text-yellow-400';
+        return 'text-yellow-700 dark:text-yellow-400';
       case 'due-later':
-        return 'text-green-600 dark:text-green-400';
+        return 'text-green-700 dark:text-green-400';
       default:
         return 'text-gray-500 dark:text-gray-400';
     }

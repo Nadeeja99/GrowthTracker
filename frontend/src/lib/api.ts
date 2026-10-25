@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// Same-origin by default: /api is proxied to the API by next.config.js.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export type BackendPriority = 'LOW' | 'MEDIUM' | 'HIGH';
 
@@ -433,9 +434,6 @@ class ApiClient {
     return this.request('/habits?limit=500');
   }
 
-  async getHabitWithCompletions(id: string): Promise<ApiResponse<{ habit: BackendHabitWithCompletions }>> {
-    return this.request(`/habits/${id}`);
-  }
 
   async createHabit(data: { name: string; description?: string; frequency: string; targetCount?: number }): Promise<ApiResponse<{ habit: BackendHabit }>> {
     return this.request('/habits', { method: 'POST', body: JSON.stringify(data) });

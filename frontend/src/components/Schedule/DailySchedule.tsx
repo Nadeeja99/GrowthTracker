@@ -171,10 +171,10 @@ export function DailySchedule({
           <div className="text-sm text-blue-600 dark:text-blue-400">In Progress</div>
         </div>
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3 text-center">
-          <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+          <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
             {dayActivities.filter(a => a.status === 'pending').length}
           </div>
-          <div className="text-sm text-yellow-600 dark:text-yellow-400">Pending</div>
+          <div className="text-sm text-yellow-700 dark:text-yellow-400">Pending</div>
         </div>
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 text-center">
           <div className="text-2xl font-bold text-red-600 dark:text-red-400">

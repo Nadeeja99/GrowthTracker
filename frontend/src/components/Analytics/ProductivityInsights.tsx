@@ -201,7 +201,7 @@ export function ProductivityInsights({
       case 'good':
         return 'text-blue-600 dark:text-blue-400';
       case 'moderate':
-        return 'text-yellow-600 dark:text-yellow-400';
+        return 'text-yellow-700 dark:text-yellow-400';
       case 'improvement':
         return 'text-orange-700 dark:text-orange-400';
       default:

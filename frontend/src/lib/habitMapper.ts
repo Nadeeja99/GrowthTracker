@@ -1,5 +1,5 @@
 import { Habit, HabitCompletion } from '@/types';
-import { BackendHabit, BackendHabitWithCompletions, BackendHabitCompletion } from '@/lib/api';
+import { BackendHabitWithCompletions, BackendHabitCompletion } from '@/lib/api';
 import { toDateKey } from '@/lib/dates';
 
 // Consecutive days with a completion, ending today. A habit not done *yet*
@@ -40,8 +40,4 @@ export function mapBackendHabitToFrontend(backendHabit: BackendHabitWithCompleti
     completedToday,
     totalCompletions: backendHabit._count?.completions ?? completions.length,
   };
-}
-
-export function mapBackendHabitListToFrontend(habit: BackendHabit): Habit {
-  return mapBackendHabitToFrontend({ ...habit, completions: [] });
 }

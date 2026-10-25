@@ -1,0 +1,77 @@
+# Render Blueprint: the Next.js app and the Express API as two free web services.
+# The database is Supabase Postgres (Render's free Postgres expires after 30 days).
+#
+# The browser only talks to the app. Next.js forwards /api/* to the API with a
+# shared secret header, so the refresh cookie stays first-party and the API
+# rejects anything that doesn't come through the app. See README → Deployment.
+#
+# Values marked `sync: false` are asked for once, when the Blueprint is created.
+
+services:
+  - type: web
+    name: growthtracker-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: backend
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    # Free instances have no pre-deploy step, so migrations run on start.
+    # With SEED_DEMO_ON_START=true the demo account is rebuilt on every cold
+    # start, which keeps its dates current and undoes visitors' changes.
+    startCommand: >-
+      npx prisma migrate deploy &&
+      { [ "$SEED_DEMO_ON_START" != "true" ] || node dist/scripts/seed.js || echo "Demo seed failed; starting anyway"; } &&
+      node dist/index.js
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths: ['backend/**']
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: NODE_ENV
+        value: production
+      # client -> Render -> Next.js -> Render -> API
+      - key: TRUST_PROXY
+        value: '2'
+      - key: DATABASE_URL
+        sync: false # Supabase transaction pooler (port 6543, ?pgbouncer=true)
+      - key: DIRECT_URL
+        sync: false # Supabase session pooler (port 5432), used by migrations
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: API_PROXY_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false # the app's URL, e.g. https://growthtracker.onrender.com
+      - key: SEED_DEMO_ON_START
+        value: 'true'
+
+  - type: web
+    name: growthtracker
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: frontend
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /auth
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths: ['frontend/**']
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      # Public URL of the API. Read at build time (it's baked into the rewrites),
+      # so redeploy the app after changing it.
+      - key: API_ORIGIN
+        sync: false # e.g. https://growthtracker-api.onrender.com
+      - key: API_PROXY_SECRET
+        fromService:
+          type: web
+          name: growthtracker-api
+          envVarKey: API_PROXY_SECRET
+      - key: NEXT_TELEMETRY_DISABLED
+        value: '1'

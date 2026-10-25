@@ -227,8 +227,8 @@ export function CompletionRateChart({
             const completionRate = (data.completed / data.total) * 100;
             const priorityColor: Record<string, string> = {
               high: 'text-red-600 dark:text-red-400',
-              medium: 'text-yellow-600 dark:text-yellow-400',
-              low: 'text-green-600 dark:text-green-400'
+              medium: 'text-yellow-700 dark:text-yellow-400',
+              low: 'text-green-700 dark:text-green-400'
             };
             
             const priorityBg: Record<string, string> = {

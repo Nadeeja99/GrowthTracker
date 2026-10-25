@@ -19,9 +19,12 @@ const envSchema = z
     JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
 
     CORS_ORIGIN: z.string().default('http://localhost:3000'),
-    // Number of reverse-proxy hops in front of the app (Render/Fly/Vercel = 1).
-    // Required for correct client IPs, which per-IP rate limiting depends on.
+    // Number of reverse-proxy hops in front of the app, needed for correct client
+    // IPs (which per-IP rate limiting depends on). On Render behind the Next.js
+    // proxy: client -> Render -> Next.js -> Render -> API = 2.
     TRUST_PROXY: numberFromEnv(0),
+    // Shared with the Next.js app; when set, only requests carrying it are served.
+    API_PROXY_SECRET: z.string().min(32, 'API_PROXY_SECRET must be at least 32 characters').optional(),
 
     RATE_LIMIT_WINDOW_MS: numberFromEnv(15 * 60 * 1000),
     // An app page load makes ~8 API calls (plus refetches on focus), so this
@@ -35,6 +38,10 @@ const envSchema = z
   .refine(env => env.JWT_SECRET !== env.JWT_REFRESH_SECRET, {
     message: 'JWT_REFRESH_SECRET must differ from JWT_SECRET',
     path: ['JWT_REFRESH_SECRET'],
+  })
+  .refine(env => env.NODE_ENV !== 'production' || !!env.API_PROXY_SECRET, {
+    message: 'API_PROXY_SECRET is required in production (the API must only be reachable through the app proxy)',
+    path: ['API_PROXY_SECRET'],
   });
 
 const parsed = envSchema.safeParse(process.env);

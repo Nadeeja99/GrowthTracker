@@ -8,7 +8,10 @@ export interface Toast {
 }
 
 const AUTO_DISMISS_MS = 6000;
-let toasts: Toast[] = [];
+// Snapshots must be referentially stable for useSyncExternalStore: the store
+// only replaces `toasts` when it changes, and the server snapshot is a constant.
+const NO_TOASTS: Toast[] = [];
+let toasts: Toast[] = NO_TOASTS;
 let nextId = 1;
 const listeners = new Set<() => void>();
 
@@ -39,7 +42,7 @@ export const toastStore = {
     return () => listeners.delete(listener);
   },
   getSnapshot: () => toasts,
-  getServerSnapshot: (): Toast[] => [],
+  getServerSnapshot: () => NO_TOASTS,
 };
 
 /** Human-readable reason for a failed request. */

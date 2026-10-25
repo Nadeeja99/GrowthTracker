@@ -11,6 +11,7 @@ import { prisma } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
 import { requestContext } from './middleware/requestContext';
+import { requireProxy } from './middleware/requireProxy';
 
 import authRoutes from './routes/auth-simple';
 import userRoutes from './routes/users';
@@ -32,6 +33,7 @@ if (env.TRUST_PROXY > 0) {
 }
 
 app.use(requestContext);
+app.use(requireProxy);
 app.use(helmet());
 
 app.use(cors({
