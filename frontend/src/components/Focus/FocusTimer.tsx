@@ -2,23 +2,29 @@
 
 import React, { useState } from 'react';
 import { Play, Pause, RotateCcw, SkipForward, Timer, Coffee, Zap, Settings } from 'lucide-react';
-import { Goal, Task } from '@/types';
-import { useTimer } from '@/hooks/useTimer';
+import { FocusSession, Goal, Task } from '@/types';
+import { RecordedFocus, useTimer } from '@/hooks/useTimer';
+import { toDateKey } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 
 interface FocusTimerProps {
   goals: Goal[];
   tasks: Task[];
+  focusSessions: FocusSession[];
+  onRecordFocus: (focus: RecordedFocus & { goalId?: string; taskId?: string }) => Promise<void>;
   isMobile: boolean;
 }
 
-export function FocusTimer({ goals, tasks, isMobile }: FocusTimerProps) {
+export function FocusTimer({ goals, tasks, focusSessions, onRecordFocus, isMobile }: FocusTimerProps) {
+  const [selectedGoalId, setSelectedGoalId] = useState<string>('');
+  const [selectedTaskId, setSelectedTaskId] = useState<string>('');
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const {
     timeRemaining,
     isRunning,
     currentSession,
     cycleCount,
-    completedSessions,
     progress,
     startTimer,
     pauseTimer,
@@ -26,10 +32,17 @@ export function FocusTimer({ goals, tasks, isMobile }: FocusTimerProps) {
     skipSession,
     switchSession,
     formatTime,
-  } = useTimer();
+  } = useTimer({
+    onFocusRecorded: focus => {
+      setSaveError(null);
+      onRecordFocus({ ...focus, goalId: selectedGoalId || undefined, taskId: selectedTaskId || undefined })
+        .catch(() => setSaveError('This focus session could not be saved. Check your connection.'));
+    },
+  });
 
-  const [selectedGoalId, setSelectedGoalId] = useState<string>('');
-  const [selectedTaskId, setSelectedTaskId] = useState<string>('');
+  const today = toDateKey();
+  const todaysSessions = focusSessions.filter(s => toDateKey(new Date(s.startedAt)) === today);
+  const todaysMinutes = Math.round(todaysSessions.reduce((sum, s) => sum + s.durationSeconds, 0) / 60);
 
   const sessionConfig = {
     work: { label: 'Focus', color: 'from-red-500 to-pink-600', textColor: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20', icon: Zap },
@@ -120,10 +133,14 @@ export function FocusTimer({ goals, tasks, isMobile }: FocusTimerProps) {
               />
             ))}
             <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-              {completedSessions} sessions today
+              {todaysMinutes} min focused today · {todaysSessions.length} {todaysSessions.length === 1 ? 'session' : 'sessions'}
             </span>
           </div>
         </div>
+
+        {saveError && (
+          <p role="alert" className="mb-4 text-center text-sm text-red-600 dark:text-red-400">{saveError}</p>
+        )}
 
         {/* Controls */}
         <div className="flex items-center justify-center space-x-4">

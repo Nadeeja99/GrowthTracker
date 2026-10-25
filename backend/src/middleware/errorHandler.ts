@@ -17,15 +17,10 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  logger.error('Error occurred', {
-    requestId: req.id,
-    error: err.message,
-    stack: err.stack,
-    method: req.method,
-    path: req.originalUrl.split('?')[0],
-  });
+  const context = { requestId: req.id, method: req.method, path: req.originalUrl.split('?')[0] };
 
   if (err instanceof ZodError) {
+    logger.warn('Request rejected', { ...context, status: 400, fields: err.errors.map(e => e.path.join('.')) });
     res.status(400).json({
       success: false,
       error: 'Validation failed',
@@ -69,9 +64,13 @@ export const errorHandler = (
     message = 'Token expired';
   }
 
-  // Never echo internal error messages (SQL, stack details) to clients.
+  // Client errors are expected traffic: log them briefly. Server errors get
+  // the full stack, and their internal message is never sent to the client.
   if (statusCode >= 500) {
+    logger.error('Request failed', { ...context, status: statusCode, error: err.message, stack: err.stack });
     message = 'Internal Server Error';
+  } else {
+    logger.warn('Request rejected', { ...context, status: statusCode, error: message });
   }
 
   res.status(statusCode).json({

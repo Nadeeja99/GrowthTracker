@@ -28,10 +28,7 @@ export function TaskForm({
     status: 'todo' as Task['status'],
     dueDate: '',
     tags: [] as string[],
-    subtasks: [] as Array<{
-      title: string;
-      completed: boolean;
-    }>
+    subtasks: [] as SubTask[]
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -48,10 +45,7 @@ export function TaskForm({
         status: task.status,
         dueDate: task.dueDate || '',
         tags: [...task.tags],
-        subtasks: task.subtasks.map(st => ({
-          title: st.title,
-          completed: st.completed
-        }))
+        subtasks: task.subtasks.map(st => ({ ...st }))
       });
     } else if (goals.length > 0) {
       setFormData(prev => ({ ...prev, goalId: goals[0].id }));
@@ -75,15 +69,9 @@ export function TaskForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      const taskData = {
-        ...formData,
-        subtasks: formData.subtasks.map((st, index) => ({
-          id: task?.subtasks[index]?.id || `temp-${index}`,
-          title: st.title,
-          completed: st.completed
-        }))
-      };
-      onSubmit(taskData);
+      // Subtasks keep their own ids (new ones have none), so removing or
+      // reordering items never reassigns an id to a different subtask.
+      onSubmit(formData);
     }
   };
 

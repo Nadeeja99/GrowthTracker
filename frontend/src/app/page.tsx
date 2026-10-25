@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Layout/Header';
 import { MobileNavigation } from '@/components/Layout/MobileNavigation';
@@ -13,17 +13,44 @@ import { HabitTracker } from '@/components/Habits/HabitTracker';
 import { FocusTimer } from '@/components/Focus/FocusTimer';
 import { TodayView } from '@/components/Today/TodayView';
 import { QuickCapture } from '@/components/ui/QuickCapture';
-import { Goal, ScheduleActivity, Task, ScheduleTemplate, DailyRating, SubTask, Habit } from '@/types';
+import { Goal, GoalInput, ScheduleActivity, Task, ScheduleTemplate, DailyRating, SubTask, Habit, FocusSession } from '@/types';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { generateId } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api';
-import { mapBackendGoalToFrontend, mapFrontendGoalToBackend, mapFrontendGoalUpdateToBackend } from '@/lib/goalMapper';
+import { applyGoalStats, mapBackendGoalToFrontend, mapGoalInputToBackend, mapGoalUpdateToBackend } from '@/lib/goalMapper';
+import { mapBackendReflectionToRating, mapRatingToReflectionPayload } from '@/lib/reflectionMapper';
+import { mapBackendFocusSession } from '@/lib/focusMapper';
+import { RecordedFocus } from '@/hooks/useTimer';
 import { mapBackendTaskToFrontend, mapFrontendTaskToBackend, mapFrontendTaskUpdateToBackend } from '@/lib/taskMapper';
 import { mapBackendScheduleToFrontend, mapFrontendActivityToBackend, mapFrontendActivityUpdateToBackend } from '@/lib/scheduleMapper';
 import { mapBackendHabitToFrontend } from '@/lib/habitMapper';
 import { toDateKey } from '@/lib/dates';
+
+const LEGACY_RATINGS_KEY = 'dev-tracker-ratings';
+
+// Earlier versions kept daily reviews only in localStorage. Upload them once;
+// the server never overwrites an existing day, and the local copy is removed
+// only after the upload succeeds. Returns true if anything was uploaded.
+async function importLegacyRatings(): Promise<boolean> {
+  let legacy: DailyRating[];
+  try {
+    legacy = JSON.parse(localStorage.getItem(LEGACY_RATINGS_KEY) ?? '[]');
+  } catch {
+    return false;
+  }
+  if (!Array.isArray(legacy) || legacy.length === 0) return false;
+  try {
+    const valid = legacy.filter(r => typeof r?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.date));
+    await apiClient.importReflections(valid.map(r => ({ date: r.date, ...mapRatingToReflectionPayload(r) })));
+    localStorage.removeItem(LEGACY_RATINGS_KEY);
+    return valid.length > 0;
+  } catch (error) {
+    console.error('Importing locally stored reviews failed; will retry next load:', error);
+    return false;
+  }
+}
 
 export default function Home() {
   const [currentView, setCurrentView] = useState('today');
@@ -57,11 +84,19 @@ export default function Home() {
   const [activities, setActivities] = useState<ScheduleActivity[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
+  const [dailyRatings, setDailyRatings] = useState<DailyRating[]>([]);
+  const [focusSessions, setFocusSessions] = useState<FocusSession[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   // Local-only state
   const [scheduleTemplates, setScheduleTemplates] = useLocalStorage<ScheduleTemplate[]>('dev-tracker-templates', []);
-  const [dailyRatings, setDailyRatings] = useLocalStorage<DailyRating[]>('dev-tracker-ratings', []);
+
+  // Weekly hours and streaks are derived, so they stay correct whenever
+  // schedule blocks or focus sessions change.
+  const goalsWithStats = useMemo(
+    () => goals.map(goal => applyGoalStats(goal, activities, focusSessions)),
+    [goals, activities, focusSessions]
+  );
 
   const today = toDateKey();
   const todayRating = dailyRatings.find(r => r.date === today) ?? null;
@@ -70,12 +105,26 @@ export default function Home() {
     if (!isAuthenticated) return;
     setIsDataLoading(true);
     try {
-      const [goalsResult, tasksResult, schedulesResult, habitsResult] = await Promise.allSettled([
+      const [goalsResult, tasksResult, schedulesResult, habitsResult, reflectionsResult, focusResult] = await Promise.allSettled([
         apiClient.getGoals(),
         apiClient.getTasks(),
         apiClient.getSchedules(),
         apiClient.getHabits(),
+        apiClient.getReflections(),
+        apiClient.getFocusSessions(),
       ]);
+
+      if (reflectionsResult.status === 'fulfilled' && reflectionsResult.value.data?.reflections) {
+        const imported = await importLegacyRatings();
+        const reflections = imported
+          ? (await apiClient.getReflections()).data?.reflections ?? []
+          : reflectionsResult.value.data.reflections;
+        setDailyRatings(reflections.map(mapBackendReflectionToRating));
+      }
+
+      if (focusResult.status === 'fulfilled' && focusResult.value.data?.sessions) {
+        setFocusSessions(focusResult.value.data.sessions.map(mapBackendFocusSession));
+      }
 
       const schedulesRes = schedulesResult.status === 'fulfilled' ? schedulesResult.value : null;
       const fetchedActivities: ScheduleActivity[] = schedulesRes?.success && schedulesRes.data?.schedules
@@ -90,7 +139,7 @@ export default function Home() {
 
       const goalsRes = goalsResult.status === 'fulfilled' ? goalsResult.value : null;
       if (goalsRes?.success && goalsRes.data?.goals) {
-        setGoals(goalsRes.data.goals.map(g => mapBackendGoalToFrontend(g, fetchedActivities)));
+        setGoals(goalsRes.data.goals.map(mapBackendGoalToFrontend));
       }
 
       const habitsRes = habitsResult.status === 'fulfilled' ? habitsResult.value : null;
@@ -139,23 +188,20 @@ export default function Home() {
   if (!isAuthenticated) return null;
 
   // ─── Goal handlers ───────────────────────────────────────────────────────────
-  const handleCreateGoal = async (goalData: Omit<Goal, 'id' | 'createdAt' | 'currentWeeklyHours' | 'streakDays' | 'status' | 'progress'>) => {
-    const backendData = mapFrontendGoalToBackend(goalData);
-    const response = await apiClient.createGoal(backendData);
+  const handleCreateGoal = async (goalData: GoalInput) => {
+    const response = await apiClient.createGoal(mapGoalInputToBackend(goalData));
     if (response.success && response.data?.goal) {
-      const newGoal = mapBackendGoalToFrontend(response.data.goal, activities);
+      const newGoal = mapBackendGoalToFrontend(response.data.goal);
       setGoals(prev => [...prev, newGoal]);
     } else {
       throw new Error(response.error || 'Failed to create goal');
     }
   };
 
-  const handleUpdateGoal = async (goalId: string, updates: Partial<Goal>) => {
-    const backendUpdates = mapFrontendGoalUpdateToBackend(updates);
-    const response = await apiClient.updateGoal(goalId, backendUpdates);
+  const handleUpdateGoal = async (goalId: string, updates: Partial<GoalInput>) => {
+    const response = await apiClient.updateGoal(goalId, mapGoalUpdateToBackend(updates));
     if (response.success && response.data?.goal) {
-      const updatedGoal = mapBackendGoalToFrontend(response.data.goal, activities);
-      setGoals(prev => prev.map(g => g.id === goalId ? updatedGoal : g));
+      replaceGoal(mapBackendGoalToFrontend(response.data.goal));
     } else {
       throw new Error(response.error || 'Failed to update goal');
     }
@@ -170,6 +216,24 @@ export default function Home() {
     } else {
       throw new Error(response.error || 'Failed to delete goal');
     }
+  };
+
+  const replaceGoal = (goal: Goal) => setGoals(prev => prev.map(g => (g.id === goal.id ? goal : g)));
+
+  // ─── Milestone handlers (responses carry the goal, whose progress they drive) ─
+  const handleAddMilestone = async (goalId: string, title: string) => {
+    const response = await apiClient.createMilestone(goalId, { title });
+    if (response.data?.goal) replaceGoal(mapBackendGoalToFrontend(response.data.goal));
+  };
+
+  const handleToggleMilestone = async (milestoneId: string, completed: boolean) => {
+    const response = await apiClient.updateMilestone(milestoneId, { completed });
+    if (response.data?.goal) replaceGoal(mapBackendGoalToFrontend(response.data.goal));
+  };
+
+  const handleDeleteMilestone = async (milestoneId: string) => {
+    const response = await apiClient.deleteMilestone(milestoneId);
+    if (response.data?.goal) replaceGoal(mapBackendGoalToFrontend(response.data.goal));
   };
 
   // ─── Activity handlers ────────────────────────────────────────────────────────
@@ -187,11 +251,6 @@ export default function Home() {
       if (response.success && response.data?.schedule) {
         const updated = mapBackendScheduleToFrontend(response.data.schedule);
         setActivities(prev => prev.map(a => a.id === activityId ? updated : a));
-        const newActivities = activities.map(a => a.id === activityId ? updated : a);
-        setGoals(prev => prev.map(g => mapBackendGoalToFrontend(
-          { id: g.id, title: g.name, description: JSON.stringify({ color: g.color, targetHoursWeekly: g.targetHoursWeekly, targetHoursDaily: g.targetHoursDaily }), priority: (['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const)[g.priority - 1] || 'MEDIUM', status: g.status, progress: g.progress, createdAt: g.createdAt, updatedAt: g.createdAt },
-          newActivities
-        )));
       }
     } catch (error) {
       console.error('Failed to update activity status:', error);
@@ -257,9 +316,7 @@ export default function Home() {
       const backendData = mapFrontendTaskToBackend(taskData);
       const response = await apiClient.createTask(backendData);
       if (response.success && response.data?.task) {
-        const newTask = mapBackendTaskToFrontend(response.data.task);
-        newTask.subtasks = taskData.subtasks ?? [];
-        setTasks(prev => [newTask, ...prev]);
+        setTasks(prev => [mapBackendTaskToFrontend(response.data!.task), ...prev]);
       }
     } catch (error) {
       console.error('Failed to create task:', error);
@@ -272,10 +329,7 @@ export default function Home() {
       const response = await apiClient.updateTask(taskId, backendUpdates);
       if (response.success && response.data?.task) {
         const updatedTask = mapBackendTaskToFrontend(response.data.task);
-        setTasks(prev => prev.map(t => {
-          if (t.id !== taskId) return t;
-          return { ...updatedTask, subtasks: updates.subtasks ?? t.subtasks };
-        }));
+        setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
       }
     } catch (error) {
       console.error('Failed to update task:', error);
@@ -293,12 +347,20 @@ export default function Home() {
     }
   };
 
-  const handleUpdateSubTask = (taskId: string, subTaskId: string, updates: Partial<SubTask>) => {
-    setTasks(prev => prev.map(task =>
+  const handleUpdateSubTask = async (taskId: string, subTaskId: string, updates: Partial<SubTask>) => {
+    const patchSubtask = (patch: Partial<SubTask>) => setTasks(prev => prev.map(task =>
       task.id === taskId
-        ? { ...task, subtasks: task.subtasks.map(st => st.id === subTaskId ? { ...st, ...updates } : st) }
+        ? { ...task, subtasks: task.subtasks.map(st => st.id === subTaskId ? { ...st, ...patch } : st) }
         : task
     ));
+    const previous = tasks.find(t => t.id === taskId)?.subtasks.find(st => st.id === subTaskId);
+    patchSubtask(updates); // optimistic
+    try {
+      await apiClient.updateSubtask(taskId, subTaskId, { title: updates.title, completed: updates.completed });
+    } catch (error) {
+      console.error('Failed to update subtask:', error);
+      if (previous) patchSubtask(previous); // roll back
+    }
   };
 
   // Quick capture task
@@ -373,12 +435,28 @@ export default function Home() {
   };
 
   // ─── Daily rating handler ─────────────────────────────────────────────────────
-  const handleSaveDailyRating = (rating: Omit<DailyRating, 'date'>) => {
-    const entry: DailyRating = { ...rating, date: today };
-    setDailyRatings(prev => {
-      const filtered = prev.filter(r => r.date !== today);
-      return [...filtered, entry];
+  const handleSaveDailyRating = async (rating: Omit<DailyRating, 'date'>) => {
+    const response = await apiClient.saveReflection(today, mapRatingToReflectionPayload(rating));
+    if (response.data?.reflection) {
+      const saved = mapBackendReflectionToRating(response.data.reflection);
+      setDailyRatings(prev => [...prev.filter(r => r.date !== saved.date), saved]);
+    }
+  };
+
+  // ─── Focus sessions ───────────────────────────────────────────────────────────
+  const handleRecordFocus = async (focus: RecordedFocus & { goalId?: string; taskId?: string }) => {
+    const response = await apiClient.createFocusSession({
+      startedAt: focus.startedAt.toISOString(),
+      endedAt: focus.endedAt.toISOString(),
+      durationSeconds: focus.durationSeconds,
+      plannedSeconds: focus.plannedSeconds,
+      completed: focus.completed,
+      goalId: focus.goalId,
+      taskId: focus.taskId,
     });
+    if (response.data?.session) {
+      setFocusSessions(prev => [...prev, mapBackendFocusSession(response.data!.session)]);
+    }
   };
 
   // ─── View renderer ────────────────────────────────────────────────────────────
@@ -387,7 +465,7 @@ export default function Home() {
       case 'today':
         return (
           <TodayView
-            goals={goals}
+            goals={goalsWithStats}
             activities={activities}
             tasks={tasks}
             habits={habits}
@@ -403,10 +481,13 @@ export default function Home() {
       case 'goals':
         return (
           <GoalManager
-            goals={goals}
+            goals={goalsWithStats}
             onCreateGoal={handleCreateGoal}
             onUpdateGoal={handleUpdateGoal}
             onDeleteGoal={handleDeleteGoal}
+            onAddMilestone={handleAddMilestone}
+            onToggleMilestone={handleToggleMilestone}
+            onDeleteMilestone={handleDeleteMilestone}
             isMobile={deviceInfo.isMobile}
             isLoading={isDataLoading}
           />
@@ -425,15 +506,17 @@ export default function Home() {
       case 'focus':
         return (
           <FocusTimer
-            goals={goals}
+            goals={goalsWithStats}
             tasks={tasks}
+            focusSessions={focusSessions}
+            onRecordFocus={handleRecordFocus}
             isMobile={deviceInfo.isMobile}
           />
         );
       case 'schedule':
         return (
           <Schedule
-            goals={goals}
+            goals={goalsWithStats}
             tasks={tasks}
             activities={activities}
             scheduleTemplates={scheduleTemplates}
@@ -451,7 +534,7 @@ export default function Home() {
       case 'tasks':
         return (
           <TaskManager
-            goals={goals}
+            goals={goalsWithStats}
             tasks={tasks}
             onCreateTask={handleCreateTask}
             onUpdateTask={handleUpdateTask}
@@ -463,7 +546,7 @@ export default function Home() {
       case 'analytics':
         return (
           <Analytics
-            goals={goals}
+            goals={goalsWithStats}
             activities={activities}
             tasks={tasks}
             dailyRatings={dailyRatings}
@@ -499,7 +582,7 @@ export default function Home() {
         <MobileNavigation currentView={currentView} onViewChange={setCurrentView} />
       )}
       <QuickCapture
-        goals={goals}
+        goals={goalsWithStats}
         onCreateTask={handleQuickTask}
         onCreateActivity={handleQuickActivity}
       />

@@ -33,21 +33,61 @@ export const updateUserSchema = z.object({
   avatar: z.string().url().optional(),
 });
 
+const hexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Expected a hex colour like #3B82F6');
+const weeklyHoursSchema = z.number().min(0).max(168);
+const dailyHoursSchema = z.number().min(0).max(24);
+
 export const createGoalSchema = z.object({
   title: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
+  description: z.string().max(2000).optional(),
   targetDate: z.string().datetime().optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'),
+  color: hexColorSchema.optional(),
+  targetHoursWeekly: weeklyHoursSchema.optional(),
+  targetHoursDaily: dailyHoursSchema.optional(),
 });
 
 export const updateGoalSchema = z.object({
   title: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).nullable().optional(),
+  description: z.string().max(2000).nullable().optional(),
   targetDate: z.string().datetime().nullable().optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   status: z.enum(['ACTIVE', 'COMPLETED', 'PAUSED', 'CANCELLED']).optional(),
-  progress: z.number().min(0).max(100).optional(),
+  progress: z.number().int().min(0).max(100).optional(),
+  color: hexColorSchema.optional(),
+  targetHoursWeekly: weeklyHoursSchema.optional(),
+  targetHoursDaily: dailyHoursSchema.optional(),
 });
+
+export const createMilestoneSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  targetDate: z.string().datetime().optional(),
+});
+
+export const updateMilestoneSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  completed: z.boolean().optional(),
+  targetDate: z.string().datetime().nullable().optional(),
+});
+
+// Tags are a set of short labels: trimmed, de-duplicated (case-insensitive).
+const tagsSchema = z.array(z.string().trim().min(1).max(30)).max(20).transform(tags => {
+  const seen = new Set<string>();
+  return tags.filter(tag => {
+    const key = tag.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+});
+
+// The full, ordered subtask list. Items without an id are created; existing
+// items not in the list are deleted.
+const subtaskListSchema = z.array(z.object({
+  id: z.string().min(1).optional(),
+  title: z.string().trim().min(1).max(200),
+  completed: z.boolean().default(false),
+})).max(50);
 
 export const createTaskSchema = z.object({
   title: z.string().min(1).max(100),
@@ -55,8 +95,10 @@ export const createTaskSchema = z.object({
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'),
   dueDate: z.string().datetime().optional(),
   estimatedTime: z.number().min(1).optional(),
+  status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).default('PENDING'),
   goalId: z.string().optional(),
-  tags: z.array(z.string()).optional(),
+  tags: tagsSchema.optional(),
+  subtasks: subtaskListSchema.optional(),
 });
 
 export const updateTaskSchema = z.object({
@@ -68,7 +110,13 @@ export const updateTaskSchema = z.object({
   estimatedTime: z.number().min(1).optional(),
   actualTime: z.number().min(1).optional(),
   goalId: z.string().optional().nullable(),
-  tags: z.array(z.string()).optional(),
+  tags: tagsSchema.optional(),
+  subtasks: subtaskListSchema.optional(),
+});
+
+export const updateSubtaskSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  completed: z.boolean().optional(),
 });
 
 export const createScheduleSchema = z.object({
@@ -141,12 +189,42 @@ export const dateRangeSchema = z.object({
   path: ['startDate'],
 });
 
-export const scheduleRangeSchema = z.object({
+// ISO timestamps (instants), e.g. for calendar or focus-session queries.
+export const instantRangeSchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
 }).refine(r => !r.startDate || !r.endDate || new Date(r.startDate) <= new Date(r.endDate), {
   message: 'startDate must be on or before endDate',
   path: ['startDate'],
+});
+
+const ratingSchema = z.number().int().min(1).max(5).nullable().optional();
+
+export const reflectionSchema = z.object({
+  performance: ratingSchema,
+  energy: ratingSchema,
+  mood: ratingSchema,
+  notes: z.string().max(5000).nullable().optional(),
+});
+
+export const reflectionDateParamSchema = z.object({ date: dateKeySchema });
+
+// One-time upload of reviews that older app versions kept in localStorage.
+export const importReflectionsSchema = z.object({
+  reflections: z.array(reflectionSchema.extend({ date: dateKeySchema })).max(400),
+});
+
+export const createFocusSessionSchema = z.object({
+  startedAt: z.string().datetime(),
+  endedAt: z.string().datetime(),
+  durationSeconds: z.number().int().min(1).max(12 * 60 * 60),
+  plannedSeconds: z.number().int().min(1).max(12 * 60 * 60),
+  completed: z.boolean(),
+  goalId: z.string().optional(),
+  taskId: z.string().optional(),
+}).refine(s => new Date(s.startedAt) < new Date(s.endedAt), {
+  message: 'endedAt must be after startedAt',
+  path: ['endedAt'],
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

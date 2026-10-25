@@ -498,7 +498,7 @@ export function TaskManager({
                         {task.subtasks.map((subTask) => (
                           <div key={subTask.id} className="flex items-center space-x-2">
                             <button
-                              onClick={() => handleSubTaskToggle(task.id, subTask.id, !subTask.completed)}
+                              onClick={() => subTask.id && handleSubTaskToggle(task.id, subTask.id, !subTask.completed)}
                               className="flex-shrink-0"
                             >
                               {subTask.completed ? (

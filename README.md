@@ -7,9 +7,9 @@ A full-stack personal development tracker that helps you set goals, build habits
 ## Features
 
 ### Core
-- **Today View** — Unified daily dashboard with a greeting, today's schedule, habit check-ins, due tasks, and a daily review (rating + notes), a 7-day completion strip, and weekly goal-hour progress
-- **Goal Management** — Create and track personal goals with colour-coding, weekly/daily hour targets, and priority levels
-- **Task Manager** — Create tasks with subtasks, tags, priority, due dates, and goal associations
+- **Today View** — Unified daily dashboard with a greeting, today's schedule, habit check-ins, due tasks, and a daily review (performance, energy, mood + notes, saved to your account), a 7-day completion strip, and weekly goal-hour progress
+- **Goal Management** — Goals with a description, target date, colour, weekly/daily hour targets and priority; break them into **milestones**, which drive the goal's progress
+- **Task Manager** — Create tasks with saved subtasks and tags, priority, due dates, and goal associations
 - **Analytics** — Charts for time allocation, weekly trends, and completion rates, plus productivity insights
 - **Settings** — Edit your profile, set working hours, configure Pomodoro timer preferences, toggle dark/light mode
 - **Authentication** — Secure JWT-based registration and login with HTTP-only refresh token cookies
@@ -32,7 +32,8 @@ A full-stack personal development tracker that helps you set goals, build habits
 - **Pomodoro Timer** — Circular countdown ring for Work, Short Break, and Long Break sessions
 - **Session cycling** — Dot indicators track progress through the 4-session Pomodoro cycle
 - **Configurable durations** — Session lengths are read from your Settings preferences
-- **Goal & task context** — Optionally associate a focus session with a goal and task
+- **Goal & task context** — Associate a focus session with a goal and task
+- **Saved focus history** — Every focus interval (stopped-early ones after 1 minute) is stored; it counts toward the goal's weekly hours and the task's logged time
 
 ### Quick Capture
 - **Floating action button** — Always-visible `+` button (bottom-right) to instantly create a task or schedule activity
@@ -168,13 +169,20 @@ The app will be available at `http://localhost:3000`.
 | GET | `/api/auth/me` | Get current user |
 | GET/POST | `/api/goals` | List / create goals |
 | GET/PUT/DELETE | `/api/goals/:id` | Get / update / delete a goal |
+| POST | `/api/goals/:id/milestones` | Add a milestone (returns the goal with recalculated progress) |
+| PUT/DELETE | `/api/milestones/:id` | Update / delete a milestone |
 | GET/POST | `/api/tasks` | List / create tasks |
-| GET/PUT/DELETE | `/api/tasks/:id` | Get / update / delete a task |
+| GET/PUT/DELETE | `/api/tasks/:id` | Get / update / delete a task (incl. full subtask list and tags) |
+| PATCH | `/api/tasks/:id/subtasks/:subtaskId` | Toggle or rename one subtask |
 | GET/POST | `/api/schedules` | List / create schedule activities |
 | GET/PUT/DELETE | `/api/schedules/:id` | Get / update / delete an activity |
 | GET/POST | `/api/habits` | List / create habits |
 | GET/PUT/DELETE | `/api/habits/:id` | Get / update / delete a habit |
 | POST | `/api/habits/:id/complete` | Log a habit completion for today |
+| GET | `/api/reflections` | List daily reviews (default: last year) |
+| PUT | `/api/reflections/:date` | Save the review for a day (YYYY-MM-DD) |
+| POST | `/api/reflections/import` | One-time import of reviews stored by older app versions |
+| GET/POST | `/api/focus-sessions` | List / record focus sessions |
 | PUT | `/api/users/profile` | Update user profile |
 | GET | `/api/analytics/overview` | Analytics summary |
 | GET | `/api/analytics/goal-progress` | Per-goal progress analytics |

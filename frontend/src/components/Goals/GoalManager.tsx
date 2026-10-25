@@ -2,32 +2,40 @@
 
 import React, { useState } from 'react';
 import { Plus, Edit2, Trash2, Target, Flame, Clock, TrendingUp } from 'lucide-react';
-import { Goal } from '@/types';
+import { Goal, GoalInput } from '@/types';
 import { getProgressPercentage, getCategoryBadgeColor, getStreakColor } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { MobileDrawer } from '@/components/ui/MobileDrawer';
+import { MilestoneList } from './MilestoneList';
 
 interface GoalManagerProps {
   goals: Goal[];
-  onCreateGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'currentWeeklyHours' | 'streakDays' | 'status' | 'progress'>) => Promise<void>;
-  onUpdateGoal: (goalId: string, updates: Partial<Goal>) => Promise<void>;
+  onCreateGoal: (goal: GoalInput) => Promise<void>;
+  onUpdateGoal: (goalId: string, updates: Partial<GoalInput>) => Promise<void>;
   onDeleteGoal: (goalId: string) => Promise<void>;
+  onAddMilestone: (goalId: string, title: string) => Promise<void>;
+  onToggleMilestone: (milestoneId: string, completed: boolean) => Promise<void>;
+  onDeleteMilestone: (milestoneId: string) => Promise<void>;
   isMobile: boolean;
   isLoading?: boolean;
 }
 
-export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, isMobile, isLoading = false }: GoalManagerProps) {
+export function GoalManager({
+  goals, onCreateGoal, onUpdateGoal, onDeleteGoal, onAddMilestone, onToggleMilestone, onDeleteMilestone, isMobile, isLoading = false,
+}: GoalManagerProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [editingGoal, setEditingGoal] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
+  const emptyForm: GoalInput = {
     name: '',
+    description: '',
+    targetDate: '',
     color: '#3B82F6',
-    category: 'medium' as Goal['category'],
+    category: 'medium',
     targetHoursWeekly: 10,
     targetHoursDaily: 1.5,
-    priority: 1
-  });
+  };
+  const [formData, setFormData] = useState<GoalInput>(emptyForm);
 
   const predefinedColors = [
     '#3B82F6', // Blue
@@ -65,26 +73,18 @@ export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, i
   const handleEdit = (goal: Goal) => {
     setFormData({
       name: goal.name,
+      description: goal.description ?? '',
+      targetDate: goal.targetDate ?? '',
       color: goal.color,
       category: goal.category,
       targetHoursWeekly: goal.targetHoursWeekly,
       targetHoursDaily: goal.targetHoursDaily,
-      priority: goal.priority
     });
     setEditingGoal(goal.id);
     setIsCreating(true);
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      color: '#3B82F6',
-      category: 'medium',
-      targetHoursWeekly: 10,
-      targetHoursDaily: 1.5,
-      priority: 1
-    });
-  };
+  const resetForm = () => setFormData(emptyForm);
 
   const handleCancel = () => {
     setIsCreating(false);
@@ -117,6 +117,34 @@ export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, i
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             placeholder="e.g., Programming & Development"
             required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="goal-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Why it matters <span className="font-normal text-gray-400">(optional)</span>
+          </label>
+          <textarea
+            id="goal-description"
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+            rows={2}
+            maxLength={2000}
+            placeholder="What will reaching this goal change for you?"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="goal-target-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Target date <span className="font-normal text-gray-400">(optional)</span>
+          </label>
+          <input
+            id="goal-target-date"
+            type="date"
+            value={formData.targetDate}
+            onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           />
         </div>
 
@@ -301,6 +329,10 @@ export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, i
                 </div>
               </div>
 
+              {goal.description && (
+                <p className="-mt-2 mb-4 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{goal.description}</p>
+              )}
+
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className={cn(
@@ -354,6 +386,13 @@ export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, i
                     <span>{Math.round(progressPercentage)}%</span>
                   </div>
                 </div>
+
+                <MilestoneList
+                  milestones={goal.milestones}
+                  onAdd={title => onAddMilestone(goal.id, title)}
+                  onToggle={onToggleMilestone}
+                  onDelete={onDeleteMilestone}
+                />
               </div>
             </div>
           );

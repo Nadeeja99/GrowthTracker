@@ -1,12 +1,37 @@
 import { Router } from 'express';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth-simple';
-import { createTaskSchema, updateTaskSchema, paginationSchema } from '../utils/validation';
+import { Prisma } from '@prisma/client';
+import { createTaskSchema, updateTaskSchema, updateSubtaskSchema, paginationSchema } from '../utils/validation';
 import { logger } from '../utils/logger';
 import { assertGoalOwned } from '../utils/ownership';
 import { relationUpdate, optionalDate } from '../utils/prismaRelations';
 
 const router = Router();
+
+const taskInclude = {
+  goal: { select: { id: true, title: true } },
+  tags: { orderBy: { name: 'asc' } },
+  subtasks: { orderBy: { position: 'asc' } },
+} satisfies Prisma.TaskInclude;
+
+type SubtaskInput = { id?: string; title: string; completed: boolean };
+
+// Applies a full, ordered subtask list: keeps and updates items whose id
+// belongs to this task, creates the rest, deletes anything not listed.
+async function syncSubtasks(tx: Prisma.TransactionClient, taskId: string, subtasks: SubtaskInput[]) {
+  const existingIds = new Set(
+    (await tx.subtask.findMany({ where: { taskId }, select: { id: true } })).map(st => st.id)
+  );
+  const keptIds = subtasks.map(st => st.id).filter((id): id is string => !!id && existingIds.has(id));
+
+  await tx.subtask.deleteMany({ where: { taskId, id: { notIn: keptIds } } });
+  await Promise.all(subtasks.map((st, position) =>
+    st.id && existingIds.has(st.id)
+      ? tx.subtask.update({ where: { id: st.id }, data: { title: st.title, completed: st.completed, position } })
+      : tx.subtask.create({ data: { taskId, title: st.title, completed: st.completed, position } })
+  ));
+}
 
 // All routes require authentication
 router.use(authenticate);
@@ -27,19 +52,22 @@ router.post('/', async (req: AuthRequest, res) => {
       priority: validatedData.priority,
       dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
       estimatedTime: validatedData.estimatedTime,
+      status: validatedData.status,
+      completedAt: validatedData.status === 'COMPLETED' ? new Date() : null,
       user: {
         connect: { id: userId }
       },
       goal: validatedData.goalId ? {
         connect: { id: validatedData.goalId }
       } : undefined,
+      tags: validatedData.tags?.length
+        ? { create: validatedData.tags.map(name => ({ name, userId })) }
+        : undefined,
+      subtasks: validatedData.subtasks?.length
+        ? { create: validatedData.subtasks.map((st, position) => ({ title: st.title, completed: st.completed, position })) }
+        : undefined,
     },
-    include: {
-      goal: {
-        select: { id: true, title: true }
-      },
-      tags: true
-    }
+    include: taskInclude
   });
 
   logger.info('Task created', { taskId: task.id, userId });
@@ -60,12 +88,7 @@ router.get('/', async (req: AuthRequest, res) => {
   const [tasks, total] = await Promise.all([
     prisma.task.findMany({
       where: { userId },
-      include: {
-        goal: {
-          select: { id: true, title: true }
-        },
-        tags: true
-      },
+      include: taskInclude,
       orderBy: { createdAt: 'desc' },
       skip,
       take: limit,
@@ -94,12 +117,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
   const task = await prisma.task.findFirst({
     where: { id, userId },
-    include: {
-      goal: {
-        select: { id: true, title: true }
-      },
-      tags: true
-    }
+    include: taskInclude
   });
 
   if (!task) {
@@ -145,25 +163,30 @@ router.put('/:id', async (req: AuthRequest, res) => {
     completedAt = null;
   }
 
-  const updatedTask = await prisma.task.update({
-    where: { id },
-    data: {
-      title: validatedData.title,
-      description: validatedData.description,
-      priority: validatedData.priority,
-      status: validatedData.status,
-      dueDate: optionalDate(validatedData.dueDate),
-      estimatedTime: validatedData.estimatedTime,
-      actualTime: validatedData.actualTime,
-      goal: relationUpdate(validatedData.goalId),
-      completedAt,
-    },
-    include: {
-      goal: {
-        select: { id: true, title: true }
-      },
-      tags: true
+  const updatedTask = await prisma.$transaction(async tx => {
+    if (validatedData.tags !== undefined) {
+      await tx.taskTag.deleteMany({ where: { taskId: id } });
+      await tx.taskTag.createMany({ data: validatedData.tags.map(name => ({ name, userId, taskId: id })) });
     }
+    if (validatedData.subtasks !== undefined) {
+      await syncSubtasks(tx, id, validatedData.subtasks);
+    }
+
+    return tx.task.update({
+      where: { id },
+      data: {
+        title: validatedData.title,
+        description: validatedData.description,
+        priority: validatedData.priority,
+        status: validatedData.status,
+        dueDate: optionalDate(validatedData.dueDate),
+        estimatedTime: validatedData.estimatedTime,
+        actualTime: validatedData.actualTime,
+        goal: relationUpdate(validatedData.goalId),
+        completedAt,
+      },
+      include: taskInclude
+    });
   });
 
   logger.info('Task updated', { taskId: id, userId });
@@ -201,6 +224,25 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     success: true,
     message: 'Task deleted successfully'
   });
+});
+
+// Toggle or rename a single subtask
+router.patch('/:taskId/subtasks/:subtaskId', async (req: AuthRequest, res) => {
+  const { taskId, subtaskId } = req.params;
+  const userId = req.user!.id;
+  const validatedData = updateSubtaskSchema.parse(req.body);
+
+  const subtask = await prisma.subtask.findFirst({
+    where: { id: subtaskId, taskId, task: { userId } },
+    select: { id: true },
+  });
+  if (!subtask) {
+    return res.status(404).json({ success: false, error: 'Subtask not found' });
+  }
+
+  const updated = await prisma.subtask.update({ where: { id: subtaskId }, data: validatedData });
+
+  res.json({ success: true, data: { subtask: updated } });
 });
 
 export default router;

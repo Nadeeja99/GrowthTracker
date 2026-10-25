@@ -1,20 +1,5 @@
 import { Task } from '@/types';
-
-interface BackendTask {
-  id: string;
-  title: string;
-  description?: string;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-  dueDate?: string;
-  completedAt?: string;
-  estimatedTime?: number;
-  actualTime?: number;
-  goalId?: string;
-  createdAt: string;
-  updatedAt: string;
-  tags?: Array<{ name: string }>;
-}
+import { BackendTask, SubtaskWritePayload } from '@/lib/api';
 
 const STATUS_MAP: Record<string, Task['status']> = {
   PENDING: 'todo',
@@ -54,13 +39,17 @@ export function mapBackendTaskToFrontend(backendTask: BackendTask): Task {
     dueDate: backendTask.dueDate ? backendTask.dueDate.slice(0, 10) : undefined,
     createdAt: backendTask.createdAt,
     completedAt: backendTask.completedAt,
-    subtasks: [],
+    subtasks: (backendTask.subtasks ?? []).map(st => ({ id: st.id, title: st.title, completed: st.completed })),
     tags: backendTask.tags?.map(t => t.name) ?? [],
     estimatedTime: backendTask.estimatedTime,
   };
 }
 
-export function mapFrontendTaskToBackend(task: Omit<Task, 'id' | 'createdAt' | 'subtasks'>): {
+// Subtasks created in the form have no server id yet.
+const toSubtaskPayload = (subtasks: Task['subtasks']): SubtaskWritePayload[] =>
+  subtasks.map(st => ({ ...(st.id && { id: st.id }), title: st.title, completed: st.completed }));
+
+export function mapFrontendTaskToBackend(task: Omit<Task, 'id' | 'createdAt'>): {
   title: string;
   description?: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
@@ -68,6 +57,8 @@ export function mapFrontendTaskToBackend(task: Omit<Task, 'id' | 'createdAt' | '
   dueDate?: string;
   goalId?: string;
   estimatedTime?: number;
+  tags: string[];
+  subtasks: SubtaskWritePayload[];
 } {
   return {
     title: task.title,
@@ -77,6 +68,8 @@ export function mapFrontendTaskToBackend(task: Omit<Task, 'id' | 'createdAt' | '
     dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : undefined,
     goalId: task.goalId || undefined,
     estimatedTime: task.estimatedTime,
+    tags: task.tags,
+    subtasks: toSubtaskPayload(task.subtasks),
   };
 }
 
@@ -88,8 +81,10 @@ export function mapFrontendTaskUpdateToBackend(updates: Partial<Task>): {
   dueDate?: string | null;
   goalId?: string | null;
   estimatedTime?: number;
+  tags?: string[];
+  subtasks?: SubtaskWritePayload[];
 } {
-  const result: any = {};
+  const result: ReturnType<typeof mapFrontendTaskUpdateToBackend> = {};
 
   if (updates.title !== undefined) result.title = updates.title;
   if (updates.description !== undefined) result.description = updates.description;
@@ -98,6 +93,8 @@ export function mapFrontendTaskUpdateToBackend(updates: Partial<Task>): {
   if (updates.dueDate !== undefined) result.dueDate = updates.dueDate ? new Date(updates.dueDate).toISOString() : null;
   if (updates.goalId !== undefined) result.goalId = updates.goalId || null;
   if (updates.estimatedTime !== undefined) result.estimatedTime = updates.estimatedTime;
+  if (updates.tags !== undefined) result.tags = updates.tags;
+  if (updates.subtasks !== undefined) result.subtasks = toSubtaskPayload(updates.subtasks);
 
   return result;
 }

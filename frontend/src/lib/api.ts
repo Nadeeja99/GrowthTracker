@@ -19,17 +19,84 @@ export interface User {
   updatedAt: string;
 }
 
-export interface BackendGoal {
+export interface BackendMilestone {
   id: string;
   title: string;
-  description?: string;
-  targetDate?: string;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  status: 'ACTIVE' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
-  progress: number;
+  description?: string | null;
+  targetDate?: string | null;
+  completed: boolean;
+  goalId: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface BackendGoal {
+  id: string;
+  title: string;
+  description?: string | null;
+  targetDate?: string | null;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  status: 'ACTIVE' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
+  progress: number;
+  color: string;
+  targetHoursWeekly: number;
+  targetHoursDaily: number;
+  milestones?: BackendMilestone[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GoalWritePayload {
+  title?: string;
+  description?: string | null;
+  targetDate?: string | null;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  status?: 'ACTIVE' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
+  progress?: number;
+  color?: string;
+  targetHoursWeekly?: number;
+  targetHoursDaily?: number;
+}
+
+export interface BackendSubtask {
+  id: string;
+  title: string;
+  completed: boolean;
+  position: number;
+}
+
+export interface SubtaskWritePayload {
+  id?: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface BackendReflection {
+  id: string;
+  date: string; // YYYY-MM-DD
+  performance: number | null;
+  energy: number | null;
+  mood: number | null;
+  notes: string | null;
+}
+
+export type ReflectionPayload = Pick<BackendReflection, 'performance' | 'energy' | 'mood' | 'notes'>;
+
+export interface BackendFocusSession {
+  id: string;
+  startedAt: string;
+  endedAt: string;
+  durationSeconds: number;
+  plannedSeconds: number;
+  completed: boolean;
+  goalId: string | null;
+  taskId: string | null;
+}
+
+export type FocusSessionPayload = Omit<BackendFocusSession, 'id' | 'goalId' | 'taskId'> & {
+  goalId?: string;
+  taskId?: string;
+};
 
 export interface BackendTask {
   id: string;
@@ -45,6 +112,7 @@ export interface BackendTask {
   createdAt: string;
   updatedAt: string;
   tags?: Array<{ name: string }>;
+  subtasks?: BackendSubtask[];
 }
 
 export interface BackendSchedule {
@@ -171,12 +239,25 @@ class ApiClient {
     return this.request('/goals?limit=500');
   }
 
-  async createGoal(goalData: { title: string; description?: string; targetDate?: string; priority?: string }): Promise<ApiResponse<{ goal: BackendGoal }>> {
+  async createGoal(goalData: GoalWritePayload & { title: string }): Promise<ApiResponse<{ goal: BackendGoal }>> {
     return this.request('/goals', { method: 'POST', body: JSON.stringify(goalData) });
   }
 
-  async updateGoal(id: string, goalData: Partial<BackendGoal>): Promise<ApiResponse<{ goal: BackendGoal }>> {
+  async updateGoal(id: string, goalData: GoalWritePayload): Promise<ApiResponse<{ goal: BackendGoal }>> {
     return this.request(`/goals/${id}`, { method: 'PUT', body: JSON.stringify(goalData) });
+  }
+
+  // Milestones (responses include the parent goal, whose progress they drive)
+  async createMilestone(goalId: string, data: { title: string; targetDate?: string }): Promise<ApiResponse<{ milestone: BackendMilestone; goal: BackendGoal }>> {
+    return this.request(`/goals/${goalId}/milestones`, { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateMilestone(id: string, data: { title?: string; completed?: boolean; targetDate?: string | null }): Promise<ApiResponse<{ milestone: BackendMilestone; goal: BackendGoal }>> {
+    return this.request(`/milestones/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async deleteMilestone(id: string): Promise<ApiResponse<{ goal: BackendGoal }>> {
+    return this.request(`/milestones/${id}`, { method: 'DELETE' });
   }
 
   async deleteGoal(id: string): Promise<ApiResponse> {
@@ -196,6 +277,8 @@ class ApiClient {
     dueDate?: string;
     estimatedTime?: number;
     goalId?: string;
+    tags?: string[];
+    subtasks?: SubtaskWritePayload[];
   }): Promise<ApiResponse<{ task: BackendTask }>> {
     return this.request('/tasks', { method: 'POST', body: JSON.stringify(taskData) });
   }
@@ -209,8 +292,14 @@ class ApiClient {
     estimatedTime?: number;
     actualTime?: number;
     goalId?: string | null;
+    tags?: string[];
+    subtasks?: SubtaskWritePayload[];
   }): Promise<ApiResponse<{ task: BackendTask }>> {
     return this.request(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(taskData) });
+  }
+
+  async updateSubtask(taskId: string, subtaskId: string, data: { title?: string; completed?: boolean }): Promise<ApiResponse<{ subtask: BackendSubtask }>> {
+    return this.request(`/tasks/${taskId}/subtasks/${subtaskId}`, { method: 'PATCH', body: JSON.stringify(data) });
   }
 
   async deleteTask(id: string): Promise<ApiResponse> {
@@ -279,6 +368,28 @@ class ApiClient {
 
   async completeHabit(id: string, data: { date: string; count?: number; notes?: string }): Promise<ApiResponse<{ completion: any }>> {
     return this.request(`/habits/${id}/complete`, { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  // Reflections (daily reviews)
+  async getReflections(): Promise<ApiResponse<{ reflections: BackendReflection[] }>> {
+    return this.request('/reflections');
+  }
+
+  async saveReflection(date: string, data: ReflectionPayload): Promise<ApiResponse<{ reflection: BackendReflection }>> {
+    return this.request(`/reflections/${date}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async importReflections(reflections: Array<ReflectionPayload & { date: string }>): Promise<ApiResponse<{ imported: number }>> {
+    return this.request('/reflections/import', { method: 'POST', body: JSON.stringify({ reflections }) });
+  }
+
+  // Focus sessions
+  async getFocusSessions(startDate?: string): Promise<ApiResponse<{ sessions: BackendFocusSession[] }>> {
+    return this.request(`/focus-sessions${startDate ? `?startDate=${encodeURIComponent(startDate)}` : ''}`);
+  }
+
+  async createFocusSession(data: FocusSessionPayload): Promise<ApiResponse<{ session: BackendFocusSession }>> {
+    return this.request('/focus-sessions', { method: 'POST', body: JSON.stringify(data) });
   }
 
   // Users

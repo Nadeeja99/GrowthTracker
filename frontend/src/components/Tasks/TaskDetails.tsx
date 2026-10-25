@@ -276,7 +276,7 @@ export function TaskDetails({
                       className="flex items-center space-x-3 p-3 bg-white dark:bg-gray-600 rounded-lg border border-gray-200 dark:border-gray-500"
                     >
                       <button
-                        onClick={() => onSubTaskToggle(task.id, subTask.id, !subTask.completed)}
+                        onClick={() => subTask.id && onSubTaskToggle(task.id, subTask.id, !subTask.completed)}
                         className="flex-shrink-0"
                       >
                         {subTask.completed ? (

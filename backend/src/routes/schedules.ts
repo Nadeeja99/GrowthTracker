@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth-simple';
-import { createScheduleSchema, updateScheduleSchema, scheduleRangeSchema } from '../utils/validation';
+import { createScheduleSchema, updateScheduleSchema, instantRangeSchema } from '../utils/validation';
 import { logger } from '../utils/logger';
 import { assertGoalOwned, assertTaskOwned } from '../utils/ownership';
 import { relationUpdate } from '../utils/prismaRelations';
@@ -55,7 +55,7 @@ router.post('/', async (req: AuthRequest, res) => {
 
 router.get('/', async (req: AuthRequest, res) => {
   const userId = req.user!.id;
-  const { startDate, endDate } = scheduleRangeSchema.parse(req.query);
+  const { startDate, endDate } = instantRangeSchema.parse(req.query);
 
   const where: Prisma.ScheduleWhereInput = { userId };
 

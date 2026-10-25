@@ -20,7 +20,7 @@ interface TodayViewProps {
   onActivityStatusChange: (id: string, status: ScheduleActivity['status']) => void;
   onTaskStatusChange: (id: string, status: Task['status']) => void;
   onCompleteHabit: (id: string, date: string) => void;
-  onSaveDailyRating: (rating: Omit<DailyRating, 'date'>) => void;
+  onSaveDailyRating: (rating: Omit<DailyRating, 'date'>) => Promise<void>;
   onViewChange: (view: string) => void;
   isMobile: boolean;
 }
@@ -85,6 +85,8 @@ export function TodayView({
   const [reviewMood, setReviewMood] = useState(dailyRating?.mood ?? 0);
   const [reviewNotes, setReviewNotes] = useState(dailyRating?.notes ?? '');
   const [reviewSaved, setReviewSaved] = useState(!!dailyRating);
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const getGoalName = (goalId?: string) => goals.find(g => g.id === goalId)?.name;
   const getGoalColor = (goalId?: string) => goals.find(g => g.id === goalId)?.color || '#6B7280';
@@ -101,9 +103,17 @@ export function TodayView({
   const completedHabits = dailyHabits.filter(h => h.completedToday).length;
   const completedTasksToday = tasks.filter(t => t.status === 'completed' && t.completedAt?.startsWith(today)).length;
 
-  const handleSaveReview = () => {
-    onSaveDailyRating({ performance: reviewPerformance, energy: reviewEnergy, mood: reviewMood, notes: reviewNotes });
-    setReviewSaved(true);
+  const handleSaveReview = async () => {
+    setReviewSaving(true);
+    setReviewError(null);
+    try {
+      await onSaveDailyRating({ performance: reviewPerformance, energy: reviewEnergy, mood: reviewMood, notes: reviewNotes });
+      setReviewSaved(true);
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : 'Could not save your review');
+    } finally {
+      setReviewSaving(false);
+    }
   };
 
   return (
@@ -319,12 +329,15 @@ export function TodayView({
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
             />
           </div>
+          {reviewError && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">{reviewError}</p>
+          )}
           <button
             onClick={handleSaveReview}
-            disabled={reviewSaved}
+            disabled={reviewSaved || reviewSaving}
             className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors text-sm"
           >
-            {reviewSaved ? 'Review saved ✓' : 'Save Review'}
+            {reviewSaving ? 'Saving…' : reviewSaved ? 'Review saved ✓' : 'Save Review'}
           </button>
         </div>
       </div>

@@ -1,6 +1,16 @@
+export interface Milestone {
+  id: string;
+  title: string;
+  completed: boolean;
+  targetDate?: string;
+}
+
 export interface Goal {
   id: string;
   name: string;
+  description?: string;
+  targetDate?: string;
+  milestones: Milestone[];
   color: string;
   category: 'high' | 'medium' | 'low';
   targetHoursWeekly: number;
@@ -11,6 +21,20 @@ export interface Goal {
   priority: number;
   status: 'ACTIVE' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
   progress: number;
+}
+
+// Fields the user edits on a goal; the rest are computed or server-managed.
+export type GoalInput = Pick<Goal, 'name' | 'description' | 'targetDate' | 'color' | 'category' | 'targetHoursWeekly' | 'targetHoursDaily'>;
+
+export interface FocusSession {
+  id: string;
+  startedAt: string;
+  endedAt: string;
+  durationSeconds: number;
+  plannedSeconds: number;
+  completed: boolean;
+  goalId?: string;
+  taskId?: string;
 }
 
 export interface ScheduleActivity {
@@ -43,7 +67,8 @@ export interface Task {
 }
 
 export interface SubTask {
-  id: string;
+  /** Absent until the subtask has been saved. */
+  id?: string;
   title: string;
   completed: boolean;
 }

@@ -27,6 +27,8 @@ model User {
   schedules Schedule[]
   habits    Habit[]
   taskTags  TaskTag[]
+  reflections   Reflection[]
+  focusSessions FocusSession[]
 
   @@map("users")
 }
@@ -39,14 +41,20 @@ model Goal {
   priority    Priority   @default(MEDIUM)
   status      GoalStatus @default(ACTIVE)
   progress    Int        @default(0)
+  // Display colour (hex) and the time the user intends to invest; these used
+  // to be JSON-encoded inside `description`, which now holds free text only.
+  color             String @default("#3B82F6")
+  targetHoursWeekly Float  @default(10)
+  targetHoursDaily  Float  @default(1.5)
   userId      String
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  milestones Milestone[]
-  tasks      Task[]
-  schedules  Schedule[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milestones    Milestone[]
+  tasks         Task[]
+  schedules     Schedule[]
+  focusSessions FocusSession[]
 
   @@index([userId, status])
   @@map("goals")
@@ -85,8 +93,10 @@ model Task {
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   goal      Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
-  tags      TaskTag[]
-  schedules Schedule[]
+  tags          TaskTag[]
+  subtasks      Subtask[]
+  schedules     Schedule[]
+  focusSessions FocusSession[]
 
   @@index([userId, status])
   @@index([userId, createdAt])
@@ -166,6 +176,62 @@ model HabitCompletion {
 
   @@unique([habitId, date])
   @@map("habit_completions")
+}
+
+model Subtask {
+  id        String   @id @default(cuid())
+  title     String
+  completed Boolean  @default(false)
+  position  Int      @default(0)
+  taskId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, position])
+  @@map("subtasks")
+}
+
+// One end-of-day review per user per calendar day (user's time zone).
+model Reflection {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  performance Int?
+  energy      Int?
+  mood        Int?
+  notes       String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("reflections")
+}
+
+// A focused work interval from the focus timer. Breaks are not recorded.
+model FocusSession {
+  id              String   @id @default(cuid())
+  startedAt       DateTime
+  endedAt         DateTime
+  durationSeconds Int
+  plannedSeconds  Int
+  completed       Boolean
+  userId          String
+  goalId          String?
+  taskId          String?
+  createdAt       DateTime @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startedAt])
+  @@index([goalId])
+  @@index([taskId])
+  @@map("focus_sessions")
 }
 
 enum Priority {
