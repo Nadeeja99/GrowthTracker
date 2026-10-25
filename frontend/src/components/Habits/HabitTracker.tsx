@@ -213,7 +213,7 @@ export function HabitTracker({
         {totalToday > 0 && (
           <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-lg">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">Today's Progress</span>
+              <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">Today&apos;s Progress</span>
               <span className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{completedToday}/{totalToday}</span>
             </div>
             <div className="w-full bg-emerald-200 dark:bg-emerald-800 rounded-full h-2">

@@ -11,7 +11,6 @@ A comprehensive personal growth and productivity tracking application built with
 
 ### 📊 Analytics & Insights
 - Completion rate tracking
-- Habit strength analysis
 - Weekly trends visualization
 - Time allocation insights
 - Productivity metrics
@@ -79,7 +78,6 @@ GrowthTracker/
 │   ├── app/                 # Next.js app router
 │   ├── components/          # React components
 │   │   ├── Analytics/       # Analytics and charts
-│   │   ├── Dashboard/       # Main dashboard components
 │   │   ├── Goals/          # Goal management
 │   │   ├── Layout/         # Navigation and layout
 │   │   ├── Schedule/       # Scheduling components
@@ -105,10 +103,10 @@ GrowthTracker/
 
 ## 📱 Usage Guide
 
-### Dashboard
-- View your daily focus areas
-- Check quick stats and progress
-- Access weekly overview
+### Today
+- See today's schedule, habits, and due tasks
+- Log a daily review (performance, energy, mood, notes)
+- Check the 7-day overview and weekly goal progress
 
 ### Goals
 - Create new goals with descriptions
@@ -127,7 +125,6 @@ GrowthTracker/
 
 ### Analytics
 - Review completion rates
-- Analyze habit strength
 - View productivity trends
 - Monitor time allocation
 

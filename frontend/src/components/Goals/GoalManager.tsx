@@ -5,7 +5,6 @@ import { Plus, Edit2, Trash2, Target, Flame, Clock, TrendingUp } from 'lucide-re
 import { Goal } from '@/types';
 import { getProgressPercentage, getCategoryBadgeColor, getStreakColor } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
 import { MobileDrawer } from '@/components/ui/MobileDrawer';
 
 interface GoalManagerProps {
@@ -213,29 +212,19 @@ export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, i
   return (
     <div className={cn('space-y-4 md:space-y-6', isMobile && 'pb-20')}>
       {/* Header */}
-      {!isMobile && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Target className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Goal Management</h2>
-          </div>
-          <button
-            onClick={() => setIsCreating(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Goal</span>
-          </button>
-        </div>
-      )}
-
-      {/* Mobile Header */}
-      {isMobile && (
-        <div className="flex items-center space-x-3 mb-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
           <Target className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Goals</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Goals</h2>
         </div>
-      )}
+        <button
+          onClick={() => setIsCreating(true)}
+          className="flex items-center space-x-2 px-3 md:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Goal</span>
+        </button>
+      </div>
 
       {/* Desktop Create/Edit Form */}
       {!isMobile && isCreating && (
@@ -394,14 +383,6 @@ export function GoalManager({ goals, onCreateGoal, onUpdateGoal, onDeleteGoal, i
             Create Your First Goal
           </button>
         </div>
-      )}
-
-      {/* Mobile FAB */}
-      {isMobile && (
-        <FloatingActionButton
-          onClick={() => setIsCreating(true)}
-          icon={Plus}
-        />
       )}
     </div>
   );

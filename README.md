@@ -7,10 +7,10 @@ A full-stack personal development tracker that helps you set goals, build habits
 ## Features
 
 ### Core
-- **Today View** — Unified daily dashboard with a greeting, today's schedule, habit check-ins, due tasks, and a daily review (rating + notes)
+- **Today View** — Unified daily dashboard with a greeting, today's schedule, habit check-ins, due tasks, and a daily review (rating + notes), a 7-day completion strip, and weekly goal-hour progress
 - **Goal Management** — Create and track personal goals with colour-coding, weekly/daily hour targets, and priority levels
 - **Task Manager** — Create tasks with subtasks, tags, priority, due dates, and goal associations
-- **Analytics** — Charts for goal progress, time allocation, weekly trends, habit strength, and completion rates
+- **Analytics** — Charts for time allocation, weekly trends, and completion rates, plus productivity insights
 - **Settings** — Edit your profile, set working hours, configure Pomodoro timer preferences, toggle dark/light mode
 - **Authentication** — Secure JWT-based registration and login with HTTP-only refresh token cookies
 
@@ -75,7 +75,6 @@ GrowthTracker/
 │       ├── app/               # App Router pages
 │       ├── components/        # UI components
 │       │   ├── Analytics/
-│       │   ├── Dashboard/
 │       │   ├── Focus/         # Pomodoro timer
 │       │   ├── Goals/
 │       │   ├── Habits/        # Habit tracker & heatmap
@@ -83,7 +82,7 @@ GrowthTracker/
 │       │   ├── Schedule/      # Calendar, daily view, recurring form, templates
 │       │   ├── Settings/
 │       │   ├── Tasks/
-│       │   ├── Today/         # Today view & daily review
+│       │   ├── Today/         # Today view, daily review, weekly overview
 │       │   └── ui/            # Shared UI (QuickCapture, etc.)
 │       ├── contexts/          # React context (Auth)
 │       ├── hooks/             # Custom hooks (useTimer, useLocalStorage, …)
@@ -184,7 +183,6 @@ The app will be available at `http://localhost:3000`.
 | GET/PUT/DELETE | `/api/habits/:id` | Get / update / delete a habit |
 | POST | `/api/habits/:id/complete` | Log a habit completion for today |
 | PUT | `/api/users/profile` | Update user profile |
-| GET | `/api/users/stats` | Get user statistics |
 | GET | `/api/analytics/overview` | Analytics summary |
 | GET | `/api/analytics/goal-progress` | Per-goal progress analytics |
 | GET | `/api/analytics/weekly-trends` | Weekly task and habit trends |

@@ -14,19 +14,9 @@ services:
     networks:
       - growthtracker-network
 
-  redis:
-    image: redis:7-alpine
-    container_name: growthtracker-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - growthtracker-network
 
 volumes:
   postgres_data:
-  redis_data:
 
 networks:
   growthtracker-network:

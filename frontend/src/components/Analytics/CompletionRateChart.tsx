@@ -293,7 +293,7 @@ export function CompletionRateChart({
             return (
               <>
                 {completionData.overallCompletionRate >= 80 && (
-                  <p>• 🎉 Excellent work! You're maintaining a high completion rate of {completionData.overallCompletionRate.toFixed(1)}%</p>
+                  <p>• 🎉 Excellent work! You&apos;re maintaining a high completion rate of {completionData.overallCompletionRate.toFixed(1)}%</p>
                 )}
                 {completionData.overallCompletionRate >= 60 && completionData.overallCompletionRate < 80 && (
                   <p>• Good progress! Focus on completing more tasks to reach your targets</p>

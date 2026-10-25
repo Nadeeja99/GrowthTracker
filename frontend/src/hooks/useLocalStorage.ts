@@ -29,19 +29,3 @@ export function useLocalStorage<T>(key: string, defaultValue: T) {
 
   return [value, setValue] as const;
 }
-
-export function useAutoSave<T>(key: string, data: T, interval: number = 30000) {
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const saveInterval = setInterval(() => {
-      try {
-        window.localStorage.setItem(key, JSON.stringify(data));
-      } catch (error) {
-        console.error(`Auto-save failed for key "${key}":`, error);
-      }
-    }, interval);
-
-    return () => clearInterval(saveInterval);
-  }, [key, data, interval]);
-}

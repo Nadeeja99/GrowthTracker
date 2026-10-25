@@ -276,7 +276,7 @@ export function WeeklyTrendsChart({
                     • Average daily output: <strong>{avgHours.toFixed(1)}h</strong> and <strong>{avgTasks.toFixed(1)}</strong> tasks
                   </p>
                   {consistencyRate >= 80 && (
-                    <p>• Excellent consistency! You're maintaining steady progress.</p>
+                    <p>• Excellent consistency! You&apos;re maintaining steady progress.</p>
                   )}
                   {consistencyRate >= 60 && consistencyRate < 80 && (
                     <p>• Good consistency! Consider adding more daily activities.</p>

@@ -95,3 +95,9 @@ pids
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Env files — only env.example may be committed
+env.development
+env.production
+env.local
+!backend/env.example

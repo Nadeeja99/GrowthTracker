@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled connection (PgBouncer, port 6543) — used by the app at runtime
+  url       = env("DATABASE_URL")
+  // Direct connection (port 5432) — used by `prisma migrate` / `db push`
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -23,7 +26,6 @@ model User {
   tasks     Task[]
   schedules Schedule[]
   habits    Habit[]
-  analytics Analytics[]
   taskTags  TaskTag[]
 
   @@map("users")
@@ -156,21 +158,6 @@ model HabitCompletion {
   @@map("habit_completions")
 }
 
-model Analytics {
-  id        String        @id @default(cuid())
-  date      DateTime      @db.Date
-  type      AnalyticsType
-  value     Float
-  metadata  Json?
-  userId    String
-  createdAt DateTime      @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, date, type])
-  @@map("analytics")
-}
-
 enum Priority {
   LOW
   MEDIUM
@@ -211,12 +198,4 @@ enum HabitFrequency {
   DAILY
   WEEKLY
   MONTHLY
-}
-
-enum AnalyticsType {
-  TASK_COMPLETION_RATE
-  HABIT_STREAK
-  PRODUCTIVITY_SCORE
-  TIME_TRACKED
-  GOAL_PROGRESS
 }

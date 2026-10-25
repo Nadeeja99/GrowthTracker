@@ -42,15 +42,13 @@ cd backend
 npm install
 ```
 
-### 2. Start Databases
+### 2. Start the Database
 
 ```bash
 docker-compose up -d
 ```
 
-This will start:
-- PostgreSQL on port 5432
-- Redis on port 6379
+This will start PostgreSQL on port 5432.
 
 ### 3. Environment Setup
 
@@ -92,7 +90,6 @@ The API will be available at `http://localhost:5000`
 
 ### Users
 - `PUT /api/users/profile` - Update user profile
-- `GET /api/users/stats` - Get user statistics
 
 ### Goals
 - `GET /api/goals` - Get all goals (paginated)
@@ -212,7 +209,6 @@ docker-compose down
 ### View Logs
 ```bash
 docker-compose logs -f postgres
-docker-compose logs -f redis
 ```
 
 ## 📝 Environment Variables

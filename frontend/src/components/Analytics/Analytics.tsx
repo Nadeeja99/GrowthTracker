@@ -1,13 +1,11 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { BarChart3, TrendingUp, PieChart, Calendar, Target, Clock, Award, Activity, Filter, Download, RefreshCw } from 'lucide-react';
-import { Goal, ScheduleActivity, Task, Achievement, DailyRating } from '@/types';
+import { BarChart3, TrendingUp, Clock, Award, Activity, Download } from 'lucide-react';
+import { Goal, ScheduleActivity, Task, DailyRating } from '@/types';
 import { cn } from '@/lib/utils';
-import { GoalProgressChart } from './GoalProgressChart';
 import { TimeAllocationChart } from './TimeAllocationChart';
 import { WeeklyTrendsChart } from './WeeklyTrendsChart';
-import { HabitStrengthChart } from './HabitStrengthChart';
 import { CompletionRateChart } from './CompletionRateChart';
 import { ProductivityInsights } from './ProductivityInsights';
 
@@ -15,25 +13,23 @@ interface AnalyticsProps {
   goals: Goal[];
   activities: ScheduleActivity[];
   tasks: Task[];
-  achievements: Achievement[];
   dailyRatings: DailyRating[];
   isMobile: boolean;
 }
 
 type TimeRange = 'week' | 'month' | 'quarter' | 'year';
-type ChartType = 'progress' | 'time' | 'trends' | 'habits' | 'completion';
+type ChartType = 'time' | 'trends' | 'completion';
 
 export function Analytics({
   goals,
   activities,
   tasks,
-  achievements,
   dailyRatings,
   isMobile
 }: AnalyticsProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('week');
   const [selectedGoal, setSelectedGoal] = useState<string>('all');
-  const [activeChart, setActiveChart] = useState<ChartType>('progress');
+  const [activeChart, setActiveChart] = useState<ChartType>('time');
 
   // Calculate analytics data
   const analyticsData = useMemo(() => {
@@ -95,28 +91,23 @@ export function Analytics({
       ? filteredRatings.reduce((sum, rating) => sum + rating.performance, 0) / filteredRatings.length 
       : 0;
 
-    const totalStreaks = goals.reduce((sum, goal) => sum + goal.streakDays, 0);
-
     return {
       totalHours,
       completedTasks,
       totalTasks,
       completionRate,
       averageRating,
-      totalStreaks,
       filteredActivities: goalFilteredActivities,
       filteredTasks: goalFilteredTasks,
       filteredRatings,
       startDate,
       endDate: now
     };
-  }, [goals, activities, tasks, dailyRatings, timeRange, selectedGoal]);
+  }, [activities, tasks, dailyRatings, timeRange, selectedGoal]);
 
   const chartOptions = [
-    { id: 'progress', label: 'Goal Progress', icon: Target, description: 'Progress tracking by goal' },
     { id: 'time', label: 'Time Allocation', icon: Clock, description: 'How time is distributed' },
     { id: 'trends', label: 'Weekly Trends', icon: TrendingUp, description: 'Performance over time' },
-    { id: 'habits', label: 'Habit Strength', icon: Activity, description: 'Consistency patterns' },
     { id: 'completion', label: 'Completion Rates', icon: Award, description: 'Task success metrics' }
   ];
 
@@ -226,7 +217,7 @@ export function Analytics({
       </div>
 
       {/* Key Metrics Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
           <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mx-auto mb-3">
             <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -260,18 +251,6 @@ export function Analytics({
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400">
             Avg. Rating
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-          <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center mx-auto mb-3">
-            <TrendingUp className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-          </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-            {analyticsData.totalStreaks}
-          </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Total Streaks
           </div>
         </div>
       </div>
@@ -316,14 +295,6 @@ export function Analytics({
           </p>
         </div>
 
-        {activeChart === 'progress' && (
-          <GoalProgressChart 
-            goals={goals} 
-            timeRange={timeRange}
-            selectedGoal={selectedGoal}
-            isMobile={isMobile}
-          />
-        )}
 
         {activeChart === 'time' && (
           <TimeAllocationChart 
@@ -344,14 +315,6 @@ export function Analytics({
           />
         )}
 
-        {activeChart === 'habits' && (
-          <HabitStrengthChart 
-            activities={analyticsData.filteredActivities}
-            goals={goals}
-            timeRange={timeRange}
-            isMobile={isMobile}
-          />
-        )}
 
         {activeChart === 'completion' && (
           <CompletionRateChart 

@@ -29,7 +29,6 @@ export function Header({
 
   const navItems = [
     { id: 'today', label: 'Today' },
-    { id: 'dashboard', label: 'Dashboard' },
     { id: 'goals', label: 'Goals' },
     { id: 'habits', label: 'Habits' },
     { id: 'focus', label: 'Focus' },

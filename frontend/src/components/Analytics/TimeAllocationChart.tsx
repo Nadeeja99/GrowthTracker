@@ -249,7 +249,7 @@ export function TimeAllocationChart({
               </p>
             )}
             <p>
-              • You're actively working on <strong>{timeData.data.length}</strong> different goal areas
+              • You&apos;re actively working on <strong>{timeData.data.length}</strong> different goal areas
             </p>
           </div>
         </div>

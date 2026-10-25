@@ -229,7 +229,7 @@ export function TemplateForm({
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   <Clock className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                   <p>No activities added yet</p>
-                  <p className="text-sm">Click "Add Activity" to get started</p>
+                  <p className="text-sm">Click &quot;Add Activity&quot; to get started</p>
                 </div>
               )}
 

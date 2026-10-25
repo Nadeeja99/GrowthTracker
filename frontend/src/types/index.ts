@@ -63,20 +63,6 @@ export interface DailyRating {
   notes?: string;
 }
 
-export interface Achievement {
-  id: string;
-  goalId?: string;
-  title: string;
-  description: string;
-  icon: string;
-  unlockedAt?: string;
-  criteria: {
-    type: 'streak' | 'hours' | 'tasks' | 'consistency';
-    target: number;
-    current: number;
-  };
-}
-
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   notifications: boolean;
@@ -134,11 +120,3 @@ export interface Habit {
   totalCompletions: number;
 }
 
-export interface FocusSession {
-  id: string;
-  type: 'work' | 'break' | 'longBreak';
-  duration: number;
-  goalId?: string;
-  taskId?: string;
-  completedAt: string;
-}

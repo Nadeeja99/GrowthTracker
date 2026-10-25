@@ -284,7 +284,7 @@ export function ProductivityInsights({
             if (excellentCount >= insights.length * 0.5) {
               return (
                 <p className="text-emerald-600 dark:text-emerald-400">
-                  🎉 You're performing excellently across most areas! Focus on maintaining momentum and helping others.
+                  🎉 You&apos;re performing excellently across most areas! Focus on maintaining momentum and helping others.
                 </p>
               );
             } else if (improvementCount >= insights.length * 0.5) {

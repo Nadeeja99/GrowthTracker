@@ -45,28 +45,6 @@ export function getCategoryBadgeColor(category: 'high' | 'medium' | 'low'): stri
   }
 }
 
-export function getTimeStatus(startTime: string, endTime: string): 'upcoming' | 'current' | 'past' {
-  const now = new Date();
-  const today = now.toISOString().split('T')[0];
-  const start = new Date(`${today}T${startTime}`);
-  const end = new Date(`${today}T${endTime}`);
-
-  if (now < start) return 'upcoming';
-  if (now >= start && now <= end) return 'current';
-  return 'past';
-}
-
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
 }

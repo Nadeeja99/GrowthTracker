@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { Goal, ScheduleActivity, Task, Habit, DailyRating } from '@/types';
 import { cn } from '@/lib/utils';
+import { WeeklyOverview } from './WeeklyOverview';
+import { GoalProgress } from './GoalProgress';
 
 interface TodayViewProps {
   goals: Goal[];
@@ -133,7 +135,7 @@ export function TodayView({
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Clock className="w-5 h-5 text-blue-500" />
-            Today's Schedule
+            Today&apos;s Schedule
           </h3>
           <button
             onClick={() => onViewChange('schedule')}
@@ -325,6 +327,12 @@ export function TodayView({
           </button>
         </div>
       </div>
+
+      {/* This Week */}
+      <WeeklyOverview goals={goals} activities={activities} isMobile={isMobile} />
+      {goals.length > 0 && (
+        <GoalProgress goals={goals} onGoalClick={() => onViewChange('goals')} isMobile={isMobile} />
+      )}
     </div>
   );
 }

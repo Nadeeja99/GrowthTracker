@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Layout/Header';
 import { MobileNavigation } from '@/components/Layout/MobileNavigation';
-import { Dashboard } from '@/components/Dashboard/Dashboard';
 import { GoalManager } from '@/components/Goals/GoalManager';
 import { Schedule } from '@/components/Schedule/Schedule';
 import { TaskManager } from '@/components/Tasks/TaskManager';
@@ -14,7 +13,7 @@ import { HabitTracker } from '@/components/Habits/HabitTracker';
 import { FocusTimer } from '@/components/Focus/FocusTimer';
 import { TodayView } from '@/components/Today/TodayView';
 import { QuickCapture } from '@/components/ui/QuickCapture';
-import { Goal, ScheduleActivity, Task, Achievement, ScheduleTemplate, DailyRating, SubTask, Habit } from '@/types';
+import { Goal, ScheduleActivity, Task, ScheduleTemplate, DailyRating, SubTask, Habit } from '@/types';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { generateId } from '@/lib/utils';
@@ -60,7 +59,6 @@ export default function Home() {
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   // Local-only state
-  const [achievements] = useLocalStorage<Achievement[]>('dev-tracker-achievements', []);
   const [scheduleTemplates, setScheduleTemplates] = useLocalStorage<ScheduleTemplate[]>('dev-tracker-templates', []);
   const [dailyRatings, setDailyRatings] = useLocalStorage<DailyRating[]>('dev-tracker-ratings', []);
 
@@ -401,18 +399,6 @@ export default function Home() {
             isMobile={deviceInfo.isMobile}
           />
         );
-      case 'dashboard':
-        return (
-          <Dashboard
-            goals={goals}
-            activities={activities}
-            achievements={achievements}
-            onGoalClick={() => setCurrentView('analytics')}
-            onActivityStatusChange={handleActivityStatusChange}
-            onViewChange={setCurrentView}
-            isMobile={deviceInfo.isMobile}
-          />
-        );
       case 'goals':
         return (
           <GoalManager
@@ -479,7 +465,6 @@ export default function Home() {
             goals={goals}
             activities={activities}
             tasks={tasks}
-            achievements={achievements}
             dailyRatings={dailyRatings}
             isMobile={deviceInfo.isMobile}
           />

@@ -60,36 +60,3 @@ export const authenticate = async (
     }
   }
 };
-
-export const optionalAuth = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    let token: string | undefined;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    } else if (req.cookies.accessToken) {
-      token = req.cookies.accessToken;
-    }
-
-    if (token) {
-      try {
-        const decoded = verifyToken(token);
-        const user = await prisma.user.findUnique({
-          where: { id: decoded.id },
-          select: { id: true, email: true, username: true },
-        });
-        if (user) req.user = user;
-      } catch {
-        // Continue without auth
-      }
-    }
-
-    next();
-  } catch (error) {
-    next();
-  }
-};

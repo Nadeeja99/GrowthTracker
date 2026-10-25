@@ -283,23 +283,6 @@ class ApiClient {
     return this.request('/users/profile', { method: 'PUT', body: JSON.stringify(data) });
   }
 
-  async getUserStats(): Promise<ApiResponse<any>> {
-    return this.request('/users/stats');
-  }
-
-  // Analytics
-  async getAnalyticsOverview(startDate?: string, endDate?: string): Promise<ApiResponse<any>> {
-    const params = new URLSearchParams();
-    if (startDate) params.set('startDate', startDate);
-    if (endDate) params.set('endDate', endDate);
-    const query = params.toString();
-    return this.request(`/analytics/overview${query ? `?${query}` : ''}`);
-  }
-
-  async getGoalProgressAnalytics(): Promise<ApiResponse<any>> {
-    return this.request('/analytics/goal-progress');
-  }
-
   // Token management
   setToken(token: string): void {
     this.token = token;
