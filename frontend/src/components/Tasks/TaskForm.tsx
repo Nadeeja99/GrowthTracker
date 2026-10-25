@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Save, CheckSquare, Square, Plus, Trash2, Calendar, Target, Flag, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Save, CheckSquare, Square, Plus, Trash2, Flag } from 'lucide-react';
 import { Task, Goal, SubTask } from '@/types';
 import { cn } from '@/lib/utils';
+import { submitOnModEnter } from '@/lib/forms';
 
 interface TaskFormProps {
   goals: Goal[];
@@ -20,37 +21,21 @@ export function TaskForm({
   onCancel,
   isMobile
 }: TaskFormProps) {
-  const [formData, setFormData] = useState({
-    goalId: '',
-    title: '',
-    description: '',
-    priority: 'medium' as Task['priority'],
-    status: 'todo' as Task['status'],
-    dueDate: '',
-    tags: [] as string[],
-    subtasks: [] as SubTask[]
-  });
+  // The form mounts fresh each time it opens, so `task` only seeds initial state.
+  const [formData, setFormData] = useState(() => ({
+    goalId: task ? task.goalId || '' : goals[0]?.id ?? '',
+    title: task?.title ?? '',
+    description: task?.description ?? '',
+    priority: task?.priority ?? ('medium' as Task['priority']),
+    status: task?.status ?? ('todo' as Task['status']),
+    dueDate: task?.dueDate ?? '',
+    tags: task ? [...task.tags] : ([] as string[]),
+    subtasks: task ? task.subtasks.map(st => ({ ...st })) : ([] as SubTask[]),
+  }));
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newTag, setNewTag] = useState('');
   const [newSubTask, setNewSubTask] = useState('');
-
-  useEffect(() => {
-    if (task) {
-      setFormData({
-        goalId: task.goalId || '',
-        title: task.title,
-        description: task.description || '',
-        priority: task.priority,
-        status: task.status,
-        dueDate: task.dueDate || '',
-        tags: [...task.tags],
-        subtasks: task.subtasks.map(st => ({ ...st }))
-      });
-    } else if (goals.length > 0) {
-      setFormData(prev => ({ ...prev, goalId: goals[0].id }));
-    }
-  }, [task, goals]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -125,11 +110,6 @@ export function TaskForm({
     }));
   };
 
-  const getGoalColor = (goalId: string) => {
-    const goal = goals.find(g => g.id === goalId);
-    return goal?.color || '#6B7280';
-  };
-
   const getPriorityColor = (priority: Task['priority']) => {
     switch (priority) {
       case 'high':
@@ -167,7 +147,7 @@ export function TaskForm({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onKeyDown={submitOnModEnter} onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -238,7 +218,7 @@ export function TaskForm({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Task Title
               </label>
-              <input
+              <input autoFocus
                 type="text"
                 value={formData.title}
                 onChange={(e) => handleInputChange('title', e.target.value)}

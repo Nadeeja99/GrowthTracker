@@ -1,54 +1,42 @@
 'use client';
 
 import React from 'react';
-import { Sun, Home, Target, Calendar, CheckSquare, BarChart3, Settings, Repeat, Timer } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { NAV_ITEMS, isActivePath } from '@/lib/navigation';
 
-interface MobileNavigationProps {
-  currentView: string;
-  onViewChange: (view: string) => void;
-}
-
-export function MobileNavigation({ currentView, onViewChange }: MobileNavigationProps) {
-  const navItems = [
-    { id: 'today', label: 'Today', icon: Sun },
-    { id: 'habits', label: 'Habits', icon: Repeat },
-    { id: 'focus', label: 'Focus', icon: Timer },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-    { id: 'schedule', label: 'Schedule', icon: Calendar },
-    { id: 'analytics', label: 'Stats', icon: BarChart3 },
-    { id: 'settings', label: 'Settings', icon: Settings },
-  ];
+export function MobileNavigation() {
+  const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-1 py-1 safe-area-pb">
-      <div className="flex items-center justify-around">
-        {navItems.map((item) => {
+    <nav
+      aria-label="Primary"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-1 py-1 safe-area-pb"
+    >
+      <ul className="flex items-center justify-around">
+        {NAV_ITEMS.map(item => {
           const Icon = item.icon;
-          const isActive = currentView === item.id;
-
+          const isActive = isActivePath(pathname, item.href);
           return (
-            <button
-              key={item.id}
-              onClick={() => onViewChange(item.id)}
-              className={cn(
-                'flex flex-col items-center justify-center px-2 py-1.5 rounded-lg transition-all duration-200 min-w-0 flex-1',
-                isActive
-                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
-              )}
-            >
-              <Icon className={cn('transition-all duration-200', isActive ? 'w-5 h-5' : 'w-5 h-5')} />
-              <span className={cn(
-                'text-xs font-medium mt-0.5 truncate',
-                isActive ? 'text-blue-600 dark:text-blue-400' : ''
-              )}>
-                {item.label}
-              </span>
-            </button>
+            <li key={item.href} className="flex-1 min-w-0">
+              <Link
+                href={item.href}
+                aria-current={isActive ? 'page' : undefined}
+                className={cn(
+                  'flex flex-col items-center justify-center px-2 py-1.5 rounded-lg transition-colors',
+                  isActive
+                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                )}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-xs font-medium mt-0.5 truncate">{item.label}</span>
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </nav>
   );
 }

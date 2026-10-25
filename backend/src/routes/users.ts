@@ -25,6 +25,7 @@ router.put('/profile', async (req: AuthRequest, res) => {
       lastName: true,
       timezone: true,
       avatar: true,
+      createdAt: true,
       updatedAt: true,
     }
   });

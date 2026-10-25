@@ -11,6 +11,7 @@ const isValidTimeZone = (tz: string) => {
 
 const timeZoneSchema = z.string().max(64).refine(isValidTimeZone, 'Invalid IANA time zone');
 const dateKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
+const prioritySchema = z.enum(['LOW', 'MEDIUM', 'HIGH']);
 
 export const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -41,7 +42,7 @@ export const createGoalSchema = z.object({
   title: z.string().min(1).max(100),
   description: z.string().max(2000).optional(),
   targetDate: z.string().datetime().optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'),
+  priority: prioritySchema.default('MEDIUM'),
   color: hexColorSchema.optional(),
   targetHoursWeekly: weeklyHoursSchema.optional(),
   targetHoursDaily: dailyHoursSchema.optional(),
@@ -51,7 +52,7 @@ export const updateGoalSchema = z.object({
   title: z.string().min(1).max(100).optional(),
   description: z.string().max(2000).nullable().optional(),
   targetDate: z.string().datetime().nullable().optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
+  priority: prioritySchema.optional(),
   status: z.enum(['ACTIVE', 'COMPLETED', 'PAUSED', 'CANCELLED']).optional(),
   progress: z.number().int().min(0).max(100).optional(),
   color: hexColorSchema.optional(),
@@ -92,7 +93,7 @@ const subtaskListSchema = z.array(z.object({
 export const createTaskSchema = z.object({
   title: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'),
+  priority: prioritySchema.default('MEDIUM'),
   dueDate: z.string().datetime().optional(),
   estimatedTime: z.number().min(1).optional(),
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).default('PENDING'),
@@ -104,7 +105,7 @@ export const createTaskSchema = z.object({
 export const updateTaskSchema = z.object({
   title: z.string().min(1).max(100).optional(),
   description: z.string().max(500).nullable().optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
+  priority: prioritySchema.optional(),
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
   dueDate: z.string().datetime().nullable().optional(),
   estimatedTime: z.number().min(1).optional(),
@@ -139,6 +140,11 @@ export const createScheduleSchema = z.object({
 }, {
   message: 'End time must be after start time',
   path: ['endTime'],
+});
+
+// Recurring schedules create many blocks at once.
+export const bulkCreateSchedulesSchema = z.object({
+  schedules: z.array(createScheduleSchema).min(1).max(200),
 });
 
 export const updateScheduleSchema = z.object({
@@ -222,6 +228,7 @@ export const createFocusSessionSchema = z.object({
   completed: z.boolean(),
   goalId: z.string().optional(),
   taskId: z.string().optional(),
+  scheduleId: z.string().optional(),
 }).refine(s => new Date(s.startedAt) < new Date(s.endedAt), {
   message: 'endedAt must be after startedAt',
   path: ['endedAt'],

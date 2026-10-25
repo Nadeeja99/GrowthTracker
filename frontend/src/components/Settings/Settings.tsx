@@ -1,18 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User, Sun, Moon, Clock, Save, CheckCircle, AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { User, Sun, Moon, Clock, Save, CheckCircle, AlertCircle, ShieldCheck, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { apiClient } from '@/lib/api';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppSettings } from '@/types';
 import { cn } from '@/lib/utils';
-
-interface SettingsProps {
-  isDarkMode: boolean;
-  onThemeToggle: () => void;
-  isMobile: boolean;
-}
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
@@ -26,8 +22,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
 };
 
-export function Settings({ isDarkMode, onThemeToggle, isMobile }: SettingsProps) {
-  const { user, checkAuth } = useAuth();
+export function Settings() {
+  const { user, updateUser, logoutEverywhere } = useAuth();
+  const { isDark: isDarkMode, toggle: onThemeToggle } = useTheme();
+  const router = useRouter();
+  const [signingOutEverywhere, setSigningOutEverywhere] = useState(false);
   const [appSettings, setAppSettings] = useLocalStorage<AppSettings>('dev-tracker-settings', DEFAULT_SETTINGS);
 
   const [firstName, setFirstName] = useState(user?.firstName || '');
@@ -44,16 +43,16 @@ export function Settings({ isDarkMode, onThemeToggle, isMobile }: SettingsProps)
     setProfileError('');
     try {
       const response = await apiClient.updateProfile({ firstName, lastName, timezone });
-      if (response.success) {
+      if (response.success && response.data?.user) {
         setProfileStatus('success');
-        await checkAuth();
+        updateUser(response.data.user);
         setTimeout(() => setProfileStatus('idle'), 3000);
       } else {
         throw new Error(response.error || 'Failed to save profile');
       }
-    } catch (err: any) {
+    } catch (err) {
       setProfileStatus('error');
-      setProfileError(err.message || 'Failed to save profile');
+      setProfileError(err instanceof Error ? err.message : 'Failed to save profile');
     } finally {
       setProfileSaving(false);
     }
@@ -259,6 +258,36 @@ export function Settings({ isDarkMode, onThemeToggle, isMobile }: SettingsProps)
           ))}
         </div>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">Settings are saved automatically</p>
+      </div>
+
+      {/* Security */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex items-center space-x-3 mb-4">
+          <ShieldCheck className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Security</h2>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Lost a device or signed in somewhere public? End every session, including this one.
+          </p>
+          <button
+            type="button"
+            disabled={signingOutEverywhere}
+            onClick={async () => {
+              setSigningOutEverywhere(true);
+              try {
+                await logoutEverywhere();
+                router.push('/auth');
+              } finally {
+                setSigningOutEverywhere(false);
+              }
+            }}
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-60"
+          >
+            <LogOut className="w-4 h-4" />
+            {signingOutEverywhere ? 'Signing out…' : 'Sign out everywhere'}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { submitOnModEnter } from '@/lib/forms';
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
@@ -55,9 +56,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) =
         lastName: formData.lastName || undefined,
       });
       // Registration successful - redirect to main page
-      router.push('/');
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+      router.push('/today');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -76,13 +77,13 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) =
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onKeyDown={submitOnModEnter} onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 First Name
               </label>
-              <input
+              <input autoFocus
                 id="firstName"
                 name="firstName"
                 type="text"

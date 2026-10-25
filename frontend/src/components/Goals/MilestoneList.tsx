@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { CheckCircle2, Circle, Plus, X } from 'lucide-react';
 import { Milestone } from '@/types';
 import { cn } from '@/lib/utils';
+import { submitOnModEnter } from '@/lib/forms';
 
 interface MilestoneListProps {
   milestones: Milestone[];
@@ -83,7 +84,7 @@ export function MilestoneList({ milestones, onAdd, onToggle, onDelete }: Milesto
         </ul>
       )}
 
-      <form onSubmit={handleAdd} className="flex items-center gap-2">
+      <form onKeyDown={submitOnModEnter} onSubmit={handleAdd} className="flex items-center gap-2">
         <input
           type="text"
           value={title}

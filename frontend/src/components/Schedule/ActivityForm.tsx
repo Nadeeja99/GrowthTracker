@@ -1,17 +1,22 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Save, Calendar, Clock, CheckSquare } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Save, Calendar, Clock, CheckSquare, Trash2 } from 'lucide-react';
 import { Goal, ScheduleActivity, Task } from '@/types';
 import { cn } from '@/lib/utils';
 import { toDateKey } from '@/lib/dates';
+import { submitOnModEnter } from '@/lib/forms';
 
 interface ActivityFormProps {
   goals: Goal[];
   tasks: Task[];
   activity?: ScheduleActivity | null;
+  /** Prefill for a new block, e.g. when scheduling an existing task. */
+  initialValues?: Partial<Pick<ScheduleActivity, 'title' | 'goalId' | 'taskId' | 'date'>>;
   onSubmit: (activity: Omit<ScheduleActivity, 'id' | 'taskTitle'>) => void;
   onCancel: () => void;
+  /** Shown when editing an existing block. */
+  onDelete?: () => void;
   isMobile: boolean;
 }
 
@@ -21,22 +26,10 @@ const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
   return `${hour.toString().padStart(2, '0')}:${minute}`;
 });
 
-export function ActivityForm({ goals, tasks, activity, onSubmit, onCancel, isMobile }: ActivityFormProps) {
-  const [formData, setFormData] = useState({
-    goalId: '',
-    taskId: '',
-    title: '',
-    startTime: '09:00',
-    endTime: '10:00',
-    date: toDateKey(),
-    notes: '',
-    status: 'pending' as ScheduleActivity['status'],
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (activity) {
-      setFormData({
+export function ActivityForm({ goals, tasks, activity, initialValues, onSubmit, onCancel, onDelete, isMobile }: ActivityFormProps) {
+  // The form mounts fresh each time it opens, so props only seed initial state.
+  const [formData, setFormData] = useState(() => activity
+    ? {
         goalId: activity.goalId || '',
         taskId: activity.taskId || '',
         title: activity.title,
@@ -45,22 +38,19 @@ export function ActivityForm({ goals, tasks, activity, onSubmit, onCancel, isMob
         date: activity.date,
         notes: activity.notes || '',
         status: activity.status,
-      });
-    } else if (goals.length > 0) {
-      setFormData(prev => ({ ...prev, goalId: goals[0].id }));
-    }
-  }, [activity, goals]);
-
-  // Clear linked task when goal changes and task doesn't belong to the new goal
-  useEffect(() => {
-    if (formData.taskId) {
-      const task = tasks.find(t => t.id === formData.taskId);
-      if (task?.goalId && formData.goalId && task.goalId !== formData.goalId) {
-        setFormData(prev => ({ ...prev, taskId: '' }));
       }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.goalId]);
+    : {
+        goalId: initialValues?.goalId ?? goals[0]?.id ?? '',
+        taskId: initialValues?.taskId ?? '',
+        title: initialValues?.title ?? '',
+        startTime: '09:00',
+        endTime: '10:00',
+        date: initialValues?.date ?? toDateKey(),
+        notes: '',
+        status: 'pending' as ScheduleActivity['status'],
+      });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
 
   const handleTaskChange = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
@@ -102,7 +92,15 @@ export function ActivityForm({ goals, tasks, activity, onSubmit, onCancel, isMob
   };
 
   const set = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      // Unlink a task that doesn't belong to the newly selected goal.
+      if (field === 'goalId' && next.taskId) {
+        const task = tasks.find(t => t.id === next.taskId);
+        if (task?.goalId && value && task.goalId !== value) next.taskId = '';
+      }
+      return next;
+    });
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
   };
 
@@ -140,7 +138,7 @@ export function ActivityForm({ goals, tasks, activity, onSubmit, onCancel, isMob
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onKeyDown={submitOnModEnter} onSubmit={handleSubmit} className="space-y-4">
             {/* Goal */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Goal Area</label>
@@ -212,7 +210,7 @@ export function ActivityForm({ goals, tasks, activity, onSubmit, onCancel, isMob
             {/* Title */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Activity Title</label>
-              <input
+              <input autoFocus
                 type="text"
                 value={formData.title}
                 onChange={e => set('title', e.target.value)}
@@ -297,6 +295,16 @@ export function ActivityForm({ goals, tasks, activity, onSubmit, onCancel, isMob
             </div>
 
             <div className="flex items-center justify-end space-x-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+              {activity && onDelete && (
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className="mr-auto px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-medium transition-colors flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete</span>
+                </button>
+              )}
               <button type="button" onClick={onCancel} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors">
                 Cancel
               </button>

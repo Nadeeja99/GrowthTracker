@@ -14,8 +14,6 @@ interface TimeAllocationChartProps {
 export function TimeAllocationChart({
   activities,
   goals,
-  timeRange,
-  isMobile
 }: TimeAllocationChartProps) {
   const timeData = useMemo(() => {
     const goalTimeMap = new Map<string, { hours: number; count: number; color: string; name: string }>();
@@ -97,12 +95,13 @@ export function TimeAllocationChart({
         <div className="relative w-64 h-64 flex-shrink-0">
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
             {(() => {
-              let currentAngle = 0;
+              // Each slice starts where the previous one ended (cumulative angles).
+              const angles = timeData.data.map(item => (item.hours / timeData.totalHours) * 360);
+              const starts = angles.map((_, i) => angles.slice(0, i).reduce((sum, a) => sum + a, 0));
               return timeData.data.map((item, index) => {
-                const percentage = (item.hours / timeData.totalHours) * 100;
-                const angle = (percentage / 100) * 360;
-                const startAngle = currentAngle;
-                const endAngle = currentAngle + angle;
+                const angle = angles[index];
+                const startAngle = starts[index];
+                const endAngle = startAngle + angle;
                 
                 const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
                 const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
@@ -117,9 +116,7 @@ export function TimeAllocationChart({
                   `A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2}`,
                   'Z'
                 ].join(' ');
-                
-                currentAngle += angle;
-                
+
                 return (
                   <path
                     key={index}

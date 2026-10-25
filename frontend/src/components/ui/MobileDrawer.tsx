@@ -31,12 +31,6 @@ export function MobileDrawer({
     };
   }, [isOpen]);
 
-  const drawerClasses = {
-    left: 'left-0 top-0 h-full w-80 max-w-[80vw] translate-x-0',
-    right: 'right-0 top-0 h-full w-80 max-w-[80vw] translate-x-0',
-    bottom: 'bottom-0 left-0 right-0 max-h-[80vh] translate-y-0 rounded-t-2xl'
-  };
-
   const transformClasses = {
     left: isOpen ? 'translate-x-0' : '-translate-x-full',
     right: isOpen ? 'translate-x-0' : 'translate-x-full',

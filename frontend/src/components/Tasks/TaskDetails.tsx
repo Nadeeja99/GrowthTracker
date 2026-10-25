@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { X, Edit, Trash2, CheckSquare, Square, Calendar, Target, Flag, Clock, CheckCircle2, Play } from 'lucide-react';
-import { Task, Goal, SubTask } from '@/types';
+import { X, Edit, Trash2, CheckSquare, Square, Calendar, Flag } from 'lucide-react';
+import { Task, Goal } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface TaskDetailsProps {

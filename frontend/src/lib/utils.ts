@@ -44,7 +44,3 @@ export function getCategoryBadgeColor(category: 'high' | 'medium' | 'low'): stri
     case 'low': return 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300';
   }
 }
-
-export function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}

@@ -35,6 +35,7 @@ export interface FocusSession {
   completed: boolean;
   goalId?: string;
   taskId?: string;
+  scheduleId?: string;
 }
 
 export interface ScheduleActivity {
@@ -71,13 +72,6 @@ export interface SubTask {
   id?: string;
   title: string;
   completed: boolean;
-}
-
-export interface ScheduleTemplate {
-  id: string;
-  name: string;
-  type: 'workday' | 'weekend' | 'busy' | 'low-energy' | 'travel';
-  activities: Omit<ScheduleActivity, 'id' | 'date' | 'status'>[];
 }
 
 export interface DailyRating {

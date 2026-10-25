@@ -38,7 +38,7 @@ export const authenticate = async (
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { id: true, email: true, username: true, timezone: true },
+      select: { id: true, email: true, username: true, timezone: true, tokenVersion: true },
     });
 
     if (!user) {
@@ -49,7 +49,13 @@ export const authenticate = async (
       return;
     }
 
-    req.user = user;
+    if (decoded.ver !== user.tokenVersion) {
+      res.status(401).json({ success: false, error: 'Session revoked.' });
+      return;
+    }
+
+    const { tokenVersion: _tokenVersion, ...requestUser } = user;
+    req.user = requestUser;
     next();
   } catch (error) {
     // TokenExpiredError extends JsonWebTokenError, so it must be checked first.

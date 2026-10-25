@@ -18,11 +18,23 @@ router.post('/', async (req: AuthRequest, res) => {
   const data = createFocusSessionSchema.parse(req.body);
 
   let goalId = data.goalId;
+  let taskId = data.taskId;
   let task: { id: string; goalId: string | null; actualTime: number | null } | null = null;
 
-  if (data.taskId) {
+  // Started from a planned block: inherit its goal/task unless given explicitly.
+  if (data.scheduleId) {
+    const block = await prisma.schedule.findFirst({
+      where: { id: data.scheduleId, userId },
+      select: { goalId: true, taskId: true },
+    });
+    if (!block) throw new HttpError(404, 'Schedule not found');
+    goalId = goalId ?? block.goalId ?? undefined;
+    taskId = taskId ?? block.taskId ?? undefined;
+  }
+
+  if (taskId) {
     task = await prisma.task.findFirst({
-      where: { id: data.taskId, userId },
+      where: { id: taskId, userId },
       select: { id: true, goalId: true, actualTime: true },
     });
     if (!task) throw new HttpError(404, 'Task not found');
@@ -41,6 +53,7 @@ router.post('/', async (req: AuthRequest, res) => {
         userId,
         goalId,
         taskId: task?.id,
+        scheduleId: data.scheduleId,
         startedAt: new Date(data.startedAt),
         endedAt: new Date(data.endedAt),
         durationSeconds: data.durationSeconds,

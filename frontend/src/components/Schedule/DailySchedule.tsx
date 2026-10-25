@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Calendar, Clock, Plus, CheckCircle2, XCircle, Play, SkipForward, CheckSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, Plus, CheckCircle2, XCircle, Play, SkipForward, CheckSquare, ChevronLeft, ChevronRight, Timer } from 'lucide-react';
 import { Goal, ScheduleActivity, Task } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseDateKey, toDateKey } from '@/lib/dates';
@@ -15,19 +15,18 @@ interface DailyScheduleProps {
   onActivityClick: (activity: ScheduleActivity) => void;
   onActivityStatusChange: (activityId: string, status: ScheduleActivity['status']) => void;
   onCreateActivity: () => void;
+  onStartFocus?: (activity: ScheduleActivity) => void;
   isMobile: boolean;
 }
 
 export function DailySchedule({
   goals,
-  tasks,
   activities,
   selectedDate,
   onDateSelect,
   onActivityClick,
-  onActivityStatusChange,
   onCreateActivity,
-  isMobile
+  onStartFocus,
 }: DailyScheduleProps) {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
 
@@ -256,6 +255,15 @@ export function DailySchedule({
                         </div>
                         
                         <div className="flex items-center space-x-2 ml-3">
+                          {onStartFocus && (activity.status === 'pending' || activity.status === 'in-progress') && (
+                            <button
+                              onClick={e => { e.stopPropagation(); onStartFocus(activity); }}
+                              aria-label={`Focus on ${activity.title}`}
+                              className="p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-white/60 dark:hover:bg-gray-700"
+                            >
+                              <Timer className="w-4 h-4" />
+                            </button>
+                          )}
                           <span className={cn(
                             'px-2 py-1 rounded text-xs font-medium',
                             activity.status === 'completed' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',

@@ -1,6 +1,31 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-export interface ApiResponse<T = any> {
+export type BackendPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface AnalyticsOverview {
+  period: { startDate: string; endDate: string; timezone: string };
+  goals: { total: number; active: number; completed: number; completionRate: number; averageActiveProgress: number };
+  tasks: {
+    total: number; completed: number; completionRate: number;
+    timeEfficiency: number; totalEstimatedTime: number; totalActualTime: number;
+  };
+  habits: { total: number; completionRate: number };
+  focus: { sessions: number; totalMinutes: number; completionRate: number };
+  reflections: { days: number; averagePerformance: number | null; averageEnergy: number | null; averageMood: number | null };
+}
+
+export interface ScheduleWritePayload {
+  title: string;
+  startTime: string;
+  endTime: string;
+  status?: string;
+  notes?: string;
+  actualTimeSpent?: number;
+  goalId?: string;
+  taskId?: string;
+}
+
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   message?: string;
@@ -35,7 +60,7 @@ export interface BackendGoal {
   title: string;
   description?: string | null;
   targetDate?: string | null;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  priority: BackendPriority;
   status: 'ACTIVE' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
   progress: number;
   color: string;
@@ -50,7 +75,7 @@ export interface GoalWritePayload {
   title?: string;
   description?: string | null;
   targetDate?: string | null;
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  priority?: BackendPriority;
   status?: 'ACTIVE' | 'COMPLETED' | 'PAUSED' | 'CANCELLED';
   progress?: number;
   color?: string;
@@ -91,18 +116,20 @@ export interface BackendFocusSession {
   completed: boolean;
   goalId: string | null;
   taskId: string | null;
+  scheduleId: string | null;
 }
 
-export type FocusSessionPayload = Omit<BackendFocusSession, 'id' | 'goalId' | 'taskId'> & {
+export type FocusSessionPayload = Omit<BackendFocusSession, 'id' | 'goalId' | 'taskId' | 'scheduleId'> & {
   goalId?: string;
   taskId?: string;
+  scheduleId?: string;
 };
 
 export interface BackendTask {
   id: string;
   title: string;
   description?: string;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  priority: BackendPriority;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   dueDate?: string;
   completedAt?: string;
@@ -158,18 +185,32 @@ export interface BackendHabitWithCompletions extends BackendHabit {
   completions: BackendHabitCompletion[];
 }
 
+// Auth endpoints that must never trigger the refresh-and-retry path.
+const NO_REFRESH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'];
+
 class ApiClient {
   private baseURL: string;
+  // The access token lives only in memory (never localStorage), so injected
+  // scripts can't read it from storage. It is short-lived and restored on
+  // page load from the httpOnly refresh cookie via refreshSession().
   private token: string | null = null;
+  private refreshInFlight: Promise<User | null> | null = null;
+  private sessionExpiredListener: (() => void) | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
     if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('accessToken');
+      // Older versions persisted the token; remove it.
+      localStorage.removeItem('accessToken');
     }
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  /** Called when the session can't be renewed and the user must sign in again. */
+  onSessionExpired(listener: (() => void) | null): void {
+    this.sessionExpiredListener = listener;
+  }
+
+  private async request<T>(endpoint: string, options: RequestInit = {}, isRetry = false): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
 
     const headers: HeadersInit = {
@@ -181,12 +222,16 @@ class ApiClient {
       (headers as Record<string, string>).Authorization = `Bearer ${this.token}`;
     }
 
-    const response = await fetch(url, { ...options, headers });
+    // `include` sends the httpOnly refresh cookie to the /auth endpoints.
+    const response = await fetch(url, { ...options, headers, credentials: 'include' });
     // Proxies and cold-starting hosts can answer with HTML, so don't assume JSON.
     const data = await response.json().catch(() => ({}));
 
-    if (response.status === 401) {
-      this.clearToken();
+    // Access tokens expire after minutes: renew once, then replay the request.
+    if (response.status === 401 && !isRetry && !NO_REFRESH_ENDPOINTS.includes(endpoint)) {
+      const user = await this.refreshSession();
+      if (user) return this.request<T>(endpoint, options, true);
+      this.sessionExpiredListener?.();
     }
 
     if (!response.ok) {
@@ -219,6 +264,35 @@ class ApiClient {
       this.setToken(response.data.accessToken);
     }
     return response;
+  }
+
+  /**
+   * Exchanges the refresh cookie for a new access token. Concurrent callers
+   * share one request. Resolves to the user, or null when there's no session.
+   */
+  refreshSession(): Promise<User | null> {
+    this.refreshInFlight ??= this.request<{ user: User; accessToken: string }>('/auth/refresh', { method: 'POST' })
+      .then(res => {
+        if (!res.data?.accessToken) return null;
+        this.setToken(res.data.accessToken);
+        return res.data.user;
+      })
+      .catch(() => {
+        this.clearToken();
+        return null;
+      })
+      .finally(() => {
+        this.refreshInFlight = null;
+      });
+    return this.refreshInFlight;
+  }
+
+  async logoutEverywhere(): Promise<ApiResponse> {
+    try {
+      return await this.request('/auth/logout-all', { method: 'POST' });
+    } finally {
+      this.clearToken();
+    }
   }
 
   async logout(): Promise<ApiResponse> {
@@ -315,17 +389,12 @@ class ApiClient {
     return this.request(`/schedules${query ? `?${query}` : ''}`);
   }
 
-  async createSchedule(scheduleData: {
-    title: string;
-    startTime: string;
-    endTime: string;
-    status?: string;
-    notes?: string;
-    actualTimeSpent?: number;
-    goalId?: string;
-    taskId?: string;
-  }): Promise<ApiResponse<{ schedule: BackendSchedule }>> {
+  async createSchedule(scheduleData: ScheduleWritePayload): Promise<ApiResponse<{ schedule: BackendSchedule }>> {
     return this.request('/schedules', { method: 'POST', body: JSON.stringify(scheduleData) });
+  }
+
+  async createSchedulesBulk(schedules: ScheduleWritePayload[]): Promise<ApiResponse<{ count: number }>> {
+    return this.request('/schedules/bulk', { method: 'POST', body: JSON.stringify({ schedules }) });
   }
 
   async updateSchedule(id: string, scheduleData: {
@@ -346,7 +415,8 @@ class ApiClient {
   }
 
   // Habits
-  async getHabits(): Promise<ApiResponse<{ habits: BackendHabit[] }>> {
+  // The list includes each habit's completions for the last year.
+  async getHabits(): Promise<ApiResponse<{ habits: BackendHabitWithCompletions[] }>> {
     return this.request('/habits?limit=500');
   }
 
@@ -366,8 +436,14 @@ class ApiClient {
     return this.request(`/habits/${id}`, { method: 'DELETE' });
   }
 
-  async completeHabit(id: string, data: { date: string; count?: number; notes?: string }): Promise<ApiResponse<{ completion: any }>> {
+  async completeHabit(id: string, data: { date: string; count?: number; notes?: string }): Promise<ApiResponse<{ completion: BackendHabitCompletion }>> {
     return this.request(`/habits/${id}/complete`, { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  // Analytics
+  async getAnalyticsOverview(startDate: string, endDate: string): Promise<ApiResponse<{ analytics: AnalyticsOverview }>> {
+    const params = new URLSearchParams({ startDate, endDate });
+    return this.request(`/analytics/overview?${params}`);
   }
 
   // Reflections (daily reviews)
@@ -400,16 +476,10 @@ class ApiClient {
   // Token management
   setToken(token: string): void {
     this.token = token;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', token);
-    }
   }
 
   clearToken(): void {
     this.token = null;
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-    }
   }
 
   isAuthenticated(): boolean {

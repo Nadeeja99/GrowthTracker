@@ -3,10 +3,11 @@
 import React, { useState } from 'react';
 import { Plus, Edit2, Trash2, Target, Flame, Clock, TrendingUp } from 'lucide-react';
 import { Goal, GoalInput } from '@/types';
-import { getProgressPercentage, getCategoryBadgeColor, getStreakColor } from '@/lib/utils';
+import { getProgressPercentage, getCategoryBadgeColor } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { MobileDrawer } from '@/components/ui/MobileDrawer';
 import { MilestoneList } from './MilestoneList';
+import { submitOnModEnter } from '@/lib/forms';
 
 interface GoalManagerProps {
   goals: Goal[];
@@ -104,13 +105,13 @@ export function GoalManager({
   };
 
   const GoalForm = (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onKeyDown={submitOnModEnter} onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Goal Name
           </label>
-          <input
+          <input autoFocus
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}

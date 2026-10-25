@@ -3,13 +3,14 @@
 import React, { useState } from 'react';
 import {
   Sun, CheckCircle2, Circle, Clock, Target, Repeat,
-  ChevronRight, Play, XCircle, SkipForward, Flame, Plus
+  ChevronRight, Play, XCircle, SkipForward, Flame, Timer
 } from 'lucide-react';
 import { Goal, ScheduleActivity, Task, Habit, DailyRating } from '@/types';
 import { cn } from '@/lib/utils';
 import { WeeklyOverview } from './WeeklyOverview';
 import { GoalProgress } from './GoalProgress';
 import { toDateKey } from '@/lib/dates';
+import { FocusTarget } from '@/contexts/FocusContext';
 
 interface TodayViewProps {
   goals: Goal[];
@@ -21,7 +22,8 @@ interface TodayViewProps {
   onTaskStatusChange: (id: string, status: Task['status']) => void;
   onCompleteHabit: (id: string, date: string) => void;
   onSaveDailyRating: (rating: Omit<DailyRating, 'date'>) => Promise<void>;
-  onViewChange: (view: string) => void;
+  onNavigate: (href: string) => void;
+  onStartFocus: (target: FocusTarget) => void;
   isMobile: boolean;
 }
 
@@ -59,7 +61,8 @@ export function TodayView({
   onTaskStatusChange,
   onCompleteHabit,
   onSaveDailyRating,
-  onViewChange,
+  onNavigate,
+  onStartFocus,
   isMobile,
 }: TodayViewProps) {
   const today = toDateKey();
@@ -149,7 +152,7 @@ export function TodayView({
             Today&apos;s Schedule
           </h3>
           <button
-            onClick={() => onViewChange('schedule')}
+            onClick={() => onNavigate('/plan')}
             className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline"
           >
             View all <ChevronRight className="w-3 h-3" />
@@ -161,7 +164,7 @@ export function TodayView({
             <Clock className="w-10 h-10 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
             <p className="text-sm">No activities scheduled for today</p>
             <button
-              onClick={() => onViewChange('schedule')}
+              onClick={() => onNavigate('/plan')}
               className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
               Add an activity
@@ -189,6 +192,15 @@ export function TodayView({
                 </div>
                 <div className="flex items-center gap-2">
                   {statusIcon[activity.status]}
+                  {(activity.status === 'pending' || activity.status === 'in-progress') && (
+                    <button
+                      onClick={() => onStartFocus({ scheduleId: activity.id, goalId: activity.goalId, taskId: activity.taskId, label: activity.title })}
+                      aria-label={`Focus on ${activity.title}`}
+                      className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors"
+                    >
+                      <Timer className="w-4 h-4" />
+                    </button>
+                  )}
                   {activity.status === 'pending' && (
                     <button
                       onClick={() => onActivityStatusChange(activity.id, 'completed')}
@@ -213,7 +225,7 @@ export function TodayView({
               Habits
             </h3>
             <button
-              onClick={() => onViewChange('habits')}
+              onClick={() => onNavigate('/habits')}
               className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline"
             >
               Manage <ChevronRight className="w-3 h-3" />
@@ -259,7 +271,7 @@ export function TodayView({
               Tasks Due
             </h3>
             <button
-              onClick={() => onViewChange('tasks')}
+              onClick={() => onNavigate('/plan')}
               className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline"
             >
               All tasks <ChevronRight className="w-3 h-3" />
@@ -299,6 +311,13 @@ export function TodayView({
                   )}>
                     {task.priority}
                   </span>
+                  <button
+                    onClick={() => onStartFocus({ taskId: task.id, goalId: task.goalId, label: task.title })}
+                    aria-label={`Focus on ${task.title}`}
+                    className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors flex-shrink-0"
+                  >
+                    <Timer className="w-4 h-4" />
+                  </button>
                 </div>
               );
             })}
@@ -345,7 +364,7 @@ export function TodayView({
       {/* This Week */}
       <WeeklyOverview goals={goals} activities={activities} isMobile={isMobile} />
       {goals.length > 0 && (
-        <GoalProgress goals={goals} onGoalClick={() => onViewChange('goals')} isMobile={isMobile} />
+        <GoalProgress goals={goals} onGoalClick={() => onNavigate('/goals')} isMobile={isMobile} />
       )}
     </div>
   );

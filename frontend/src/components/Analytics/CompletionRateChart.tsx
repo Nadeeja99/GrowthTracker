@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Award, CheckCircle, Clock, Target, TrendingUp } from 'lucide-react';
+import { Award } from 'lucide-react';
 import { Task, Goal } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -15,8 +15,6 @@ interface CompletionRateChartProps {
 export function CompletionRateChart({
   tasks,
   goals,
-  timeRange,
-  isMobile
 }: CompletionRateChartProps) {
   const completionData = useMemo(() => {
     if (tasks.length === 0) return null;

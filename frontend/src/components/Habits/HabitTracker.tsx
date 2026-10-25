@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Plus, CheckCircle2, Circle, Flame, Edit, Trash2, Repeat, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
-import { Habit, HabitCompletion } from '@/types';
+import { Habit } from '@/types';
 import { cn } from '@/lib/utils';
 import { HabitForm } from './HabitForm';
 import { toDateKey } from '@/lib/dates';
@@ -281,6 +281,7 @@ export function HabitTracker({
       {/* Create / Edit form */}
       {(showForm || editingHabit) && (
         <HabitForm
+          key={editingHabit?.id ?? 'new'}
           habit={editingHabit}
           onSubmit={editingHabit ? handleUpdate : handleCreate}
           onCancel={() => { setShowForm(false); setEditingHabit(null); }}

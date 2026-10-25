@@ -2,9 +2,9 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth-simple';
-import { createScheduleSchema, updateScheduleSchema, instantRangeSchema } from '../utils/validation';
+import { createScheduleSchema, updateScheduleSchema, bulkCreateSchedulesSchema, instantRangeSchema } from '../utils/validation';
 import { logger } from '../utils/logger';
-import { assertGoalOwned, assertTaskOwned } from '../utils/ownership';
+import { assertGoalOwned, assertTaskOwned, assertGoalsOwned, assertTasksOwned } from '../utils/ownership';
 import { relationUpdate } from '../utils/prismaRelations';
 
 async function assertRelationsOwned(userId: string, data: { goalId?: string | null; taskId?: string | null }) {
@@ -51,6 +51,39 @@ router.post('/', async (req: AuthRequest, res) => {
     message: 'Schedule created successfully',
     data: { schedule },
   });
+});
+
+// Create many blocks at once (recurring schedules): one ownership query per
+// relation type and a single insert instead of one request per block.
+router.post('/bulk', async (req: AuthRequest, res) => {
+  const { schedules } = bulkCreateSchedulesSchema.parse(req.body);
+  const userId = req.user!.id;
+
+  await Promise.all([
+    assertGoalsOwned(userId, schedules.flatMap(s => (s.goalId ? [s.goalId] : []))),
+    assertTasksOwned(userId, schedules.flatMap(s => (s.taskId ? [s.taskId] : []))),
+  ]);
+
+  const { count } = await prisma.schedule.createMany({
+    data: schedules.map(s => ({
+      userId,
+      title: s.title,
+      description: s.description,
+      startTime: new Date(s.startTime),
+      endTime: new Date(s.endTime),
+      allDay: s.allDay,
+      recurring: s.recurring,
+      status: s.status,
+      notes: s.notes,
+      actualTimeSpent: s.actualTimeSpent,
+      goalId: s.goalId ?? null,
+      taskId: s.taskId ?? null,
+    })),
+  });
+
+  logger.info('Schedules bulk-created', { userId, count });
+
+  res.status(201).json({ success: true, data: { count } });
 });
 
 router.get('/', async (req: AuthRequest, res) => {

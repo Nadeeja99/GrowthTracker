@@ -5,6 +5,7 @@ import { X, Save, RotateCcw, Calendar, CheckSquare, ChevronRight } from 'lucide-
 import { Goal, ScheduleActivity, Task } from '@/types';
 import { cn } from '@/lib/utils';
 import { toDateKey } from '@/lib/dates';
+import { submitOnModEnter } from '@/lib/forms';
 
 interface RecurringScheduleFormProps {
   goals: Goal[];
@@ -151,7 +152,7 @@ export function RecurringScheduleForm({ goals, tasks, onSubmit, onCancel, isMobi
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onKeyDown={submitOnModEnter} onSubmit={handleSubmit} className="space-y-5">
             {/* Title */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Activity Title</label>

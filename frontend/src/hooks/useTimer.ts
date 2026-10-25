@@ -61,7 +61,9 @@ export function useTimer({ onFocusRecorded }: { onFocusRecorded?: (focus: Record
     startedAt: null, segmentStart: null, accumulatedMs: 0,
   });
   const onFocusRecordedRef = useRef(onFocusRecorded);
-  onFocusRecordedRef.current = onFocusRecorded;
+  useEffect(() => {
+    onFocusRecordedRef.current = onFocusRecorded;
+  });
 
   const isRunning = endsAt !== null;
   const plannedMs = durationFor(currentSession);
@@ -106,16 +108,22 @@ export function useTimer({ onFocusRecorded }: { onFocusRecorded?: (focus: Record
     }
   }, [currentSession, cycleCount, flushFocus, goTo]);
 
-  // Re-render a few times a second while running; finish when time is up.
+  // The interval below outlives renders, so it calls the latest callback via a ref.
+  const completeSessionRef = useRef(completeSession);
   useEffect(() => {
-    if (!isRunning) return;
-    if (msLeft <= 0) {
-      completeSession(true);
-      return;
-    }
-    const interval = setInterval(() => setNow(Date.now()), 250);
+    completeSessionRef.current = completeSession;
+  });
+
+  // While running, re-render a few times a second and finish when time is up.
+  useEffect(() => {
+    if (endsAt === null) return;
+    const interval = setInterval(() => {
+      const current = Date.now();
+      if (current >= endsAt) completeSessionRef.current(true);
+      else setNow(current);
+    }, 250);
     return () => clearInterval(interval);
-  }, [isRunning, msLeft, completeSession]);
+  }, [endsAt]);
 
   const startTimer = useCallback(() => {
     if (isRunning) return;

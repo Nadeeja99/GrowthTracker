@@ -10,6 +10,7 @@ const router = Router();
 router.use(authenticate);
 
 const percent = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+const round1 = (value: number | null) => (value === null ? null : Math.round(value * 10) / 10);
 
 // Get user analytics overview
 router.get('/overview', async (req: AuthRequest, res) => {
@@ -17,7 +18,7 @@ router.get('/overview', async (req: AuthRequest, res) => {
   const range = resolveRange(dateRangeSchema.parse(req.query), timezone, 30);
   const createdInRange = { gte: range.start, lt: range.endExclusive };
 
-  const [goalsByStatus, activeGoalProgress, tasksByStatus, taskTime, habits, completionsByHabit] = await Promise.all([
+  const [goalsByStatus, activeGoalProgress, tasksByStatus, taskTime, habits, completionsByHabit, focus, completedFocus, reflections] = await Promise.all([
     // Goals are a current snapshot, not filtered by creation date.
     prisma.goal.groupBy({ by: ['status'], where: { userId }, _count: { _all: true } }),
     prisma.goal.aggregate({ where: { userId, status: 'ACTIVE' }, _avg: { progress: true } }),
@@ -31,6 +32,17 @@ router.get('/overview', async (req: AuthRequest, res) => {
     prisma.habitCompletion.groupBy({
       by: ['habitId'],
       where: { habit: { userId }, date: { gte: dateOnly(range.startKey), lte: dateOnly(range.endKey) } },
+      _count: { _all: true },
+    }),
+    prisma.focusSession.aggregate({
+      where: { userId, startedAt: createdInRange },
+      _sum: { durationSeconds: true },
+      _count: { _all: true },
+    }),
+    prisma.focusSession.count({ where: { userId, startedAt: createdInRange, completed: true } }),
+    prisma.reflection.aggregate({
+      where: { userId, date: { gte: dateOnly(range.startKey), lte: dateOnly(range.endKey) } },
+      _avg: { performance: true, energy: true, mood: true },
       _count: { _all: true },
     }),
   ]);
@@ -81,6 +93,18 @@ router.get('/overview', async (req: AuthRequest, res) => {
     habits: {
       total: habits.length,
       completionRate: habitCompletionRate,
+    },
+    focus: {
+      sessions: focus._count._all,
+      totalMinutes: Math.round((focus._sum.durationSeconds ?? 0) / 60),
+      // Share of sessions that ran to the end rather than being stopped early.
+      completionRate: percent(completedFocus, focus._count._all),
+    },
+    reflections: {
+      days: reflections._count._all,
+      averagePerformance: round1(reflections._avg.performance),
+      averageEnergy: round1(reflections._avg.energy),
+      averageMood: round1(reflections._avg.mood),
     },
   };
 

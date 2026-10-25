@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { submitOnModEnter } from '@/lib/forms';
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
@@ -25,9 +26,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
     try {
       await login(email, password);
       // Login successful - redirect to main page
-      router.push('/');
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
+      router.push('/today');
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -46,12 +47,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onKeyDown={submitOnModEnter} onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Email
             </label>
-            <input
+            <input autoFocus
               id="email"
               type="email"
               value={email}

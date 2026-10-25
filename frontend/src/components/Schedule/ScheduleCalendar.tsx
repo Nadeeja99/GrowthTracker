@@ -22,8 +22,6 @@ export function ScheduleCalendar({
   selectedDate,
   onDateSelect,
   onActivityClick,
-  onActivityStatusChange,
-  isMobile
 }: ScheduleCalendarProps) {
   const [currentWeek, setCurrentWeek] = useState<Date>(parseDateKey(selectedDate));
 
@@ -124,7 +122,7 @@ export function ScheduleCalendar({
       {/* Calendar Grid */}
       <div className="grid grid-cols-7 gap-2 md:gap-3">
         {/* Day Headers */}
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
           <div key={day} className="text-center">
             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
               {day}

@@ -1,11 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import { LoginForm } from '@/components/Auth/LoginForm';
 import { RegisterForm } from '@/components/Auth/RegisterForm';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  // Already signed in (e.g. session restored from the refresh cookie): skip the form.
+  useEffect(() => {
+    if (isAuthenticated) router.replace('/today');
+  }, [isAuthenticated, router]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">

@@ -1,5 +1,5 @@
 import { Task } from '@/types';
-import { BackendTask, SubtaskWritePayload } from '@/lib/api';
+import { BackendPriority, BackendTask, SubtaskWritePayload } from '@/lib/api';
 
 const STATUS_MAP: Record<string, Task['status']> = {
   PENDING: 'todo',
@@ -12,7 +12,6 @@ const PRIORITY_MAP: Record<string, Task['priority']> = {
   LOW: 'low',
   MEDIUM: 'medium',
   HIGH: 'high',
-  URGENT: 'high',
 };
 
 const STATUS_TO_BACKEND: Record<Task['status'], 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'> = {
@@ -21,7 +20,7 @@ const STATUS_TO_BACKEND: Record<Task['status'], 'PENDING' | 'IN_PROGRESS' | 'COM
   completed: 'COMPLETED',
 };
 
-const PRIORITY_TO_BACKEND: Record<Task['priority'], 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'> = {
+const PRIORITY_TO_BACKEND: Record<Task['priority'], BackendPriority> = {
   low: 'LOW',
   medium: 'MEDIUM',
   high: 'HIGH',
@@ -52,7 +51,7 @@ const toSubtaskPayload = (subtasks: Task['subtasks']): SubtaskWritePayload[] =>
 export function mapFrontendTaskToBackend(task: Omit<Task, 'id' | 'createdAt'>): {
   title: string;
   description?: string;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  priority: BackendPriority;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   dueDate?: string;
   goalId?: string;
@@ -76,7 +75,7 @@ export function mapFrontendTaskToBackend(task: Omit<Task, 'id' | 'createdAt'>): 
 export function mapFrontendTaskUpdateToBackend(updates: Partial<Task>): {
   title?: string;
   description?: string;
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  priority?: BackendPriority;
   status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   dueDate?: string | null;
   goalId?: string | null;

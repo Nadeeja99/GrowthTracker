@@ -3,11 +3,11 @@ import { BackendGoal, GoalWritePayload } from '@/lib/api';
 import { parseDateKey, toDateKey } from '@/lib/dates';
 
 const PRIORITY_TO_NUMBER: Record<BackendGoal['priority'], number> = {
-  LOW: 1, MEDIUM: 2, HIGH: 3, URGENT: 4,
+  LOW: 1, MEDIUM: 2, HIGH: 3,
 };
 
 const PRIORITY_TO_CATEGORY: Record<BackendGoal['priority'], Goal['category']> = {
-  LOW: 'low', MEDIUM: 'medium', HIGH: 'high', URGENT: 'high',
+  LOW: 'low', MEDIUM: 'medium', HIGH: 'high',
 };
 
 const CATEGORY_TO_PRIORITY: Record<Goal['category'], BackendGoal['priority']> = {
@@ -50,16 +50,17 @@ const blockHours = (a: ScheduleActivity) =>
 /**
  * Derives "actual" time for a goal from completed schedule blocks plus logged
  * focus sessions, and the streak of consecutive days with any such time.
- * Known limitation: focus time inside a block that is also marked completed is
- * counted twice; linking sessions to blocks (Plan view) will resolve that.
  */
 export function applyGoalStats(goal: Goal, activities: ScheduleActivity[], focusSessions: FocusSession[]): Goal {
   const startOfWeek = new Date();
   startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
 
-  const blocks = activities.filter(a => a.goalId === goal.id && a.status === 'completed');
   const sessions = focusSessions.filter(s => s.goalId === goal.id);
+  // A block someone focused in counts its focused time (via the sessions),
+  // not its planned duration, so the same hour is never counted twice.
+  const focusedBlockIds = new Set(focusSessions.flatMap(s => (s.scheduleId ? [s.scheduleId] : [])));
+  const blocks = activities.filter(a => a.goalId === goal.id && a.status === 'completed' && !focusedBlockIds.has(a.id));
 
   const weeklyHours =
     blocks.filter(a => parseDateKey(a.date) >= startOfWeek).reduce((sum, a) => sum + blockHours(a), 0) +

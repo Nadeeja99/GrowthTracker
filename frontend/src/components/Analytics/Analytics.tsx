@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { BarChart3, TrendingUp, Clock, Award, Activity, Download } from 'lucide-react';
+import { BarChart3, TrendingUp, Clock, Award, Repeat, Battery, Download } from 'lucide-react';
 import { Goal, ScheduleActivity, Task, DailyRating } from '@/types';
 import { cn } from '@/lib/utils';
 import { TimeAllocationChart } from './TimeAllocationChart';
@@ -9,16 +9,45 @@ import { WeeklyTrendsChart } from './WeeklyTrendsChart';
 import { CompletionRateChart } from './CompletionRateChart';
 import { ProductivityInsights } from './ProductivityInsights';
 import { parseDateKey, toDateKey } from '@/lib/dates';
+import { AnalyticsOverview } from '@/lib/api';
+
+export type TimeRange = 'week' | 'month' | 'quarter' | 'year';
+
+/** First day included in a range ending today. */
+export function getRangeStart(range: TimeRange, now = new Date()): Date {
+  const start = new Date(now);
+  if (range === 'week') start.setDate(now.getDate() - 7);
+  else if (range === 'month') start.setMonth(now.getMonth() - 1);
+  else if (range === 'quarter') start.setMonth(now.getMonth() - 3);
+  else start.setFullYear(now.getFullYear() - 1);
+  return start;
+}
+
+/** Client-side aggregates for the selected range and goal filter. */
+export interface AnalyticsData {
+  totalHours: number;
+  completedTasks: number;
+  totalTasks: number;
+  completionRate: number;
+  averageRating: number;
+  filteredActivities: ScheduleActivity[];
+  filteredTasks: Task[];
+  filteredRatings: DailyRating[];
+  startDate: Date;
+  endDate: Date;
+}
 
 interface AnalyticsProps {
   goals: Goal[];
   activities: ScheduleActivity[];
   tasks: Task[];
   dailyRatings: DailyRating[];
+  timeRange: TimeRange;
+  onTimeRangeChange: (range: TimeRange) => void;
+  /** Server-computed totals for the same range (undefined while loading). */
+  summary?: AnalyticsOverview;
   isMobile: boolean;
 }
-
-type TimeRange = 'week' | 'month' | 'quarter' | 'year';
 type ChartType = 'time' | 'trends' | 'completion';
 
 export function Analytics({
@@ -26,31 +55,18 @@ export function Analytics({
   activities,
   tasks,
   dailyRatings,
+  timeRange,
+  onTimeRangeChange: setTimeRange,
+  summary,
   isMobile
 }: AnalyticsProps) {
-  const [timeRange, setTimeRange] = useState<TimeRange>('week');
   const [selectedGoal, setSelectedGoal] = useState<string>('all');
   const [activeChart, setActiveChart] = useState<ChartType>('time');
 
   // Calculate analytics data
-  const analyticsData = useMemo(() => {
+  const analyticsData = useMemo((): AnalyticsData => {
     const now = new Date();
-    const startDate = new Date();
-    
-    switch (timeRange) {
-      case 'week':
-        startDate.setDate(now.getDate() - 7);
-        break;
-      case 'month':
-        startDate.setMonth(now.getMonth() - 1);
-        break;
-      case 'quarter':
-        startDate.setMonth(now.getMonth() - 3);
-        break;
-      case 'year':
-        startDate.setFullYear(now.getFullYear() - 1);
-        break;
-    }
+    const startDate = getRangeStart(timeRange, now);
 
     // Filter data by time range
     const filteredActivities = activities.filter(activity => 
@@ -164,7 +180,7 @@ export function Analytics({
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
-                Analytics & Insights
+                Insights
               </h1>
               <p className="text-gray-500 dark:text-gray-400">
                 Track your progress and discover productivity patterns
@@ -217,43 +233,22 @@ export function Analytics({
         </div>
       </div>
 
-      {/* Key Metrics Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-          <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mx-auto mb-3">
-            <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+      {/* Key metrics (server-computed for the selected range) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        {[
+          { label: 'Focused time', icon: Clock, value: summary ? `${(summary.focus.totalMinutes / 60).toFixed(1)}h` : '—', hint: summary ? `${summary.focus.sessions} sessions` : '' },
+          { label: 'Tasks completed', icon: Award, value: summary ? `${summary.tasks.completionRate}%` : '—', hint: summary ? `${summary.tasks.completed} of ${summary.tasks.total}` : '' },
+          { label: 'Habit consistency', icon: Repeat, value: summary ? `${summary.habits.completionRate}%` : '—', hint: summary ? `${summary.habits.total} habits` : '' },
+          { label: 'Avg. energy', icon: Battery, value: summary?.reflections.averageEnergy?.toFixed(1) ?? '—', hint: summary ? `${summary.reflections.days} reviews` : '' },
+        ].map(({ label, icon: Icon, value, hint }) => (
+          <div key={label} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <Icon className="w-4 h-4" /> {label}
+            </div>
+            <div className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{value}</div>
+            <div className="text-xs text-gray-400 dark:text-gray-500 h-4">{hint}</div>
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-            {analyticsData.totalHours.toFixed(1)}h
-          </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Total Hours
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-          <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg flex items-center justify-center mx-auto mb-3">
-            <Award className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-            {analyticsData.completionRate.toFixed(0)}%
-          </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Completion Rate
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-          <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center mx-auto mb-3">
-            <Activity className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-          </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-            {analyticsData.averageRating.toFixed(1)}
-          </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Avg. Rating
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Chart Navigation */}

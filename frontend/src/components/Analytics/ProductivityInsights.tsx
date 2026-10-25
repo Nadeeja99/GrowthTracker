@@ -4,9 +4,10 @@ import React from 'react';
 import { Lightbulb, TrendingUp, Target, Clock, Award, AlertTriangle, CheckCircle, Star } from 'lucide-react';
 import { Goal } from '@/types';
 import { cn } from '@/lib/utils';
+import type { AnalyticsData } from './Analytics';
 
 interface ProductivityInsightsProps {
-  analyticsData: any;
+  analyticsData: AnalyticsData;
   goals: Goal[];
   selectedGoal: string;
   timeRange: string;
@@ -18,7 +19,6 @@ export function ProductivityInsights({
   goals,
   selectedGoal,
   timeRange,
-  isMobile
 }: ProductivityInsightsProps) {
   const generateInsights = () => {
     const insights = [];
@@ -143,7 +143,7 @@ export function ProductivityInsights({
 
     // Consistency insights
     if (analyticsData.filteredActivities.length > 0) {
-      const activeDays = new Set(analyticsData.filteredActivities.map((a: any) => a.date)).size;
+      const activeDays = new Set(analyticsData.filteredActivities.map(a => a.date)).size;
       const totalDays = timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : timeRange === 'quarter' ? 90 : 365;
       const consistencyRate = (activeDays / totalDays) * 100;
       

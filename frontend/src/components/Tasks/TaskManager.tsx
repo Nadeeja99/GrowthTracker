@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { CheckSquare, Square, Plus, Filter, Search, Calendar, Target, Flag, Clock, Edit, Trash2, MoreVertical, CheckCircle2, XCircle, Play } from 'lucide-react';
+import { CheckSquare, Square, Plus, Search, Calendar, CalendarPlus, Flag, Edit, Trash2, MoreVertical, Timer } from 'lucide-react';
 import { Task, Goal, SubTask } from '@/types';
 import { cn } from '@/lib/utils';
 import { TaskForm } from './TaskForm';
@@ -14,6 +14,9 @@ interface TaskManagerProps {
   onUpdateTask: (taskId: string, updates: Partial<Task>) => void;
   onDeleteTask: (taskId: string) => void;
   onUpdateSubTask: (taskId: string, subTaskId: string, updates: Partial<SubTask>) => void;
+  /** Plan a time block for this task. */
+  onScheduleTask?: (task: Task) => void;
+  onStartFocus?: (task: Task) => void;
   isMobile: boolean;
 }
 
@@ -28,6 +31,8 @@ export function TaskManager({
   onUpdateTask,
   onDeleteTask,
   onUpdateSubTask,
+  onScheduleTask,
+  onStartFocus,
   isMobile
 }: TaskManagerProps) {
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -41,7 +46,7 @@ export function TaskManager({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const filteredAndSortedTasks = useMemo(() => {
-    let filtered = tasks.filter(task => {
+    const filtered = tasks.filter(task => {
       // Status filter
       if (statusFilter !== 'all' && task.status !== statusFilter) return false;
       
@@ -59,36 +64,20 @@ export function TaskManager({
     });
 
     // Sorting
-    filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
-      
+    const PRIORITY_ORDER = { high: 3, medium: 2, low: 1 };
+    const sortKey = (task: Task): number | string => {
       switch (sortBy) {
-        case 'dueDate':
-          aValue = a.dueDate ? new Date(a.dueDate).getTime() : 0;
-          bValue = b.dueDate ? new Date(b.dueDate).getTime() : 0;
-          break;
-        case 'priority':
-          const priorityOrder = { high: 3, medium: 2, low: 1 };
-          aValue = priorityOrder[a.priority];
-          bValue = priorityOrder[b.priority];
-          break;
-        case 'createdAt':
-          aValue = new Date(a.createdAt).getTime();
-          bValue = new Date(b.createdAt).getTime();
-          break;
-        case 'title':
-          aValue = a.title.toLowerCase();
-          bValue = b.title.toLowerCase();
-          break;
-        default:
-          return 0;
+        case 'dueDate': return task.dueDate ? new Date(task.dueDate).getTime() : 0;
+        case 'priority': return PRIORITY_ORDER[task.priority];
+        case 'createdAt': return new Date(task.createdAt).getTime();
+        case 'title': return task.title.toLowerCase();
       }
-      
-      if (sortOrder === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
+    };
+    filtered.sort((a, b) => {
+      const aKey = sortKey(a);
+      const bKey = sortKey(b);
+      const cmp = typeof aKey === 'string' ? aKey.localeCompare(String(bKey)) : aKey - Number(bKey);
+      return sortOrder === 'asc' ? cmp : -cmp;
     });
 
     return filtered;
@@ -160,17 +149,6 @@ export function TaskManager({
     }
   };
 
-  const getStatusIcon = (status: Task['status']) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle2 className="w-4 h-4" />;
-      case 'in-progress':
-        return <Play className="w-4 h-4" />;
-      case 'todo':
-        return <Square className="w-4 h-4" />;
-    }
-  };
-
   const getDueDateStatus = (dueDate?: string) => {
     if (!dueDate) return 'no-due-date';
     
@@ -219,29 +197,16 @@ export function TaskManager({
     }
   };
 
-  const completedTasks = tasks.filter(t => t.status === 'completed').length;
-  const totalTasks = tasks.length;
-  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-              <CheckSquare className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
-                Task Management
-              </h1>
-              <p className="text-gray-500 dark:text-gray-400">
-                Organize and track your tasks and to-dos
-              </p>
-            </div>
-          </div>
-          
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <CheckSquare className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            Tasks
+          </h2>
+
           <button
             onClick={handleCreateTask}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
@@ -251,33 +216,6 @@ export function TaskManager({
           </button>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              {completedTasks}
-            </div>
-            <div className="text-sm text-emerald-600 dark:text-emerald-400">Completed</div>
-          </div>
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {tasks.filter(t => t.status === 'in-progress').length}
-            </div>
-            <div className="text-sm text-blue-600 dark:text-blue-400">In Progress</div>
-          </div>
-          <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-              {tasks.filter(t => t.status === 'todo').length}
-            </div>
-            <div className="text-sm text-orange-600 dark:text-orange-400">To Do</div>
-          </div>
-          <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-              {completionRate}%
-            </div>
-            <div className="text-sm text-purple-600 dark:text-purple-400">Completion Rate</div>
-          </div>
-        </div>
 
         {/* Filters and Search */}
         <div className="space-y-4">
@@ -538,6 +476,24 @@ export function TaskManager({
 
                 {/* Actions */}
                 <div className="flex items-center space-x-2 flex-shrink-0">
+                  {task.status !== 'completed' && onStartFocus && (
+                    <button
+                      onClick={() => onStartFocus(task)}
+                      aria-label={`Focus on ${task.title}`}
+                      className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                    >
+                      <Timer className="w-4 h-4" />
+                    </button>
+                  )}
+                  {task.status !== 'completed' && onScheduleTask && (
+                    <button
+                      onClick={() => onScheduleTask(task)}
+                      aria-label={`Schedule a time block for ${task.title}`}
+                      className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                    >
+                      <CalendarPlus className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => setSelectedTask(task)}
                     className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -566,6 +522,7 @@ export function TaskManager({
       {/* Task Form Modal */}
       {showTaskForm && (
         <TaskForm
+          key={editingTask?.id ?? 'new'}
           goals={goals}
           task={editingTask}
           onSubmit={handleTaskSubmit}

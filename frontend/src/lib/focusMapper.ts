@@ -11,5 +11,6 @@ export function mapBackendFocusSession(session: BackendFocusSession): FocusSessi
     completed: session.completed,
     goalId: session.goalId ?? undefined,
     taskId: session.taskId ?? undefined,
+    scheduleId: session.scheduleId ?? undefined,
   };
 }

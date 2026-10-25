@@ -18,14 +18,13 @@ export function WeeklyTrendsChart({
   tasks,
   ratings,
   timeRange,
-  isMobile
 }: WeeklyTrendsChartProps) {
   const trendsData = useMemo(() => {
     const now = new Date();
     const days = [];
     
     // Generate date range based on timeRange
-    let startDate = new Date();
+    const startDate = new Date();
     switch (timeRange) {
       case 'week':
         startDate.setDate(now.getDate() - 7);
@@ -141,7 +140,7 @@ export function WeeklyTrendsChart({
       {/* Chart */}
       <div className="relative">
         <div className="h-64 flex items-end space-x-1 md:space-x-2">
-          {trendsData.map((day, index) => {
+          {trendsData.map((day) => {
             const hoursHeight = maxHours > 0 ? (day.totalHours / maxHours) * 100 : 0;
             const tasksHeight = maxTasks > 0 ? (day.completedTasks / maxTasks) * 100 : 0;
             const ratingHeight = (day.rating / maxRating) * 100;

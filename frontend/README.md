@@ -17,7 +17,7 @@ A comprehensive personal growth and productivity tracking application built with
 
 ### 📅 Schedule Management
 - Daily schedule planning
-- Activity templates for recurring tasks
+- Recurring time blocks
 - Calendar integration
 - Time blocking capabilities
 
@@ -93,7 +93,7 @@ GrowthTracker/
 
 ## 🛠️ Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 16 (App Router), React 19, TanStack Query 5
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
 - **Charts**: Chart.js with react-chartjs-2
@@ -115,7 +115,7 @@ GrowthTracker/
 
 ### Schedule
 - Plan your daily activities
-- Use templates for recurring tasks
+- Create recurring time blocks
 - Manage time blocks effectively
 
 ### Tasks
@@ -136,7 +136,8 @@ GrowthTracker/
 npm run dev          # Start development server
 npm run build        # Build for production
 npm run start        # Start production server
-npm run lint         # Run ESLint
+npm run lint         # Run ESLint (flat config)
+npm run typecheck    # Run the TypeScript compiler
 npm run type-check   # Run TypeScript type checking
 ```
 

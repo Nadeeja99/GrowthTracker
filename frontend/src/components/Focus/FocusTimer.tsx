@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Play, Pause, RotateCcw, SkipForward, Timer, Coffee, Zap, Settings } from 'lucide-react';
+import React from 'react';
+import { Play, Pause, RotateCcw, SkipForward, Timer, Coffee, Zap } from 'lucide-react';
 import { FocusSession, Goal, Task } from '@/types';
-import { RecordedFocus, useTimer } from '@/hooks/useTimer';
+import { useFocus } from '@/contexts/FocusContext';
 import { toDateKey } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 
@@ -11,17 +11,22 @@ interface FocusTimerProps {
   goals: Goal[];
   tasks: Task[];
   focusSessions: FocusSession[];
-  onRecordFocus: (focus: RecordedFocus & { goalId?: string; taskId?: string }) => Promise<void>;
-  isMobile: boolean;
 }
 
-export function FocusTimer({ goals, tasks, focusSessions, onRecordFocus, isMobile }: FocusTimerProps) {
-  const [selectedGoalId, setSelectedGoalId] = useState<string>('');
-  const [selectedTaskId, setSelectedTaskId] = useState<string>('');
-  const [saveError, setSaveError] = useState<string | null>(null);
+// The timer itself lives in FocusContext so it survives navigation; this
+// component is the full-size control surface shown in the focus panel.
+export function FocusTimer({ goals, tasks, focusSessions }: FocusTimerProps) {
+  const { timer, target, setTarget, saveError } = useFocus();
+  const selectedGoalId = target.goalId ?? '';
+  const selectedTaskId = target.taskId ?? '';
+  // Choosing a goal/task by hand detaches the session from any planned block.
+  const setSelectedGoalId = (goalId: string) => setTarget({ goalId: goalId || undefined });
+  const setSelectedTaskId = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    setTarget({ goalId: task?.goalId ?? (selectedGoalId || undefined), taskId: taskId || undefined });
+  };
 
   const {
-    timeRemaining,
     isRunning,
     currentSession,
     cycleCount,
@@ -32,13 +37,7 @@ export function FocusTimer({ goals, tasks, focusSessions, onRecordFocus, isMobil
     skipSession,
     switchSession,
     formatTime,
-  } = useTimer({
-    onFocusRecorded: focus => {
-      setSaveError(null);
-      onRecordFocus({ ...focus, goalId: selectedGoalId || undefined, taskId: selectedTaskId || undefined })
-        .catch(() => setSaveError('This focus session could not be saved. Check your connection.'));
-    },
-  });
+  } = timer;
 
   const today = toDateKey();
   const todaysSessions = focusSessions.filter(s => toDateKey(new Date(s.startedAt)) === today);
@@ -60,7 +59,7 @@ export function FocusTimer({ goals, tasks, focusSessions, onRecordFocus, isMobil
   const goalTasks = selectedGoalId ? activeTasks.filter(t => t.goalId === selectedGoalId) : activeTasks;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Timer Card */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 md:p-8">
         {/* Session Tabs */}
@@ -179,12 +178,17 @@ export function FocusTimer({ goals, tasks, focusSessions, onRecordFocus, isMobil
           <Timer className="w-4 h-4" />
           Working on
         </h3>
+        {target.scheduleId && target.label && (
+          <p className="-mt-2 mb-4 text-sm text-gray-600 dark:text-gray-300">
+            Planned block: <span className="font-medium">{target.label}</span>
+          </p>
+        )}
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Goal</label>
             <select
               value={selectedGoalId}
-              onChange={e => { setSelectedGoalId(e.target.value); setSelectedTaskId(''); }}
+              onChange={e => setSelectedGoalId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
             >
               <option value="">No goal selected</option>

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Save, Repeat } from 'lucide-react';
 import { Habit } from '@/types';
 import { cn } from '@/lib/utils';
+import { submitOnModEnter } from '@/lib/forms';
 
 interface HabitFormProps {
   habit?: Habit | null;
@@ -12,20 +13,12 @@ interface HabitFormProps {
 }
 
 export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [targetCount, setTargetCount] = useState(1);
+  // The form mounts fresh each time it opens, so `habit` only seeds initial state.
+  const [name, setName] = useState(habit?.name ?? '');
+  const [description, setDescription] = useState(habit?.description ?? '');
+  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>(habit?.frequency ?? 'daily');
+  const [targetCount, setTargetCount] = useState(habit?.targetCount ?? 1);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (habit) {
-      setName(habit.name);
-      setDescription(habit.description || '');
-      setFrequency(habit.frequency);
-      setTargetCount(habit.targetCount);
-    }
-  }, [habit]);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -69,7 +62,7 @@ export function HabitForm({ habit, onSubmit, onCancel }: HabitFormProps) {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onKeyDown={submitOnModEnter} onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Habit Name</label>
               <input

@@ -1,11 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiClient, User } from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  /** True until the initial session restore has finished. */
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (userData: {
@@ -16,7 +18,9 @@ interface AuthContextType {
     lastName?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
-  checkAuth: () => Promise<void>;
+  /** Revokes every session of this user, on all devices. */
+  logoutEverywhere: () => Promise<void>;
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,73 +33,43 @@ export const useAuth = () => {
   return context;
 };
 
-interface AuthProviderProps {
-  children: React.ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const checkAuth = async () => {
-    try {
-      if (apiClient.isAuthenticated()) {
-        const response = await apiClient.getCurrentUser();
-        if (response.success && response.data?.user) {
-          setUser(response.data.user);
-        } else {
-          apiClient.clearToken();
-          setUser(null);
-        }
-      }
-    } catch (error) {
-      apiClient.clearToken();
-      setUser(null);
-    } finally {
+  const endSession = useCallback(() => {
+    setUser(null);
+    // Never show one user's cached data to the next person who signs in.
+    queryClient.clear();
+  }, [queryClient]);
+
+  // Restore the session from the httpOnly refresh cookie on page load, and
+  // drop it whenever the API reports it can no longer be renewed.
+  useEffect(() => {
+    let cancelled = false;
+    apiClient.refreshSession().then(restored => {
+      if (cancelled) return;
+      setUser(restored);
       setIsLoading(false);
-    }
-  };
+    });
+    apiClient.onSessionExpired(endSession);
+    return () => {
+      cancelled = true;
+      apiClient.onSessionExpired(null);
+    };
+  }, [endSession]);
 
   const login = async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      const response = await apiClient.login({ email, password });
-      
-      if (response.success && response.data?.user) {
-        setUser(response.data.user);
-      } else {
-        throw new Error(response.error || 'Login failed');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
+    const response = await apiClient.login({ email, password });
+    if (!response.data?.user) throw new Error(response.error || 'Login failed');
+    setUser(response.data.user);
   };
 
-  const register = async (userData: {
-    email: string;
-    username: string;
-    password: string;
-    firstName?: string;
-    lastName?: string;
-  }) => {
-    try {
-      setIsLoading(true);
-      const response = await apiClient.register(userData);
-      
-      if (response.success && response.data?.user) {
-        setUser(response.data.user);
-      } else {
-        throw new Error(response.error || 'Registration failed');
-      }
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
+  const register: AuthContextType['register'] = async userData => {
+    const response = await apiClient.register(userData);
+    if (!response.data?.user) throw new Error(response.error || 'Registration failed');
+    setUser(response.data.user);
   };
 
   const logout = async () => {
@@ -104,14 +78,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      setUser(null);
-      setIsLoading(false);
+      endSession();
     }
   };
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
+  const logoutEverywhere = async () => {
+    try {
+      await apiClient.logoutEverywhere();
+    } finally {
+      endSession();
+    }
+  };
 
   const value: AuthContextType = {
     user,
@@ -120,7 +97,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
-    checkAuth,
+    logoutEverywhere,
+    updateUser: setUser,
   };
 
   return (

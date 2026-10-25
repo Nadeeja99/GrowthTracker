@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, X, Zap, CheckSquare, Calendar } from 'lucide-react';
 import { Goal } from '@/types';
 import { cn } from '@/lib/utils';
 import { toDateKey } from '@/lib/dates';
+import { submitOnModEnter } from '@/lib/forms';
 
 interface QuickCaptureProps {
   goals: Goal[];
@@ -22,7 +23,6 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -35,17 +35,6 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
-
-  useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    } else {
-      setTitle('');
-      setGoalId('');
-      setPriority('medium');
-      setType('task');
-    }
-  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +83,7 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-4 space-y-3">
+            <form onKeyDown={submitOnModEnter} onSubmit={handleSubmit} className="p-4 space-y-3">
               {/* Type Selector */}
               <div className="flex gap-2">
                 {([
@@ -120,7 +109,7 @@ export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCap
 
               {/* Title */}
               <input
-                ref={inputRef}
+                autoFocus
                 type="text"
                 value={title}
                 onChange={e => setTitle(e.target.value)}

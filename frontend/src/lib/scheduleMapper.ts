@@ -92,7 +92,7 @@ export function mapFrontendActivityUpdateToBackend(updates: Partial<ScheduleActi
   goalId?: string | null;
   taskId?: string | null;
 } {
-  const result: any = {};
+  const result: ReturnType<typeof mapFrontendActivityUpdateToBackend> = {};
 
   if (updates.title !== undefined) result.title = updates.title;
   if (updates.notes !== undefined) result.notes = updates.notes;
