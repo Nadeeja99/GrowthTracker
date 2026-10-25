@@ -12,6 +12,7 @@ import { useTaskMutations, useTasks } from '@/hooks/data/useTasks';
 import { useHabitMutations, useHabits } from '@/hooks/data/useHabits';
 import { useReflections, useSaveReflection } from '@/hooks/data/useReflections';
 import { toDateKey } from '@/lib/dates';
+import { useCoach } from '@/hooks/data/useCoach';
 
 export default function TodayPage() {
   const router = useRouter();
@@ -29,7 +30,10 @@ export default function TodayPage() {
   const saveReflection = useSaveReflection();
 
   const status = combineQueries(goals, schedules, tasks, habits, reflections);
-  if (status.isLoading) return <TodaySkeleton />;
+  // Wait for the AI status too (fetched in parallel), so its card doesn't
+  // appear late and push the page down. Its failure never blocks the page.
+  const coach = useCoach();
+  if (status.isLoading || coach.isLoading) return <TodaySkeleton />;
   if (status.error) return <PageError error={status.error} onRetry={status.retry} />;
 
   const today = toDateKey();

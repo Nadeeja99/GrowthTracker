@@ -177,8 +177,7 @@ export function PlanWeekButton() {
   return (
     <>
       <button type="button" onClick={() => (ai.enabled ? setOpen(true) : coach.open())} className={aiButtonClass}>
-        <Sparkles className="w-4 h-4" aria-hidden="true" /> <span className="hidden sm:inline">Plan my week</span>
-        <span className="sr-only sm:hidden">Plan my week</span>
+        <Sparkles className="w-4 h-4" aria-hidden="true" /> <span className="sr-only sm:not-sr-only">Plan my week</span>
       </button>
       {open && <PlanWeekDialog onClose={() => setOpen(false)} />}
     </>

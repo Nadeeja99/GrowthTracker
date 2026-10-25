@@ -50,6 +50,9 @@ const envSchema = z
     // Backstop across all users per UTC day, against mass sign-ups.
     AI_GLOBAL_DAILY_LIMIT: numberFromEnv(500),
 
+    // "Try the demo" on the sign-in page signs visitors into the seeded demo account.
+    DEMO_LOGIN_ENABLED: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
+
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
     BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
   })

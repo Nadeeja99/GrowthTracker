@@ -10,6 +10,8 @@ interface AuthContextType {
   /** True until the initial session restore has finished. */
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  /** Signs in to the shared demo account. */
+  loginDemo: () => Promise<void>;
   register: (userData: {
     email: string;
     username: string;
@@ -69,6 +71,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(response.data.user);
   };
 
+  const loginDemo = async () => {
+    const response = await apiClient.loginDemo();
+    if (!response.data?.user) throw new Error(response.error || 'Couldn’t open the demo');
+    setUser(response.data.user);
+  };
+
   const register: AuthContextType['register'] = async userData => {
     const response = await apiClient.register(userData);
     if (!response.data?.user) throw new Error(response.error || 'Registration failed');
@@ -98,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated: !!user,
     isLoading,
     login,
+    loginDemo,
     register,
     logout,
     logoutEverywhere,

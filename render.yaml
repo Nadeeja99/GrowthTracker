@@ -48,6 +48,9 @@ services:
         sync: false # the app's URL, e.g. https://growthtracker.onrender.com
       - key: SEED_DEMO_ON_START
         value: 'true'
+      # "Try the demo" on the sign-in page (pairs with NEXT_PUBLIC_DEMO_LOGIN on the app).
+      - key: DEMO_LOGIN_ENABLED
+        value: 'true'
       # Demo data is laid out in this zone (the audience is in Ireland).
       - key: SEED_TIMEZONE
         value: Europe/Dublin
@@ -81,5 +84,8 @@ services:
           type: web
           name: growthtracker-api
           envVarKey: API_PROXY_SECRET
+      # Shows "Try the demo" (read at build time).
+      - key: NEXT_PUBLIC_DEMO_LOGIN
+        value: 'true'
       - key: NEXT_TELEMETRY_DISABLED
         value: '1'

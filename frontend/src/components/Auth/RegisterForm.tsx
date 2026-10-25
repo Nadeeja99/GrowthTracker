@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { submitOnModEnter } from '@/lib/forms';
+import { useSlowFlag, WAKING_UP_MESSAGE } from '@/hooks/useSlowFlag';
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
@@ -20,6 +21,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) =
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const slow = useSlowFlag(isLoading);
   const router = useRouter();
 
   const { register } = useAuth();
@@ -72,10 +74,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) =
         </h2>
         
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div role="alert" className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-sm px-4 py-3 rounded-lg mb-4">
             {error}
           </div>
         )}
+        {slow && <p role="status" className="text-sm text-gray-600 dark:text-gray-400 mb-4">{WAKING_UP_MESSAGE}</p>}
 
         <form onKeyDown={submitOnModEnter} onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -180,7 +183,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) =
             disabled={isLoading}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-2 px-4 rounded-md transition duration-200 ease-in-out"
           >
-            {isLoading ? 'Creating account...' : 'Create Account'}
+            {isLoading ? 'Creating account…' : 'Create Account'}
           </button>
         </form>
 

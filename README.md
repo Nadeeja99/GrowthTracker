@@ -2,7 +2,50 @@
 
 [![CI](https://github.com/Nadeeja99/GrowthTracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Nadeeja99/GrowthTracker/actions/workflows/ci.yml)
 
-A full-stack personal development tracker that helps you set goals, build habits, schedule activities, manage tasks, and visualise your progress over time.
+**Plan the week, do the day, review it, and see what actually moves your goals,** with an AI coach that reads your own data.
+
+A full-stack planner with goals, time blocks, tasks, habits, a focus timer and analytics. On top sit OpenAI-powered features: a streaming coach, weekly reviews, week planning and milestone suggestions, all validated server-side before they touch your data.
+
+**Live demo:** _add the Render URL after the first deploy_. Press **Try the demo** for a seeded account; no sign-up needed. · **[Case study](docs/CASE_STUDY.md)**
+
+<p align="center">
+  <img src="docs/screenshots/coach.gif" alt="The AI coach streaming a reply that cites the user's goal hours, then adding its suggested time block to the plan" width="360">
+</p>
+
+| Today | Plan my week (AI) | Weekly review (AI) |
+|---|---|---|
+| ![Today view with schedule, habits and the coach card](docs/screenshots/today.png) | ![Plan my week dialog with suggested blocks grouped by day](docs/screenshots/plan-my-week.png) | ![Weekly review with wins, slips, patterns and priorities](docs/screenshots/weekly-review.png) |
+
+### Highlights
+- **AI that's safe to let near real data:**
+  - a streamed chat over Server-Sent Events, plus strict JSON-schema structured output
+  - every answer re-validated with zod, and rules the model can't be trusted with enforced in code (no overlapping blocks, nothing in the past, only your own goals)
+  - opt-in, per-user and global daily caps, and a usage log
+- **Production-shaped:**
+  - same-origin proxy, so the auth cookie stays first-party; httpOnly rotating refresh tokens and an in-memory access token
+  - rate limiting, request IDs and structured logs
+  - Prisma migrations, and zod-validated configuration that refuses to boot when it's wrong
+- **Tested end to end:**
+  - 86 API integration tests against real Postgres, including the real OpenAI SDK against a local fake of its streaming protocol
+  - 34 unit tests
+  - 26 Playwright journeys with axe-core accessibility checks
+  - CI runs all of it on every push, and Render deploys only after CI passes
+- **Accessible and fast:**
+  - Lighthouse 100 for accessibility and best practices on every page, 92–96 for performance
+  - zero axe violations in light and dark mode; keyboard-complete dialogs
+
+### Architecture
+
+```mermaid
+flowchart LR
+  B[Browser] -->|pages + /api/*| W["Next.js 16 app<br/>(Render web service)"]
+  W -->|"/api/* rewrite<br/>+ x-proxy-secret"| A["Express API<br/>(Render web service)"]
+  A -->|Prisma| D[(Supabase Postgres)]
+  A -->|"Responses API<br/>stream + structured output"| O[OpenAI]
+  GH[GitHub Actions CI] -.->|checks pass| R[Render auto-deploy]
+```
+
+The browser only talks to the Next.js app, which forwards `/api/*` to the API with a shared secret. The API rejects anything that didn't come through the app. [Deployment](#deployment-render--supabase-free-tier) explains why: on `onrender.com` a cross-service cookie would be third-party.
 
 ---
 
@@ -59,6 +102,7 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 - **Resilient UX**: page-shaped loading skeletons, a first-run guide, toasts for any failed save (with the reason, or "you seem to be offline"), cached data kept on screen if a refresh fails, error boundaries and a 404 page
 - **Accessible**: zero axe-core violations (WCAG 2.1 AA) in light and dark mode; dialogs trap and restore focus and close on Escape; confirmations replace `window.confirm`; every control is labelled; charts have text alternatives; skip link; honours "reduce motion"; pinch-zoom allowed
 - **Security**: short-lived access token kept in memory only, silent refresh via an httpOnly cookie, and "sign out everywhere" in Settings
+- **Demo and onboarding**: **Try the demo** signs in to a seeded shared account (reset on every cold start; account-wide actions disabled). A notice offers to switch the account's time zone when the device is elsewhere, and slow sign-ins explain the free tier's cold start.
 
 ---
 
@@ -156,6 +200,7 @@ Apply the database migrations and start the server:
 ```bash
 npm run db:migrate:deploy
 npm run db:seed      # optional: demo account demo@growthtracker.dev / demo-password-1
+                     # (for a "Try the demo" button: DEMO_LOGIN_ENABLED=true here, NEXT_PUBLIC_DEMO_LOGIN=true for the app)
 npm run dev
 ```
 
@@ -269,7 +314,8 @@ The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API
 | POST | `/api/auth/login` | Log in and receive tokens |
 | POST | `/api/auth/logout` | Log out |
 | POST | `/api/auth/refresh` | Exchange the refresh cookie for a new access token (rotates the cookie) |
-| POST | `/api/auth/logout-all` | Revoke every session of the current user |
+| POST | `/api/auth/logout-all` | Revoke every session of the current user (not on the shared demo) |
+| POST | `/api/auth/demo` | Sign in to the seeded demo account (when `DEMO_LOGIN_ENABLED=true`) |
 | GET | `/api/auth/me` | Get current user |
 | GET/POST | `/api/goals` | List / create goals |
 | GET/PUT/DELETE | `/api/goals/:id` | Get / update / delete a goal |
@@ -322,6 +368,7 @@ The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API
 | `NODE_ENV` | Environment (`development` / `production`) | `development` |
 | `CORS_ORIGIN` | Allowed frontend origins (comma-separated) | `http://localhost:3000` |
 | `BCRYPT_ROUNDS` | bcrypt hashing rounds | `12` |
+| `DEMO_LOGIN_ENABLED` | Allow **Try the demo** (signs in to the seeded demo account) | `false` |
 | `OPENAI_API_KEY` | Enables the AI coach (server-side only) | — |
 | `OPENAI_MODEL` | Model for the coach | `gpt-6-luna` |
 | `OPENAI_REASONING_EFFORT` | `none` / `low` / `medium` / `high` | `low` |
@@ -335,6 +382,8 @@ The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API
 | `API_ORIGIN` | Where `/api/*` is forwarded (read at build time) | `http://localhost:5000` |
 | `API_PROXY_SECRET` | Sent to the API as `x-proxy-secret` on every proxied request | — |
 | `NEXT_PUBLIC_API_URL` | Optional: call an API directly instead of through the proxy | `/api` |
+| `NEXT_PUBLIC_DEMO_LOGIN` | Show **Try the demo** on the sign-in page (build time) | — |
+| `NEXT_PUBLIC_SITE_URL` | Public URL for link previews and the sitemap (Render's URL is used if unset) | — |
 
 ---
 

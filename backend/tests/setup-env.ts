@@ -17,3 +17,4 @@ delete process.env.API_PROXY_SECRET;
 // Tests never call the real AI provider; coach tests use a fake model or server.
 delete process.env.OPENAI_API_KEY;
 delete process.env.OPENAI_BASE_URL;
+delete process.env.DEMO_LOGIN_ENABLED;

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import {
   Sun, CheckCircle2, Circle, Clock, Target, Repeat,
-  ChevronRight, Play, XCircle, SkipForward, Flame, Timer
+  ChevronRight, Play, XCircle, SkipForward, Flame, Timer, Check
 } from 'lucide-react';
 import { Goal, ScheduleActivity, Task, Habit, DailyRating } from '@/types';
 import { cn } from '@/lib/utils';
@@ -219,9 +219,11 @@ export function TodayView({
                   {activity.status === 'pending' && (
                     <button
                       onClick={() => onActivityStatusChange(activity.id, 'completed')}
-                      className="text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded hover:bg-emerald-200 transition-colors"
+                      aria-label={`Mark done: ${activity.title}`}
+                      // An action, not a status: outlined, with a verb, so it doesn't read as "already done".
+                      className="flex items-center gap-1 text-xs font-medium px-2 py-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-md hover:border-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
                     >
-                      Done
+                      <Check className="w-3.5 h-3.5" aria-hidden="true" /> Mark done
                     </button>
                   )}
                 </div>

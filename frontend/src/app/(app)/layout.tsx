@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { FocusProvider } from '@/contexts/FocusContext';
 import { CoachProvider } from '@/contexts/CoachContext';
 import { Header } from '@/components/Layout/Header';
+import { TimezoneNotice } from '@/components/Layout/TimezoneNotice';
 import { MobileNavigation } from '@/components/Layout/MobileNavigation';
 import { FocusPanel } from '@/components/Focus/FocusPanel';
 import { CoachPanel } from '@/components/Coach/CoachPanel';
@@ -68,6 +69,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded-lg focus:bg-white focus:text-gray-900 focus:shadow">Skip to content</a>
             <Header />
+            <TimezoneNotice />
             {/* One centred column; bottom padding clears the mobile tab bar. */}
             <main id="main" tabIndex={-1} className="outline-none mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 pb-28 md:pb-12">{children}</main>
             <MobileNavigation />

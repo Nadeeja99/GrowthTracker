@@ -22,6 +22,11 @@ export const registerSchema = z.object({
   timezone: timeZoneSchema.optional(),
 });
 
+export const demoLoginSchema = z.object({
+  // The visitor's time zone, so "today" and AI plans match what they see.
+  timezone: timeZoneSchema.optional(),
+});
+
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1),

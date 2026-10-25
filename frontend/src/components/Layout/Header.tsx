@@ -102,6 +102,9 @@ export function Header() {
               <span className="hidden md:inline text-sm font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate">
                 {getUserDisplayName()}
               </span>
+              {user?.isDemo && (
+                <span className="hidden md:inline px-1.5 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">Demo</span>
+              )}
               <ChevronDown className="hidden md:inline w-4 h-4 text-gray-500 dark:text-gray-400" />
             </button>
 

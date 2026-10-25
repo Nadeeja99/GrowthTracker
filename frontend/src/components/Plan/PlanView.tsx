@@ -109,13 +109,13 @@ export function PlanView(props: PlanViewProps) {
               onClick={() => setModal({ type: 'activity', initialValues: { date: selectedDate } })}
               className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm flex items-center gap-1.5"
             >
-              <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Time block</span>
+              <Plus className="w-4 h-4" /> <span className="sr-only sm:not-sr-only">Time block</span>
             </button>
             <button
               onClick={() => setModal({ type: 'recurring' })}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg font-medium text-sm flex items-center gap-1.5"
             >
-              <RotateCcw className="w-4 h-4" /> <span className="hidden sm:inline">Recurring</span>
+              <RotateCcw className="w-4 h-4" /> <span className="sr-only sm:not-sr-only">Recurring</span>
             </button>
           </div>
         </div>

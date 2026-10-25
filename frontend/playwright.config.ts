@@ -16,6 +16,8 @@ export default defineConfig({
   timeout: 60_000,
   use: {
     baseURL: `http://localhost:${PORT}`,
+    // The demo data is seeded in UTC; a matching browser zone keeps times predictable.
+    timezoneId: process.env.E2E_TIMEZONE ?? 'UTC',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

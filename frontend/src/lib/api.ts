@@ -41,6 +41,8 @@ export interface User {
   lastName?: string;
   timezone: string;
   avatar?: string;
+  /** The shared demo account (reset regularly; some actions are disabled). */
+  isDemo?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -271,7 +273,7 @@ export class ApiError extends Error {
 }
 
 // Auth endpoints that must never trigger the refresh-and-retry path.
-const NO_REFRESH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'];
+const NO_REFRESH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/demo', '/auth/refresh', '/auth/logout'];
 
 class ApiClient {
   private baseURL: string;
@@ -350,11 +352,22 @@ class ApiClient {
     return response;
   }
 
+  /** Signs in to the shared demo account ("Try the demo"). */
+  async loginDemo(): Promise<ApiResponse<{ user: User; accessToken: string }>> {
+    const response = await this.request<{ user: User; accessToken: string }>('/auth/demo', {
+      method: 'POST',
+      body: JSON.stringify({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+    });
+    if (response.data?.accessToken) this.setToken(response.data.accessToken);
+    return response;
+  }
+
   /**
    * Exchanges the refresh cookie for a new access token. Concurrent callers
-   * share one request. Resolves to the user, or null when there is no valid
-   * session (401). Other failures (rate limit, server or network errors) are
-   * thrown instead, so a temporary problem never signs the user out.
+   * share one request. Resolves to the user, or null when there is no
+   * session (no cookie, or a 401). Other failures (rate limit, server or
+   * network errors) are thrown instead, so a temporary problem never signs
+   * the user out.
    */
   refreshSession(): Promise<User | null> {
     this.refreshInFlight ??= this.request<{ user: User; accessToken: string }>('/auth/refresh', { method: 'POST' })

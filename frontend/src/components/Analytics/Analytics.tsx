@@ -195,7 +195,7 @@ export function Analytics({
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
             >
               <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export Data</span>
+              <span className="sr-only sm:not-sr-only">Export Data</span>
             </button>
           </div>
         </div>
@@ -273,7 +273,7 @@ export function Analytics({
                 )}
               >
                 <Icon className="w-4 h-4" />
-                <span className="hidden sm:inline">{option.label}</span>
+                <span className="sr-only sm:not-sr-only">{option.label}</span>
                 <span className="hidden lg:inline text-xs text-gray-500 dark:text-gray-400">
                   {option.description}
                 </span>

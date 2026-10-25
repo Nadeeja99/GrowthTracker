@@ -97,3 +97,15 @@ describe('sign out', () => {
     expect((jwt.decode(relogin.body.data.accessToken) as jwt.JwtPayload).ver).toBe(1);
   });
 });
+
+describe('demo sign-in', () => {
+  it('is off unless enabled', async () => {
+    expect((await request(app).post('/api/auth/demo').send({})).status).toBe(404);
+  });
+});
+
+it('refresh without a cookie reports "no session" rather than an error', async () => {
+  const res = await request(app).post('/api/auth/refresh');
+  expect(res.status).toBe(200);
+  expect(res.body).toEqual({ success: true, data: null });
+});

@@ -50,6 +50,11 @@ describe('API client session handling', () => {
     expect(expired).toHaveBeenCalledTimes(1);
   });
 
+  it('treats "no refresh cookie" as signed out, without an error', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { success: true, data: null }));
+    await expect(apiClient.refreshSession()).resolves.toBeNull();
+  });
+
   it('does NOT sign out when the refresh is rate-limited or the server errors', async () => {
     const expired = vi.fn();
     apiClient.onSessionExpired(expired);
