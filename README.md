@@ -282,7 +282,7 @@ browser ──► growthtracker.onrender.com (Next.js) ──/api/*──► gro
 The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API, so the refresh cookie is first-party (`SameSite=Strict`). That matters because `onrender.com` is a public suffix: two Render subdomains count as different sites, and a cookie set by one is cross-site for the other. The API refuses any request that doesn't carry the shared `API_PROXY_SECRET`, which also means client IPs (used for rate limiting) can't be spoofed by calling it directly.
 
 ### 1. Database (Supabase)
-1. Create a project (pick an EU region such as Frankfurt or Ireland, near the Render region in `render.yaml`).
+1. Create a project in the **same region as the Render services** (`render.yaml` uses Singapore, so pick Southeast Asia (Singapore), `ap-southeast-1`). Every request makes several API ↔ database round trips, so distance between them matters more than distance to you.
 2. **Connect → ORMs → Prisma** gives two strings: the transaction pooler (port 6543) is `DATABASE_URL`, with `?pgbouncer=true` added; the session pooler (port 5432) is `DIRECT_URL`. Use the pooler hosts: Supabase's direct host is IPv6-only.
 3. **If the database was created earlier with `prisma db push`**, mark the baseline as applied once from your machine: `DATABASE_URL=… DIRECT_URL=… npm run db:migrate:baseline`. Render applies every later migration on start.
 

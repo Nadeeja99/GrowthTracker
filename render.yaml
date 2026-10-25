@@ -6,13 +6,18 @@
 # rejects anything that doesn't come through the app. See README → Deployment.
 #
 # Values marked `sync: false` are asked for once, when the Blueprint is created.
+#
+# Region: Singapore, the closest Render region to South Asia. Keep the Supabase
+# project in the same region (ap-southeast-1): every request makes several
+# API <-> database round trips. A service's region can't be changed after it's
+# created; changing it here means creating the services again.
 
 services:
   - type: web
     name: growthtracker-api
     runtime: node
     plan: free
-    region: frankfurt
+    region: singapore
     rootDir: backend
     buildCommand: npm ci --include=dev && npx prisma generate && npm run build
     # Free instances have no pre-deploy step, so migrations run on start.
@@ -64,7 +69,7 @@ services:
     name: growthtracker
     runtime: node
     plan: free
-    region: frankfurt
+    region: singapore
     rootDir: frontend
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
