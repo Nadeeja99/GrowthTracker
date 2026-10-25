@@ -37,6 +37,7 @@ test.describe('dialogs', () => {
     { name: 'recurring form', path: '/plan', opener: /recurring/i },
     { name: 'habit form', path: '/habits', opener: /new habit/i },
     { name: 'focus panel', path: '/today', opener: /focus timer/i },
+    { name: 'coach panel', path: '/today', opener: /open ai coach/i },
   ]
 
   for (const { name, path, opener } of dialogs) {

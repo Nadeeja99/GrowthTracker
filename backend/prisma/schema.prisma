@@ -11,46 +11,50 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  username  String   @unique
-  password  String
-  firstName String?
-  lastName  String?
-  avatar    String?
-  timezone  String   @default("UTC")
+  id             String   @id @default(cuid())
+  email          String   @unique
+  username       String   @unique
+  password       String
+  firstName      String?
+  lastName       String?
+  avatar         String?
+  timezone       String   @default("UTC")
   // Embedded in every token; incrementing it revokes all of the user's sessions.
-  tokenVersion Int    @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  tokenVersion   Int      @default(0)
+  // Opt-in: nothing is sent to the AI provider until the user turns this on.
+  aiCoachEnabled Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  goals     Goal[]
-  tasks     Task[]
-  schedules Schedule[]
-  habits    Habit[]
-  taskTags  TaskTag[]
+  goals         Goal[]
+  tasks         Task[]
+  schedules     Schedule[]
+  habits        Habit[]
+  taskTags      TaskTag[]
   reflections   Reflection[]
   focusSessions FocusSession[]
+  coachMessages CoachMessage[]
+  aiUsage       AiUsage[]
 
   @@map("users")
 }
 
 model Goal {
-  id          String     @id @default(cuid())
-  title       String
-  description String?
-  targetDate  DateTime?
-  priority    Priority   @default(MEDIUM)
-  status      GoalStatus @default(ACTIVE)
-  progress    Int        @default(0)
+  id                String     @id @default(cuid())
+  title             String
+  description       String?
+  targetDate        DateTime?
+  priority          Priority   @default(MEDIUM)
+  status            GoalStatus @default(ACTIVE)
+  progress          Int        @default(0)
   // Display colour (hex) and the time the user intends to invest; these used
   // to be JSON-encoded inside `description`, which now holds free text only.
-  color             String @default("#3B82F6")
-  targetHoursWeekly Float  @default(10)
-  targetHoursDaily  Float  @default(1.5)
-  userId      String
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  color             String     @default("#3B82F6")
+  targetHoursWeekly Float      @default(10)
+  targetHoursDaily  Float      @default(1.5)
+  userId            String
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   milestones    Milestone[]
@@ -93,8 +97,8 @@ model Task {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  goal      Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal          Goal?          @relation(fields: [goalId], references: [id], onDelete: SetNull)
   tags          TaskTag[]
   subtasks      Subtask[]
   schedules     Schedule[]
@@ -240,6 +244,46 @@ model FocusSession {
   @@index([taskId])
   @@index([scheduleId])
   @@map("focus_sessions")
+}
+
+// One turn of the AI coach conversation (one conversation per user).
+model CoachMessage {
+  id          String    @id @default(cuid())
+  role        CoachRole
+  content     String
+  // Actions the coach proposed with this reply (validated, ready to apply).
+  suggestions Json?
+  userId      String
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("coach_messages")
+}
+
+// One call to the AI provider, for daily caps and cost tracking. Rows outlive
+// a deleted user (userId becomes null) so the global cap can't be reset.
+model AiUsage {
+  id           String   @id @default(cuid())
+  userId       String?
+  model        String
+  status       String // pending | ok | error | aborted
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  durationMs   Int?
+  createdAt    DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("ai_usage")
+}
+
+enum CoachRole {
+  USER
+  ASSISTANT
 }
 
 enum Priority {

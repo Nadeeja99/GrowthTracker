@@ -99,6 +99,9 @@ jobs:
       # whole suite shares one per-IP budget; lift it so the run isn't throttled.
       RATE_LIMIT_MAX_REQUESTS: 100000
       API_ORIGIN: http://localhost:5000
+      # The coach talks to a local fake of the OpenAI API; no real key in CI.
+      OPENAI_API_KEY: sk-fake-ci-0123456789abcdef
+      OPENAI_BASE_URL: http://127.0.0.1:5100/v1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -117,6 +120,7 @@ jobs:
           npx prisma migrate deploy
           npm run db:seed
           npm run build
+          nohup npx ts-node --transpile-only tests/fake-openai-server.ts > fake-openai.log 2>&1 &
           nohup npm start > api.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:5000/health && exit 0; sleep 1; done
           cat api.log; exit 1
@@ -140,4 +144,5 @@ jobs:
             frontend/playwright-report
             frontend/test-results
             backend/api.log
+            backend/fake-openai.log
           retention-days: 7

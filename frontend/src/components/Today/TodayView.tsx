@@ -11,6 +11,7 @@ import { WeeklyOverview } from './WeeklyOverview';
 import { GoalProgress } from './GoalProgress';
 import { toDateKey } from '@/lib/dates';
 import { FocusTarget } from '@/contexts/FocusContext';
+import { CoachCard } from '@/components/Coach/CoachCard';
 
 interface TodayViewProps {
   goals: Goal[];
@@ -155,6 +156,8 @@ export function TodayView({
           </ol>
         </section>
       )}
+
+      <CoachCard />
 
       {/* Today's Schedule */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6">

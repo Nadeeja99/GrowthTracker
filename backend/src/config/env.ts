@@ -7,6 +7,10 @@ import { z } from 'zod';
 const numberFromEnv = (fallback: number) =>
   z.coerce.number().int().nonnegative().default(fallback);
 
+// Hosts often store an unset variable as "", which should mean "not configured".
+const optionalSecret = (schema: z.ZodString) =>
+  z.preprocess(value => (value === '' ? undefined : value), schema.optional());
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -31,6 +35,20 @@ const envSchema = z
     // must leave real headroom; it still stops scripted abuse.
     RATE_LIMIT_MAX_REQUESTS: numberFromEnv(600),
     AUTH_RATE_LIMIT_MAX: numberFromEnv(10),
+
+    // AI coach. Without a key the app works normally and the coach reports
+    // that it isn't configured.
+    OPENAI_API_KEY: optionalSecret(z.string().min(20, 'OPENAI_API_KEY looks too short')),
+    OPENAI_MODEL: z.string().min(1).default('gpt-6-luna'),
+    OPENAI_REASONING_EFFORT: z.enum(['none', 'low', 'medium', 'high']).default('low'),
+    // Hard ceiling per reply (reasoning tokens count towards it).
+    AI_MAX_OUTPUT_TOKENS: numberFromEnv(1500),
+    // Coach messages per user per calendar day (user's time zone).
+    AI_DAILY_LIMIT: numberFromEnv(20),
+    // The demo account is shared by every visitor, so it gets its own budget.
+    AI_DEMO_DAILY_LIMIT: numberFromEnv(30),
+    // Backstop across all users per UTC day, against mass sign-ups.
+    AI_GLOBAL_DAILY_LIMIT: numberFromEnv(500),
 
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
     BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),

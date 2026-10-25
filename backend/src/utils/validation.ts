@@ -234,6 +234,12 @@ export const createFocusSessionSchema = z.object({
   path: ['endedAt'],
 });
 
+export const coachMessageSchema = z.object({
+  message: z.string().trim().min(1, 'Message is required').max(1000, 'Keep messages under 1000 characters'),
+});
+
+export const coachSettingsSchema = z.object({ enabled: z.boolean() });
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

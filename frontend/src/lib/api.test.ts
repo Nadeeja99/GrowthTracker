@@ -65,3 +65,51 @@ describe('API client session handling', () => {
     await expect(apiClient.createGoal({ title: '' })).rejects.toMatchObject({ message: 'Title is required', status: 400 });
   });
 });
+
+describe('coach streaming', () => {
+  const sse = (chunks: string[], status = 200) => new Response(
+    new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        chunks.forEach(c => controller.enqueue(encoder.encode(c)));
+        controller.close();
+      },
+    }),
+    { status, headers: { 'Content-Type': 'text/event-stream' } }
+  );
+  const turn = { userMessage: { id: 'u' }, message: { id: 'a', content: 'Hi there' }, usage: { used: 1, limit: 20, remaining: 19 } };
+
+  it('reassembles events split across network chunks', async () => {
+    const body = `event: delta\ndata: {"text":"Hi "}\n\nevent: delta\ndata: {"text":"there"}\n\nevent: done\ndata: ${JSON.stringify(turn)}\n\n`;
+    fetchMock.mockResolvedValueOnce(sse([body.slice(0, 7), body.slice(7, 40), body.slice(40)]));
+    const deltas: string[] = [];
+    const result = await apiClient.streamCoachMessage('Hello', { onDelta: d => deltas.push(d) });
+    expect(deltas).toEqual(['Hi ', 'there']);
+    expect(result).toEqual(turn);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ message: 'Hello' });
+  });
+
+  it('turns an error event into an ApiError', async () => {
+    fetchMock.mockResolvedValueOnce(sse(['event: error\ndata: {"message":"The AI service is busy"}\n\n']));
+    await expect(apiClient.streamCoachMessage('Hello', { onDelta: () => {} })).rejects.toMatchObject({ message: 'The AI service is busy' });
+  });
+
+  it('reports JSON errors sent before streaming (e.g. the daily cap)', async () => {
+    fetchMock.mockResolvedValueOnce(json(429, { success: false, error: 'You’ve used all 20 coach messages for today.' }));
+    await expect(apiClient.streamCoachMessage('Hello', { onDelta: () => {} })).rejects.toMatchObject({ status: 429 });
+  });
+
+  it('refreshes an expired session once, then streams', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(401, { success: false, error: 'Token expired.' }))
+      .mockResolvedValueOnce(refreshed())
+      .mockResolvedValueOnce(sse([`event: done\ndata: ${JSON.stringify(turn)}\n\n`]));
+    await expect(apiClient.streamCoachMessage('Hello', { onDelta: () => {} })).resolves.toEqual(turn);
+    expect(fetchMock.mock.calls[2][1].headers.Authorization).toBe('Bearer new-token');
+  });
+
+  it('treats a stream that ends without a result as interrupted', async () => {
+    fetchMock.mockResolvedValueOnce(sse(['event: delta\ndata: {"text":"Hal"}\n\n']));
+    await expect(apiClient.streamCoachMessage('Hello', { onDelta: () => {} })).rejects.toThrow(/interrupted/);
+  });
+});

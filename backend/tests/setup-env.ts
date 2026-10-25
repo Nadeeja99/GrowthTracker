@@ -14,3 +14,6 @@ process.env.CORS_ORIGIN = 'http://localhost:3000';
 process.env.RATE_LIMIT_MAX_REQUESTS ??= '100000';
 process.env.AUTH_RATE_LIMIT_MAX ??= '100000';
 delete process.env.API_PROXY_SECRET;
+// Tests never call the real AI provider; coach tests use a fake model or server.
+delete process.env.OPENAI_API_KEY;
+delete process.env.OPENAI_BASE_URL;

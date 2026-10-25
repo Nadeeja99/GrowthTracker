@@ -30,6 +30,9 @@ test('no console errors or warnings across the app', async ({ page }) => {
   await page.getByRole('button', { name: /start timer/i }).click()
   await page.getByRole('button', { name: /pause timer/i }).click()
   await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Open AI coach' }).click()
+  await expect(page.getByLabel('Message the coach')).toBeVisible()
+  await page.keyboard.press('Escape')
 
   expect(problems).toEqual([])
 })

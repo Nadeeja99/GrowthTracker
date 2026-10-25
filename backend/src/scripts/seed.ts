@@ -7,9 +7,11 @@
 import bcrypt from 'bcryptjs';
 import { env } from '../config/env';
 import { prisma } from '../config/database';
+import { DEMO_EMAIL } from '../config/demo';
 import { addDays, dateKeyInZone, dateOnly, startOfDayInZone } from '../utils/dates';
 
-export const DEMO_EMAIL = process.env.SEED_DEMO_EMAIL ?? 'demo@growthtracker.dev';
+export { DEMO_EMAIL };
+
 const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'demo-password-1';
 const TIMEZONE = process.env.SEED_TIMEZONE ?? 'UTC';
 
@@ -29,6 +31,7 @@ export async function seedDemo() {
       firstName: 'Alex',
       lastName: 'Morgan',
       timezone: TIMEZONE,
+      aiCoachEnabled: true,
     },
   });
   const userId = user.id;
@@ -110,6 +113,36 @@ export async function seedDemo() {
     })),
   });
   await prisma.task.update({ where: { id: exam.id }, data: { actualTime: 75 } });
+
+  // A sample coach exchange, so the coach shows what it does before anyone asks.
+  const runAt = at(1, 18);
+  await prisma.coachMessage.create({
+    data: { userId, role: 'USER', content: 'How am I doing this week?', createdAt: at(-1, 21) },
+  });
+  await prisma.coachMessage.create({
+    data: {
+      userId,
+      role: 'ASSISTANT',
+      createdAt: at(-1, 21, 1),
+      content: [
+        'Solid week for AWS: you completed every morning study block and three 25-minute focus sessions on the practice exam.',
+        '',
+        '- Half marathon is behind: the one run planned so far was skipped, against a 4 h weekly target.',
+        '- Your energy dipped to 2 on the day you skipped the run; your notes say you slept badly.',
+        '',
+        'Protect the next run by booking it now, and keep tomorrow\'s practice exam as your one big task.',
+      ].join('\n'),
+      suggestions: [{
+        id: 'demo-run-block',
+        kind: 'time_block',
+        title: 'Easy run',
+        reason: 'Half marathon is below its weekly target and tomorrow evening is free.',
+        goalId: run.id,
+        startTime: runAt.toISOString(),
+        endTime: new Date(runAt.getTime() + 45 * 60_000).toISOString(),
+      }],
+    },
+  });
 
   return { email: DEMO_EMAIL };
 }

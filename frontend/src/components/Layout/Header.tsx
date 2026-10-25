@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { NAV_ITEMS, isActivePath } from '@/lib/navigation';
 import { FocusButton } from '@/components/Focus/FocusPanel';
+import { CoachButton } from '@/components/Coach/CoachPanel';
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -75,6 +76,7 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-1 md:gap-2">
+          <CoachButton />
           <FocusButton />
 
           <button

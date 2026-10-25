@@ -48,6 +48,14 @@ services:
         sync: false # the app's URL, e.g. https://growthtracker.onrender.com
       - key: SEED_DEMO_ON_START
         value: 'true'
+      # Demo data is laid out in this zone (the audience is in Ireland).
+      - key: SEED_TIMEZONE
+        value: Europe/Dublin
+      # AI coach. Leave the key empty to run without it; the rest of the app is unaffected.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-6-luna
 
   - type: web
     name: growthtracker

@@ -186,6 +186,48 @@ export interface BackendHabitWithCompletions extends BackendHabit {
   completions: BackendHabitCompletion[];
 }
 
+/** An action the coach proposed, validated by the API and ready to apply. */
+export type CoachSuggestion = {
+  id: string;
+  title: string;
+  reason: string;
+  /** Id of the task, block or habit created when the user added it. */
+  appliedId?: string;
+} & (
+  | { kind: 'task'; goalId: string | null; priority: BackendPriority; dueDate: string | null }
+  | { kind: 'time_block'; goalId: string | null; startTime: string; endTime: string }
+  | { kind: 'habit'; frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' }
+);
+
+export interface CoachMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  suggestions: CoachSuggestion[];
+  createdAt: string;
+}
+
+export interface CoachUsage {
+  used: number;
+  limit: number;
+  remaining: number;
+}
+
+export interface CoachStatus {
+  /** The server has an AI provider configured. */
+  configured: boolean;
+  /** The user has opted in. */
+  enabled: boolean;
+  usage: CoachUsage;
+  messages: CoachMessage[];
+}
+
+export interface CoachTurn {
+  userMessage: CoachMessage;
+  message: CoachMessage;
+  usage: CoachUsage;
+}
+
 /** An error response from the API, with its HTTP status. */
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -222,14 +264,7 @@ class ApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}, isRetry = false): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
 
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
-
-    if (this.token) {
-      (headers as Record<string, string>).Authorization = `Bearer ${this.token}`;
-    }
+    const headers: HeadersInit = { ...this.jsonHeaders(), ...options.headers };
 
     // `include` sends the httpOnly refresh cookie to the /auth endpoints.
     const response = await fetch(url, { ...options, headers, credentials: 'include' });
@@ -249,6 +284,12 @@ class ApiClient {
     }
 
     return data;
+  }
+
+  private jsonHeaders(): Record<string, string> {
+    return this.token
+      ? { 'Content-Type': 'application/json', Authorization: `Bearer ${this.token}` }
+      : { 'Content-Type': 'application/json' };
   }
 
   // Auth
@@ -482,6 +523,74 @@ class ApiClient {
   // Users
   async updateProfile(data: { firstName?: string; lastName?: string; timezone?: string; avatar?: string }): Promise<ApiResponse<{ user: User }>> {
     return this.request('/users/profile', { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  // AI coach
+  async getCoach(): Promise<ApiResponse<CoachStatus>> {
+    return this.request('/coach');
+  }
+
+  async setCoachEnabled(enabled: boolean): Promise<ApiResponse<{ enabled: boolean }>> {
+    return this.request('/coach/settings', { method: 'PUT', body: JSON.stringify({ enabled }) });
+  }
+
+  async clearCoachMessages(): Promise<ApiResponse<{ deleted: number }>> {
+    return this.request('/coach/messages', { method: 'DELETE' });
+  }
+
+  async applyCoachSuggestion(messageId: string, suggestionId: string): Promise<ApiResponse<{ suggestion: CoachSuggestion }>> {
+    return this.request(`/coach/messages/${messageId}/suggestions/${suggestionId}/apply`, { method: 'POST' });
+  }
+
+  /**
+   * Sends a message to the coach and streams the reply (Server-Sent Events).
+   * `onDelta` receives each fragment as it arrives; resolves with the saved
+   * turn. Aborting `signal` stops the reply.
+   */
+  async streamCoachMessage(
+    message: string,
+    { onDelta, signal }: { onDelta: (text: string) => void; signal?: AbortSignal }
+  ): Promise<CoachTurn> {
+    const send = () => fetch(`${this.baseURL}/coach/messages`, {
+      method: 'POST',
+      headers: this.jsonHeaders(),
+      body: JSON.stringify({ message }),
+      credentials: 'include',
+      signal,
+    });
+
+    let response = await send();
+    if (response.status === 401) {
+      if (!(await this.refreshSession())) {
+        this.sessionExpiredListener?.();
+        throw new ApiError('Your session has expired.', 401);
+      }
+      response = await send();
+    }
+    if (!response.ok || !response.body || !response.headers.get('Content-Type')?.includes('text/event-stream')) {
+      const data = await response.json().catch(() => ({}));
+      throw new ApiError(data.validationErrors?.[0]?.message || data.error || `HTTP ${response.status}`, response.status);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let end: number;
+      while ((end = buffer.indexOf('\n\n')) !== -1) {
+        const chunk = buffer.slice(0, end);
+        buffer = buffer.slice(end + 2);
+        const event = /^event: (.*)$/m.exec(chunk)?.[1];
+        const data = JSON.parse(/^data: (.*)$/m.exec(chunk)?.[1] ?? 'null');
+        if (event === 'delta') onDelta(data.text);
+        else if (event === 'done') return data as CoachTurn;
+        else if (event === 'error') throw new ApiError(data.message, 502);
+      }
+    }
+    throw new ApiError('The reply was interrupted. Please try again.', 0);
   }
 
   // Token management

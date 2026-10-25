@@ -33,6 +33,13 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 - Server-computed summary for the selected range: focused time, task completion, habit consistency, average energy
 - Charts for time allocation, trends and completion rates
 
+### AI Coach (OpenAI)
+- Chat with a coach that reads your goals, open tasks, this week's blocks, habits and recent daily reviews, and answers with specifics ("AWS is at 5.8 h of its 6 h target")
+- Replies **stream** in as they're written; you can stop one mid-way
+- The coach can **propose up to three actions** (a task, a time block at a free slot, or a habit), each added to your plan with one click
+- Opt-in: nothing is sent to OpenAI until you turn the coach on; the data shared is listed up front, and it can be switched off or cleared in Settings
+- Starter prompts on the Today page; works across tabs (a reply keeps streaming if you close the panel)
+
 ### Focus timer (available everywhere)
 - Pomodoro timer in a slide-over panel that **keeps running while you switch tabs**; the header shows the countdown
 - Start it from a task or a planned block; every interval (stopped-early ones after 1 minute) is saved and counts toward the goal's hours and the task's logged time
@@ -73,6 +80,7 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 | [bcryptjs](https://github.com/dcodeIO/bcrypt.js) | Password hashing |
 | [Zod](https://zod.dev/) | Request validation |
 | [Winston](https://github.com/winstonjs/winston) | Logging |
+| [OpenAI Node SDK](https://github.com/openai/openai-node) | AI coach (Responses API, streaming, strict function calling) |
 
 ---
 
@@ -119,7 +127,7 @@ GrowthTracker/
 
 ### Prerequisites
 
-- Node.js 20.9+
+- Node.js 22+
 - PostgreSQL 14+ (local, Docker or Supabase)
 
 ### 1. Clone the repository
@@ -167,15 +175,42 @@ The app will be available at `http://localhost:3000`.
 
 ---
 
+## AI Coach: how it works
+
+```
+browser ──POST /api/coach/messages──► API ──Responses API (stream)──► OpenAI
+        ◄── Server-Sent Events ──────     ◄── text deltas + suggest_actions call
+```
+
+- **Server-side only.** The OpenAI key lives in the API's environment and never reaches the browser. Without a key, the coach reports that it isn't configured and the rest of the app works as normal.
+- **Grounded context.** Each request builds a compact JSON snapshot of the user's data (`backend/src/services/coach/context.ts`). It contains no email, password or account fields, and free text is clipped. The prompt marks the snapshot as data, not instructions, so text in a task title or review note can't change the coach's rules.
+- **Structured output, never trusted blindly.** Suggestions come from a strict function tool (`suggest_actions`) with an explicit JSON Schema. The API re-validates every call with zod and drops anything malformed, in the past or more than 14 days ahead. It unlinks goal ids the user doesn't own, converts local times to instants in the user's time zone (DST-safe) and caps the list at three. Applying a suggestion locks the row, so a double click can't add it twice.
+- **Streaming.** The API streams Server-Sent Events (`delta`, `done`, `error`) through the Next.js proxy (`Cache-Control: no-transform` keeps compression from buffering them). If the browser disconnects, the request to OpenAI is aborted.
+- **Cost controls.**
+  - Users opt in.
+  - One reply at a time per user.
+  - 20 messages per user per day (30 for the shared demo account) and 500 per UTC day across all users.
+  - Output is capped at 1,500 tokens per reply.
+  - Every call is recorded in `ai_usage` with its token counts, and failed calls don't count against the user.
+  - Requests use `store: false`, so OpenAI doesn't keep them.
+  - The default model is `gpt-6-luna` ($0.10 / $0.50 per 1M input/output tokens), roughly $0.0002 per message. Change it with `OPENAI_MODEL`.
+- **Tested without a key.** Backend tests use a fake model for route logic, plus a local server that speaks the Responses streaming protocol, which exercises the real SDK. The E2E suite runs the whole flow against that fake server: stream, stop, add a suggestion, opt out.
+
+**Setting up your key:** in the OpenAI dashboard, create a project, create a key restricted to the model endpoints, and set a monthly budget. Put the key in `backend/.env` as `OPENAI_API_KEY` locally, and in the API service's environment on Render.
+
+**Without a key:** start the fake server (`cd backend && npx ts-node --transpile-only tests/fake-openai-server.ts`), then run the API with `OPENAI_API_KEY=sk-fake-local-key OPENAI_BASE_URL=http://127.0.0.1:5100/v1`.
+
+---
+
 ## Testing
 
 | Suite | Command | What it covers |
 |---|---|---|
-| Backend integration (Jest + Supertest) | `cd backend && TEST_DATABASE_URL=postgresql://…/growthtracker_test npm test` | Auth and token rotation, access control between users (IDOR), validation, goals/tasks/tracking endpoints, rate limiting, proxy gate, time-zone maths, demo seed |
-| Frontend unit (Vitest + Testing Library) | `cd frontend && npm test` | API client session refresh, data mappers, toast store, focus timer, dialog focus trap |
-| End-to-end (Playwright + axe-core) | `cd frontend && npm run test:e2e` | Zero WCAG 2.1 AA violations on every page in light and dark mode, dialog keyboard behaviour, error toasts, skeletons, 404, delete confirmation, no React console warnings |
+| Backend integration (Jest + Supertest) | `cd backend && TEST_DATABASE_URL=postgresql://…/growthtracker_test npm test` | Auth and token rotation, access control between users (IDOR), validation, goals/tasks/tracking endpoints, rate limiting, proxy gate, time-zone maths, demo seed, AI coach (opt-in, quotas, streaming, suggestion validation, the real OpenAI SDK against a fake server) |
+| Frontend unit (Vitest + Testing Library) | `cd frontend && npm test` | API client session refresh, coach SSE parsing, data mappers, toast store, focus timer, dialog focus trap, safe rendering of coach text |
+| End-to-end (Playwright + axe-core) | `cd frontend && npm run test:e2e` | Zero WCAG 2.1 AA violations on every page in light and dark mode, dialog keyboard behaviour, error toasts, skeletons, 404, delete confirmation, no React console warnings, coach chat (stream, stop, add a suggestion, opt out) |
 
-The backend tests run against a real Postgres database whose name must end in `_test`; every table is truncated between suites. The E2E suite needs the API running with the demo seed and starts the frontend itself (`API_ORIGIN` points it at the API; `E2E_CHANNEL=chrome` uses your installed Chrome instead of downloading Chromium). It changes the demo data, so re-run `npm run db:seed` before running it again.
+The backend tests run against a real Postgres database whose name must end in `_test`; every table is truncated between suites. The E2E suite needs the API running with the demo seed (and, for the coach tests, `OPENAI_BASE_URL` pointing at the fake OpenAI server) and starts the frontend itself (`API_ORIGIN` points it at the API; `E2E_CHANNEL=chrome` uses your installed Chrome instead of downloading Chromium). It changes the demo data, so re-run `npm run db:seed` before running it again.
 
 GitHub Actions runs all three suites, plus lint, type checks and production builds, on every push and pull request. The E2E job runs the API in production mode behind the Next.js proxy, the same setup used on Render.
 
@@ -203,8 +238,9 @@ The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API
    - `API_ORIGIN`: the API URL, e.g. `https://growthtracker-api.onrender.com`.
 
    If Render adds a suffix to a service name, use the URLs shown in the dashboard. Correct them later under **Environment**, then redeploy the app, because `API_ORIGIN` is read at build time.
-3. JWT secrets and `API_PROXY_SECRET` are generated by Render. The app copies the proxy secret from the API service, so there is nothing to paste.
-4. Deploys run only after CI passes (`autoDeployTrigger: checksPass`), and each service rebuilds only when its own folder changes.
+3. Optional: paste your OpenAI key into `OPENAI_API_KEY` (API service). Leave it empty to deploy without the coach.
+4. JWT secrets and `API_PROXY_SECRET` are generated by Render. The app copies the proxy secret from the API service, so there is nothing to paste.
+5. Deploys run only after CI passes (`autoDeployTrigger: checksPass`), and each service rebuilds only when its own folder changes.
 
 ### Free-tier notes
 - Free services sleep after 15 minutes without traffic. The first visit afterwards waits about a minute while the app, and then the API, wake up.
@@ -242,6 +278,11 @@ The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API
 | POST | `/api/reflections/import` | One-time import of reviews stored by older app versions |
 | GET/POST | `/api/focus-sessions` | List / record focus sessions |
 | PUT | `/api/users/profile` | Update user profile |
+| GET | `/api/coach` | Coach status, opt-in, today's usage and recent conversation |
+| PUT | `/api/coach/settings` | Turn the coach on or off |
+| POST | `/api/coach/messages` | Send a message; the reply streams as Server-Sent Events |
+| DELETE | `/api/coach/messages` | Clear the conversation |
+| POST | `/api/coach/messages/:id/suggestions/:suggestionId/apply` | Add a suggested task, block or habit |
 | GET | `/api/analytics/overview` | Analytics summary |
 | GET | `/api/analytics/goal-progress` | Per-goal progress analytics |
 | GET | `/api/analytics/weekly-trends` | Weekly task and habit trends |
@@ -267,6 +308,11 @@ The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API
 | `NODE_ENV` | Environment (`development` / `production`) | `development` |
 | `CORS_ORIGIN` | Allowed frontend origins (comma-separated) | `http://localhost:3000` |
 | `BCRYPT_ROUNDS` | bcrypt hashing rounds | `12` |
+| `OPENAI_API_KEY` | Enables the AI coach (server-side only) | — |
+| `OPENAI_MODEL` | Model for the coach | `gpt-6-luna` |
+| `OPENAI_REASONING_EFFORT` | `none` / `low` / `medium` / `high` | `low` |
+| `AI_MAX_OUTPUT_TOKENS` | Token ceiling per reply | `1500` |
+| `AI_DAILY_LIMIT` / `AI_DEMO_DAILY_LIMIT` / `AI_GLOBAL_DAILY_LIMIT` | Coach messages per user per day / for the demo account / across all users per UTC day | `20` / `30` / `500` |
 
 ### Frontend
 
