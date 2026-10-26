@@ -12,6 +12,7 @@ import { FocusPanel } from '@/components/Focus/FocusPanel';
 import { CoachPanel } from '@/components/Coach/CoachPanel';
 import { QuickCapture } from '@/components/ui/QuickCapture';
 import { PageLoader } from '@/components/ui/PageState';
+import { useSlowFlag, WAKING_UP_MESSAGE } from '@/hooks/useSlowFlag';
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
 import { useGoals } from '@/hooks/data/useGoals';
 import { useTaskMutations } from '@/hooks/data/useTasks';
@@ -49,6 +50,7 @@ function AppQuickCapture() {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const slow = useSlowFlag(isLoading);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) router.replace('/auth');
@@ -57,7 +59,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (isLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <PageLoader />
+        <PageLoader label={slow ? WAKING_UP_MESSAGE : undefined} />
       </div>
     );
   }

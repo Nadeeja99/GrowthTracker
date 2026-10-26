@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, apiClient } from './api';
 
+// Read when api.ts loads, so set it before the import above runs.
+const WAKE_URL = vi.hoisted(() => (process.env.NEXT_PUBLIC_API_WAKE_URL = 'https://api.test/health'));
+
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -68,6 +71,28 @@ describe('API client session handling', () => {
   it('surfaces the first field-level validation message', async () => {
     fetchMock.mockResolvedValueOnce(json(400, { success: false, error: 'Validation failed', validationErrors: [{ field: 'title', message: 'Title is required' }] }));
     await expect(apiClient.createGoal({ title: '' })).rejects.toMatchObject({ message: 'Title is required', status: 400 });
+  });
+});
+
+describe('waking a stopped API', () => {
+  // What Render sends while the API is stopped: its own HTML page, not API JSON.
+  const hostError = () => new Response('<!DOCTYPE html><title>502</title>', { status: 502, headers: { 'Content-Type': 'text/html' } });
+
+  it('pings the API from the browser, then retries the request', async () => {
+    let goalsCalls = 0;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === WAKE_URL) return json(200, { status: 'OK' });
+      return ++goalsCalls === 1 ? hostError() : json(200, { success: true, data: { goals: [] } });
+    });
+    const res = await apiClient.getGoals();
+    expect(res.data?.goals).toEqual([]);
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/goals?limit=500', WAKE_URL, '/api/goals?limit=500']);
+  });
+
+  it('does not resend after one of the API’s own 502 errors', async () => {
+    fetchMock.mockResolvedValueOnce(json(502, { success: false, error: 'The AI service is busy' }));
+    await expect(apiClient.getGoals()).rejects.toMatchObject({ message: 'The AI service is busy', status: 502 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 

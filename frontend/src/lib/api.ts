@@ -275,6 +275,22 @@ export class ApiError extends Error {
 // Auth endpoints that must never trigger the refresh-and-retry path.
 const NO_REFRESH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/demo', '/auth/refresh', '/auth/logout'];
 
+// Render's free tier stops the API after 15 idle minutes. Requests forwarded by
+// the app's server don't start it again: Render answers them at once with its
+// own 502 page. A request straight from the browser does start it, so the
+// client pings the API directly and retries until it answers.
+const API_WAKE_URL = process.env.NEXT_PUBLIC_API_WAKE_URL;
+const WAKE_TIMEOUT_MS = 90_000;
+const WAKE_RETRY_DELAY_MS = 3_000;
+
+/**
+ * The host's error page for a stopped API, as opposed to one of the API's own
+ * (JSON) errors. Such a request never reached the API, so it is safe to resend.
+ */
+const isApiAsleep = (response: Response) =>
+  (response.status === 502 || response.status === 503) &&
+  !response.headers.get('Content-Type')?.includes('application/json');
+
 class ApiClient {
   private baseURL: string;
   // The access token lives only in memory (never localStorage), so injected
@@ -282,6 +298,7 @@ class ApiClient {
   // page load from the httpOnly refresh cookie via refreshSession().
   private token: string | null = null;
   private refreshInFlight: Promise<User | null> | null = null;
+  private wakeInFlight: Promise<void> | null = null;
   private sessionExpiredListener: (() => void) | null = null;
 
   constructor(baseURL: string) {
@@ -303,7 +320,9 @@ class ApiClient {
     const headers: HeadersInit = { ...this.jsonHeaders(), ...options.headers };
 
     // `include` sends the httpOnly refresh cookie to the /auth endpoints.
-    const response = await fetch(url, { ...options, headers, credentials: 'include' });
+    const send = () => fetch(url, { ...options, headers, credentials: 'include' });
+    let response = await send();
+    if (isApiAsleep(response)) response = await this.waitForApi(send);
     // Proxies and cold-starting hosts can answer with HTML, so don't assume JSON.
     const data = await response.json().catch(() => ({}));
 
@@ -320,6 +339,33 @@ class ApiClient {
     }
 
     return data;
+  }
+
+  /**
+   * Resends `send` until the API is awake (see isApiAsleep), waking it from
+   * the browser before each try. Gives up after WAKE_TIMEOUT_MS and returns
+   * the last response.
+   */
+  private async waitForApi(send: () => Promise<Response>): Promise<Response> {
+    const deadline = Date.now() + WAKE_TIMEOUT_MS;
+    for (;;) {
+      await this.wakeApi();
+      const response = await send();
+      if (!isApiAsleep(response) || Date.now() >= deadline) return response;
+      await new Promise(resolve => setTimeout(resolve, WAKE_RETRY_DELAY_MS));
+    }
+  }
+
+  /** Concurrent callers share one ping; Render holds it open until the API is up. */
+  private wakeApi(): Promise<void> {
+    if (!API_WAKE_URL) return Promise.resolve();
+    this.wakeInFlight ??= fetch(API_WAKE_URL, { cache: 'no-store' })
+      // Only the wake-up matters, not the answer.
+      .then(() => undefined, () => undefined)
+      .finally(() => {
+        this.wakeInFlight = null;
+      });
+    return this.wakeInFlight;
   }
 
   private jsonHeaders(): Record<string, string> {
@@ -607,6 +653,7 @@ class ApiClient {
     });
 
     let response = await send();
+    if (isApiAsleep(response)) response = await this.waitForApi(send);
     if (response.status === 401) {
       if (!(await this.refreshSession())) {
         this.sessionExpiredListener?.();

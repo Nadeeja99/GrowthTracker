@@ -6,6 +6,8 @@ const API_ORIGIN = process.env.API_ORIGIN || 'http://localhost:5000'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // The browser pings this to wake the API on Render's free tier (see waitForApi in src/lib/api.ts).
+  env: { NEXT_PUBLIC_API_WAKE_URL: `${API_ORIGIN}/health` },
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${API_ORIGIN}/api/:path*` }]
   },
