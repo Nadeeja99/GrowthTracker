@@ -77,16 +77,50 @@ describe('API client session handling', () => {
 describe('waking a stopped API', () => {
   // What Render sends while the API is stopped: its own HTML page, not API JSON.
   const hostError = () => new Response('<!DOCTYPE html><title>502</title>', { status: 502, headers: { 'Content-Type': 'text/html' } });
+  const urls = () => fetchMock.mock.calls.map(([url]) => url);
 
-  it('pings the API from the browser, then retries the request', async () => {
+  // The client is shared between tests and reuses a ping for 90 s, so give
+  // each test a clock far past the previous one.
+  let now = 0;
+  beforeEach(() => {
+    now += 10 * 60_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('reuses the ping sent when the app opened, then retries the request', async () => {
     let goalsCalls = 0;
     fetchMock.mockImplementation(async (url: string) => {
       if (url === WAKE_URL) return json(200, { status: 'OK' });
       return ++goalsCalls === 1 ? hostError() : json(200, { success: true, data: { goals: [] } });
     });
+    apiClient.wakeApi();
     const res = await apiClient.getGoals();
     expect(res.data?.goals).toEqual([]);
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/goals?limit=500', WAKE_URL, '/api/goals?limit=500']);
+    expect(urls()).toEqual([WAKE_URL, '/api/goals?limit=500', '/api/goals?limit=500']);
+  });
+
+  it('sends one ping for requests that fail together', async () => {
+    const failedOnce = new Set<string>();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === WAKE_URL) return json(200, { status: 'OK' });
+      if (!failedOnce.has(url)) {
+        failedOnce.add(url);
+        return hostError();
+      }
+      return json(200, { success: true, data: {} });
+    });
+    await Promise.all([apiClient.getGoals(), apiClient.getTasks()]);
+    expect(urls().filter(url => url === WAKE_URL)).toHaveLength(1);
+  });
+
+  it('gives up at once, with a readable message, when the ping is blocked', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === WAKE_URL) throw new TypeError('Failed to fetch');
+      return hostError();
+    });
+    await expect(apiClient.getGoals()).rejects.toMatchObject({ message: expect.stringMatching(/still starting/), status: 502 });
+    expect(urls()).toEqual(['/api/goals?limit=500', WAKE_URL]);
   });
 
   it('does not resend after one of the API’s own 502 errors', async () => {

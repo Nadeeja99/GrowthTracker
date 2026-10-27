@@ -50,6 +50,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // drop it whenever the API reports it can no longer be renewed.
   useEffect(() => {
     let cancelled = false;
+    // Start the API now in case it is asleep (free hosting tier), so it is
+    // up by the time the visitor signs in.
+    apiClient.wakeApi();
     apiClient.refreshSession()
       // If the session can't be checked (e.g. offline), fall back to signing in.
       .catch(() => null)
