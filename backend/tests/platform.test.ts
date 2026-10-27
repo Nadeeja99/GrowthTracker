@@ -20,6 +20,12 @@ describe('proxy gate', () => {
     expect(health.status).toBe(200);
     expect(health.body.database).toBe('up');
   });
+
+  it('answers the app’s cross-origin wake-up ping on / without the secret', async () => {
+    const res = await request(app).get('/').set('Origin', 'http://localhost:3000');
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+  });
 });
 
 describe('platform behaviour', () => {

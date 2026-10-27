@@ -84,6 +84,13 @@ app.get('/health', async (_req, res) => {
   }
 });
 
+// Wake-up ping, sent from the browser when the app opens: a request from
+// outside Render starts the API on the free tier. Not /health, because ad
+// blockers' EasyPrivacy list blocks `||onrender.com/health`.
+app.get('/', (_req, res) => {
+  res.status(200).json({ status: 'OK' });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/goals', goalRoutes);

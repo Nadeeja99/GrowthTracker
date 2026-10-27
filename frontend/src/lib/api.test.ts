@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, apiClient } from './api';
 
 // Read when api.ts loads, so set it before the import above runs.
-const WAKE_URL = vi.hoisted(() => (process.env.NEXT_PUBLIC_API_WAKE_URL = 'https://api.test/health'));
+const WAKE_URL = vi.hoisted(() => (process.env.NEXT_PUBLIC_API_WAKE_URL = 'https://api.test/'));
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
