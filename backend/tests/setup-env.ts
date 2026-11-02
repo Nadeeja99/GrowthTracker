@@ -18,3 +18,6 @@ delete process.env.API_PROXY_SECRET;
 delete process.env.OPENAI_API_KEY;
 delete process.env.OPENAI_BASE_URL;
 delete process.env.DEMO_LOGIN_ENABLED;
+// Tests capture email with setMailerForTests; never use a real provider.
+for (const key of ['MAIL_PROVIDER', 'MAIL_API_KEY', 'MAIL_FROM', 'MAIL_OUTBOX_DIR', 'APP_URL']) delete process.env[key];
+process.env.PASSWORD_RESET_RATE_LIMIT_MAX ??= '100000';

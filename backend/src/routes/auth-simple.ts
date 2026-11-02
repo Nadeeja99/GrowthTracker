@@ -1,14 +1,19 @@
 import { Router, CookieOptions, Response } from 'express';
+import { createHash, randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth-simple';
-import { registerSchema, loginSchema, demoLoginSchema } from '../utils/validation';
+import {
+  registerSchema, loginSchema, demoLoginSchema, changePasswordSchema, forgotPasswordSchema,
+  resetPasswordSchema, deleteAccountSchema,
+} from '../utils/validation';
 import { logger } from '../utils/logger';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken, REFRESH_TOKEN_TTL_MS } from '../utils/simpleAuth';
 import { env } from '../config/env';
 import { DEMO_EMAIL } from '../config/demo';
 import { HttpError } from '../utils/httpError';
+import { getMailer, passwordResetEmail } from '../services/mail';
 
 const router = Router();
 
@@ -188,6 +193,139 @@ router.post('/logout-all', authenticate, async (req: AuthRequest, res) => {
   logger.info('All sessions revoked', { userId: req.user!.id });
 
   res.json({ success: true, message: 'Signed out of all devices' });
+});
+
+// ─── Passwords and account ───────────────────────────────────────────────────
+
+const RESET_LINK_MINUTES = 30;
+// At most one reset email per account per minute, so the form can't be used to flood an inbox.
+const RESET_EMAIL_COOLDOWN_MS = 60_000;
+const INVALID_RESET_LINK = 'This reset link is invalid or has expired. Request a new one.';
+
+const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
+
+// The shared demo account's credentials must not change, or other visitors are locked out.
+function assertNotDemo(email: string) {
+  if (email === DEMO_EMAIL) throw new HttpError(403, 'Not available on the shared demo account.');
+}
+
+// The current password, checked before sensitive changes. A wrong one is a
+// 400, not a 401: the app treats 401 as "session expired" and would sign out.
+async function assertPassword(userId: string, password: string, message: string) {
+  const { password: hash } = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { password: true } });
+  if (!(await bcrypt.compare(password, hash))) throw new HttpError(400, message);
+  return hash;
+}
+
+// Change password. Signs out every other device, and keeps this one signed in
+// with a fresh session.
+router.put('/password', authenticate, async (req: AuthRequest, res) => {
+  assertNotDemo(req.user!.email);
+  const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+  await assertPassword(req.user!.id, currentPassword, 'Your current password is incorrect.');
+  if (currentPassword === newPassword) {
+    throw new HttpError(400, 'Choose a new password that’s different from your current one.');
+  }
+
+  const user = await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { password: await bcrypt.hash(newPassword, env.BCRYPT_ROUNDS), tokenVersion: { increment: 1 } },
+    select: sessionUserSelect,
+  });
+  await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+
+  logger.info('Password changed', { userId: user.id });
+  res.json({ success: true, message: 'Password changed', data: issueSession(res, user) });
+});
+
+// "Forgot password": emails a single-use link. The answer is the same whether
+// or not the account exists, and the email is sent after responding, so
+// neither the message nor the timing reveals who has an account.
+router.post('/password/forgot', async (req: AuthRequest, res) => {
+  const { email } = forgotPasswordSchema.parse(req.body);
+  const mailer = getMailer();
+  if (!mailer && env.isProduction) {
+    throw new HttpError(503, 'Password reset by email isn’t set up on this server yet.');
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' } },
+    select: { id: true, email: true, firstName: true },
+  });
+  res.json({ success: true, message: 'If an account uses that email, a reset link is on its way.' });
+
+  if (!user || user.email === DEMO_EMAIL) return;
+  sendResetLink(user, mailer).catch(error =>
+    logger.error('Password reset email failed', { userId: user.id, error: (error as Error).message }));
+});
+
+async function sendResetLink(user: { id: string; email: string; firstName: string | null }, mailer: ReturnType<typeof getMailer>) {
+  const now = Date.now();
+  const recent = await prisma.passwordResetToken.findFirst({
+    where: { userId: user.id, createdAt: { gt: new Date(now - RESET_EMAIL_COOLDOWN_MS) } },
+    select: { id: true },
+  });
+  if (recent) return;
+
+  const token = randomBytes(32).toString('base64url');
+  await prisma.$transaction([
+    // A new link replaces any earlier one; long-expired links of anyone are tidied up too.
+    prisma.passwordResetToken.deleteMany({
+      where: { OR: [{ userId: user.id }, { expiresAt: { lt: new Date(now - 24 * 60 * 60 * 1000) } }] },
+    }),
+    prisma.passwordResetToken.create({
+      data: { userId: user.id, tokenHash: sha256(token), expiresAt: new Date(now + RESET_LINK_MINUTES * 60_000) },
+    }),
+  ]);
+
+  const link = `${env.appUrl}/reset-password?token=${token}`;
+  if (mailer) {
+    await mailer.send(passwordResetEmail(user.email, user.firstName, link, RESET_LINK_MINUTES));
+    logger.info('Password reset email sent', { userId: user.id });
+  } else {
+    // Development without an email provider: the link goes to the server log.
+    logger.warn('Email is off; password reset link (development only)', { userId: user.id, link });
+  }
+}
+
+// Sets a new password from a reset link, signs out every other device and
+// signs this one in.
+router.post('/password/reset', async (req: AuthRequest, res) => {
+  const { token, newPassword } = resetPasswordSchema.parse(req.body);
+  const now = new Date();
+  const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash: sha256(token) } });
+  if (!record || record.usedAt || record.expiresAt < now) throw new HttpError(400, INVALID_RESET_LINK);
+
+  const password = await bcrypt.hash(newPassword, env.BCRYPT_ROUNDS);
+  const user = await prisma.$transaction(async tx => {
+    // Claim the link atomically, so two requests can't both use it.
+    const claimed = await tx.passwordResetToken.updateMany({ where: { id: record.id, usedAt: null }, data: { usedAt: now } });
+    if (claimed.count === 0) throw new HttpError(400, INVALID_RESET_LINK);
+    await tx.passwordResetToken.deleteMany({ where: { userId: record.userId, id: { not: record.id } } });
+    return tx.user.update({
+      where: { id: record.userId },
+      data: { password, tokenVersion: { increment: 1 } },
+      select: sessionUserSelect,
+    });
+  });
+
+  logger.info('Password reset', { userId: user.id });
+  res.json({ success: true, message: 'Password updated', data: issueSession(res, user) });
+});
+
+// Deletes the account and everything in it (goals, tasks, blocks, habits,
+// reviews, focus sessions, AI history). Anonymous AI usage counts are kept,
+// unlinked, so the global AI cap can't be reset by deleting accounts.
+router.delete('/account', authenticate, async (req: AuthRequest, res) => {
+  assertNotDemo(req.user!.email);
+  const { password } = deleteAccountSchema.parse(req.body);
+  await assertPassword(req.user!.id, password, 'That password is incorrect.');
+
+  await prisma.user.delete({ where: { id: req.user!.id } });
+  res.clearCookie(REFRESH_COOKIE, refreshCookieOptions);
+
+  logger.info('Account deleted', { userId: req.user!.id });
+  res.json({ success: true, message: 'Account deleted' });
 });
 
 // Get current user

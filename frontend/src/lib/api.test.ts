@@ -177,3 +177,29 @@ describe('coach streaming', () => {
     await expect(apiClient.streamCoachMessage('Hello', { onDelta: () => {} })).rejects.toThrow(/interrupted/);
   });
 });
+
+describe('account', () => {
+  it('keeps this device signed in after a password change', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(200, { success: true, data: { accessToken: 'after-change', user: { id: 'u1' } } }))
+      .mockResolvedValueOnce(json(200, { success: true, data: { goals: [] } }));
+    await apiClient.changePassword('old-password', 'new-password');
+    await apiClient.getGoals();
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer after-change');
+  });
+
+  it('a wrong password on delete keeps the session', async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(400, { success: false, error: 'That password is incorrect.' }))
+      .mockResolvedValueOnce(json(200, { success: true, data: { goals: [] } }));
+    await expect(apiClient.deleteAccount('nope')).rejects.toMatchObject({ status: 400, message: 'That password is incorrect.' });
+    await apiClient.getGoals();
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer expired-token');
+    expect(fetchMock).toHaveBeenCalledTimes(2); // no refresh attempt: a 400 isn't "signed out"
+  });
+
+  it('returns the export document as is', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { exportVersion: 1, account: { email: 'a@b.test' } }));
+    await expect(apiClient.exportData()).resolves.toEqual({ exportVersion: 1, account: { email: 'a@b.test' } });
+  });
+});

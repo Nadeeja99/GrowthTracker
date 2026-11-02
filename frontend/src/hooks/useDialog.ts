@@ -35,6 +35,8 @@ const focusablesIn = (root: HTMLElement) =>
  */
 export function useDialog<T extends HTMLElement>(onClose: () => void, active = true) {
   const ref = useRef<T>(null);
+  // The field focused when the dialog opened (usually its autoFocus field).
+  const initialFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -47,8 +49,14 @@ export function useDialog<T extends HTMLElement>(onClose: () => void, active = t
     const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const opener = focused && !panel.contains(focused) ? focused : lastFocusedOutside;
     openDialogs.push(panel);
-    if (!panel.contains(document.activeElement)) {
-      (focusablesIn(panel)[0] ?? panel).focus();
+    if (focused && panel.contains(focused)) {
+      initialFocusRef.current = focused;
+    } else {
+      // React's development StrictMode runs this effect twice, and the cleanup
+      // in between returns focus to the opener, so restore the autoFocus field
+      // seen on the first run rather than falling back to the first button.
+      const remembered = initialFocusRef.current;
+      (remembered?.isConnected && panel.contains(remembered) ? remembered : focusablesIn(panel)[0] ?? panel).focus();
     }
 
     const onKeyDown = (event: KeyboardEvent) => {

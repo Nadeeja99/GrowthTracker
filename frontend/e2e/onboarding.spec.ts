@@ -8,7 +8,7 @@ test('"Try the demo" opens the seeded account without a password', async ({ page
   await expect(page.getByText('Demo', { exact: true })).toBeVisible()
 
   await page.goto('/settings')
-  await expect(page.getByText(/shared demo account/)).toBeVisible()
+  await expect(page.getByText(/You.re using the shared demo account/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Sign out everywhere' })).toHaveCount(0)
 })
 

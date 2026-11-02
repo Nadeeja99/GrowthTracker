@@ -26,16 +26,17 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  goals         Goal[]
-  tasks         Task[]
-  schedules     Schedule[]
-  habits        Habit[]
-  taskTags      TaskTag[]
-  reflections   Reflection[]
-  focusSessions FocusSession[]
-  coachMessages CoachMessage[]
-  aiUsage       AiUsage[]
-  weeklyReviews WeeklyReview[]
+  goals               Goal[]
+  tasks               Task[]
+  schedules           Schedule[]
+  habits              Habit[]
+  taskTags            TaskTag[]
+  reflections         Reflection[]
+  focusSessions       FocusSession[]
+  coachMessages       CoachMessage[]
+  aiUsage             AiUsage[]
+  weeklyReviews       WeeklyReview[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -299,6 +300,22 @@ model WeeklyReview {
 
   @@unique([userId, weekStart])
   @@map("weekly_reviews")
+}
+
+// A "forgot password" link. Only a SHA-256 hash of the token is stored, so a
+// database leak can't be used to reset passwords. Single use, short-lived.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  userId    String
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("password_reset_tokens")
 }
 
 enum CoachRole {

@@ -273,7 +273,10 @@ export class ApiError extends Error {
 }
 
 // Auth endpoints that must never trigger the refresh-and-retry path.
-const NO_REFRESH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/demo', '/auth/refresh', '/auth/logout'];
+const NO_REFRESH_ENDPOINTS = [
+  '/auth/login', '/auth/register', '/auth/demo', '/auth/refresh', '/auth/logout',
+  '/auth/password/forgot', '/auth/password/reset',
+];
 
 // Render's free tier stops the API after 15 idle minutes. Requests forwarded by
 // the app's server don't start it again: Render answers them at once with its
@@ -623,6 +626,45 @@ class ApiClient {
 
   async createFocusSession(data: FocusSessionPayload): Promise<ApiResponse<{ session: BackendFocusSession }>> {
     return this.request('/focus-sessions', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  // Password and account
+  /** Changes the password. Other devices are signed out; this one gets a fresh session. */
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<{ user: User; accessToken: string }>> {
+    const response = await this.request<{ user: User; accessToken: string }>('/auth/password', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (response.data?.accessToken) this.setToken(response.data.accessToken);
+    return response;
+  }
+
+  /** Emails a reset link if an account uses `email` (the answer never says whether one does). */
+  async forgotPassword(email: string): Promise<ApiResponse> {
+    return this.request('/auth/password/forgot', { method: 'POST', body: JSON.stringify({ email }) });
+  }
+
+  /** Sets a new password from a reset link and signs in. */
+  async resetPassword(token: string, newPassword: string): Promise<ApiResponse<{ user: User; accessToken: string }>> {
+    const response = await this.request<{ user: User; accessToken: string }>('/auth/password/reset', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    });
+    if (response.data?.accessToken) this.setToken(response.data.accessToken);
+    return response;
+  }
+
+  /** Permanently deletes the account and all its data. */
+  async deleteAccount(password: string): Promise<ApiResponse> {
+    const response = await this.request('/auth/account', { method: 'DELETE', body: JSON.stringify({ password }) });
+    this.clearToken();
+    return response;
+  }
+
+  /** Everything stored about the user (GDPR export), as a parsed JSON document. */
+  async exportData(): Promise<Record<string, unknown>> {
+    // The export is the JSON document itself, not the usual { success, data } envelope.
+    return (await this.request('/users/me/export')) as unknown as Record<string, unknown>;
   }
 
   // Users

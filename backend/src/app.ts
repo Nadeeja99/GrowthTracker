@@ -60,13 +60,28 @@ const authLimiter = rateLimit({
   windowMs: env.RATE_LIMIT_WINDOW_MS,
   max: env.AUTH_RATE_LIMIT_MAX,
   skipSuccessfulRequests: true,
+  // "Forgot password" has its own limit below. Someone locked out after failed
+  // sign-ins is exactly who needs it, so it must not share this bucket.
+  skip: req => req.originalUrl.startsWith('/api/auth/password/forgot'),
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, error: 'Too many attempts, please try again later.' },
 });
 
+// Every "forgot password" request counts (they always succeed), so it can't
+// be used to flood someone's inbox or probe for accounts at volume.
+const passwordResetLimiter = rateLimit({
+  windowMs: env.RATE_LIMIT_WINDOW_MS,
+  max: env.PASSWORD_RESET_RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many reset requests. Please try again later.' },
+});
+
 app.use('/api/', apiLimiter);
-app.use(['/api/auth/login', '/api/auth/register'], authLimiter);
+// Password checks count towards the same failed-attempt budget as sign-in.
+app.use(['/api/auth/login', '/api/auth/register', '/api/auth/password', '/api/auth/account'], authLimiter);
+app.use('/api/auth/password/forgot', passwordResetLimiter);
 
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));

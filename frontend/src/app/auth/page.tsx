@@ -1,14 +1,32 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Target } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginForm } from '@/components/Auth/LoginForm';
 import { RegisterForm } from '@/components/Auth/RegisterForm';
+import { ForgotPasswordForm } from '@/components/Auth/ForgotPasswordForm';
+
+type Mode = 'login' | 'register' | 'forgot';
+
+// `?mode=forgot` opens "forgot password" directly (linked from an expired reset link).
+function AuthForms() {
+  const params = useSearchParams();
+  const [mode, setMode] = useState<Mode>(() => (params.get('mode') === 'forgot' ? 'forgot' : 'login'));
+  const [email, setEmail] = useState('');
+
+  if (mode === 'forgot') return <ForgotPasswordForm initialEmail={email} onBack={() => setMode('login')} />;
+  if (mode === 'register') return <RegisterForm onSwitchToLogin={() => setMode('login')} />;
+  return (
+    <LoginForm
+      onSwitchToRegister={() => setMode('register')}
+      onForgotPassword={typed => { setEmail(typed); setMode('forgot'); }}
+    />
+  );
+}
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
   const { isAuthenticated } = useAuth();
   const router = useRouter();
 
@@ -30,11 +48,9 @@ export default function AuthPage() {
           </p>
         </div>
 
-        {isLogin ? (
-          <LoginForm onSwitchToRegister={() => setIsLogin(false)} />
-        ) : (
-          <RegisterForm onSwitchToLogin={() => setIsLogin(true)} />
-        )}
+        <Suspense>
+          <AuthForms />
+        </Suspense>
       </div>
     </main>
   );

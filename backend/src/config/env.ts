@@ -53,12 +53,35 @@ const envSchema = z
     // "Try the demo" on the sign-in page signs visitors into the seeded demo account.
     DEMO_LOGIN_ENABLED: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
 
+    // Email (password reset links). "none" turns email features off; in
+    // development the link is then logged instead. "outbox" writes each email
+    // as a JSON file to MAIL_OUTBOX_DIR, for automated tests.
+    MAIL_PROVIDER: z.enum(['none', 'brevo', 'resend', 'outbox']).default('none'),
+    MAIL_API_KEY: optionalSecret(z.string().min(10, 'MAIL_API_KEY looks too short')),
+    // The sender address. Brevo: a verified sender (a Gmail address works).
+    // Resend: an address on a domain you've verified there.
+    MAIL_FROM: optionalSecret(z.string().email('MAIL_FROM must be an email address')),
+    MAIL_FROM_NAME: z.string().min(1).default('GrowthTracker'),
+    MAIL_OUTBOX_DIR: optionalSecret(z.string().min(1)),
+    // Public URL of the app, for links in emails. Defaults to the first CORS origin.
+    APP_URL: optionalSecret(z.string().url('APP_URL must be a URL like https://growthtracker.onrender.com')),
+    // "Forgot password" requests per IP per window (every request counts).
+    PASSWORD_RESET_RATE_LIMIT_MAX: numberFromEnv(5),
+
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
     BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
   })
   .refine(env => env.JWT_SECRET !== env.JWT_REFRESH_SECRET, {
     message: 'JWT_REFRESH_SECRET must differ from JWT_SECRET',
     path: ['JWT_REFRESH_SECRET'],
+  })
+  .refine(env => !['brevo', 'resend'].includes(env.MAIL_PROVIDER) || (!!env.MAIL_API_KEY && !!env.MAIL_FROM), {
+    message: 'MAIL_API_KEY and MAIL_FROM are required when MAIL_PROVIDER is brevo or resend',
+    path: ['MAIL_PROVIDER'],
+  })
+  .refine(env => env.MAIL_PROVIDER !== 'outbox' || !!env.MAIL_OUTBOX_DIR, {
+    message: 'MAIL_OUTBOX_DIR is required when MAIL_PROVIDER is outbox',
+    path: ['MAIL_OUTBOX_DIR'],
   })
   .refine(env => env.NODE_ENV !== 'production' || !!env.API_PROXY_SECRET, {
     message: 'API_PROXY_SECRET is required in production (the API must only be reachable through the app proxy)',
@@ -76,8 +99,11 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+const corsOrigins = parsed.data.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean);
+
 export const env = {
   ...parsed.data,
-  corsOrigins: parsed.data.CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean),
+  corsOrigins,
   isProduction: parsed.data.NODE_ENV === 'production',
+  appUrl: (parsed.data.APP_URL ?? corsOrigins[0] ?? 'http://localhost:3000').replace(/\/+$/, ''),
 };

@@ -22,6 +22,27 @@ export const registerSchema = z.object({
   timezone: timeZoneSchema.optional(),
 });
 
+// bcrypt only uses the first 72 bytes, so cap new passwords well below abuse sizes.
+const newPasswordSchema = z.string().min(8, 'Use at least 8 characters').max(128, 'Use at most 128 characters');
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Enter your current password'),
+  newPassword: newPasswordSchema,
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email('Enter a valid email address'),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(20).max(200),
+  newPassword: newPasswordSchema,
+});
+
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, 'Enter your password'),
+});
+
 export const demoLoginSchema = z.object({
   // The visitor's time zone, so "today" and AI plans match what they see.
   timezone: timeZoneSchema.optional(),

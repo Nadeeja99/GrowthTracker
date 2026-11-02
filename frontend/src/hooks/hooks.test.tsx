@@ -97,4 +97,30 @@ describe('useDialog', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(opener);
   });
+
+  it('keeps the autoFocus field focused under StrictMode (effects run twice in development)', () => {
+    function FieldDialog() {
+      const ref = useDialog<HTMLDivElement>(() => {});
+      return (
+        <div ref={ref} role="dialog" aria-modal="true">
+          <button>Close</button>
+          <input aria-label="Title" autoFocus />
+        </div>
+      );
+    }
+    function StrictHarness() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open form</button>
+          {open && <FieldDialog />}
+        </>
+      );
+    }
+    render(<React.StrictMode><StrictHarness /></React.StrictMode>);
+    const opener = screen.getByText('Open form');
+    opener.focus();
+    fireEvent.click(opener);
+    expect(document.activeElement).toBe(screen.getByLabelText('Title'));
+  });
 });

@@ -11,9 +11,11 @@ const DEMO_ENABLED = process.env.NEXT_PUBLIC_DEMO_LOGIN === 'true';
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
+  /** Opens "forgot password", passing on the email typed so far. */
+  onForgotPassword: (email: string) => void;
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onForgotPassword }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -84,9 +86,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Password
-            </label>
+            <div className="flex items-baseline justify-between mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => onForgotPassword(email)}
+                className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                Forgot password?
+              </button>
+            </div>
             <input
               id="password"
               type="password"

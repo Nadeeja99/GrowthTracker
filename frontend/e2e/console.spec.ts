@@ -15,6 +15,13 @@ test('no console errors or warnings across the app', async ({ page }) => {
   })
   page.on('pageerror', error => problems.push(`${page.url()}: ${error.message}`))
 
+  // Signed-out screens: "forgot password" and the reset page.
+  await page.goto('/auth')
+  await page.getByRole('button', { name: 'Forgot password?' }).click()
+  await expect(page.getByRole('heading', { name: 'Forgot your password?' })).toBeVisible()
+  await page.goto(`/reset-password?token=${'x'.repeat(43)}`)
+  await expect(page.getByRole('heading', { name: 'Choose a new password' })).toBeVisible()
+
   await signIn(page)
   for (const path of PAGES) {
     await page.goto(path)

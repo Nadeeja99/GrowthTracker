@@ -10,6 +10,8 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppSettings } from '@/types';
 import { cn } from '@/lib/utils';
 import { CoachSettings } from '@/components/Coach/CoachSettings';
+import { ChangePasswordForm } from './ChangePasswordForm';
+import { DataControls } from './DataControls';
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
@@ -280,33 +282,38 @@ export function Settings() {
         </div>
         {user?.isDemo ? (
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            You&apos;re using the shared demo account. Its data is reset regularly, and signing out of every device is turned off so other visitors stay signed in.
+            You&apos;re using the shared demo account. Its data is reset regularly, and changing its password or signing out every device is turned off so other visitors aren&apos;t locked out.
           </p>
         ) : (
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Lost a device or signed in somewhere public? End every session, including this one.
-            </p>
-            <button
-              type="button"
-              disabled={signingOutEverywhere}
-              onClick={async () => {
-                setSigningOutEverywhere(true);
-                try {
-                  await logoutEverywhere();
-                  router.push('/auth');
-                } finally {
-                  setSigningOutEverywhere(false);
-                }
-              }}
-              className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-60"
-            >
-              <LogOut className="w-4 h-4" />
-              {signingOutEverywhere ? 'Signing out…' : 'Sign out everywhere'}
-            </button>
+          <div className="space-y-6">
+            <ChangePasswordForm />
+            <div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Lost a device or signed in somewhere public? End every session, including this one.
+              </p>
+              <button
+                type="button"
+                disabled={signingOutEverywhere}
+                onClick={async () => {
+                  setSigningOutEverywhere(true);
+                  try {
+                    await logoutEverywhere();
+                    router.push('/auth');
+                  } finally {
+                    setSigningOutEverywhere(false);
+                  }
+                }}
+                className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-60"
+              >
+                <LogOut className="w-4 h-4" />
+                {signingOutEverywhere ? 'Signing out…' : 'Sign out everywhere'}
+              </button>
+            </div>
           </div>
         )}
       </div>
+
+      <DataControls />
     </div>
   );
 }

@@ -25,10 +25,12 @@ A full-stack planner with goals, time blocks, tasks, habits, a focus timer and a
   - same-origin proxy, so the auth cookie stays first-party; httpOnly rotating refresh tokens and an in-memory access token
   - rate limiting, request IDs and structured logs
   - Prisma migrations, and zod-validated configuration that refuses to boot when it's wrong
+  - Row Level Security on every table
+  - you own your data: password reset by email, a full JSON export, and account deletion
 - **Tested end to end:**
-  - 86 API integration tests against real Postgres, including the real OpenAI SDK against a local fake of its streaming protocol
-  - 34 unit tests
-  - 26 Playwright journeys with axe-core accessibility checks
+  - 101 API integration tests against real Postgres, including the real OpenAI SDK against a local fake of its streaming protocol
+  - 44 unit tests
+  - 30 Playwright journeys with axe-core accessibility checks, including the emailed password-reset link
   - CI runs all of it on every push, and Render deploys only after CI passes
 - **Accessible and fast:**
   - Lighthouse 100 for accessibility and best practices on every page, 92–96 for performance
@@ -102,6 +104,11 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 - **Resilient UX**: page-shaped loading skeletons, a first-run guide, toasts for any failed save (with the reason, or "you seem to be offline"), cached data kept on screen if a refresh fails, error boundaries and a 404 page
 - **Accessible**: zero axe-core violations (WCAG 2.1 AA) in light and dark mode; dialogs trap and restore focus and close on Escape; confirmations replace `window.confirm`; every control is labelled; charts have text alternatives; skip link; honours "reduce motion"; pinch-zoom allowed
 - **Security**: short-lived access token kept in memory only, silent refresh via an httpOnly cookie, and "sign out everywhere" in Settings
+- **Your account**:
+  - **Forgot password** emails a single-use link that expires in 30 minutes.
+  - **Change password** in Settings signs out every other device and keeps this one signed in.
+  - **Download my data** saves everything as one JSON file.
+  - **Delete account** removes everything; it asks for your password and offers the download first.
 - **Demo and onboarding**: **Try the demo** signs in to a seeded shared account (reset on every cold start; account-wide actions disabled). A notice offers to switch the account's time zone when the device is elsewhere, and slow sign-ins explain the free tier's cold start.
 
 ---
@@ -262,11 +269,11 @@ browser ──POST /api/coach/messages──► API ──Responses API (stream)
 
 | Suite | Command | What it covers |
 |---|---|---|
-| Backend integration (Jest + Supertest) | `cd backend && TEST_DATABASE_URL=postgresql://…/growthtracker_test npm test` | Auth and token rotation, access control between users (IDOR), validation, goals/tasks/tracking endpoints, rate limiting, proxy gate, time-zone maths, demo seed, AI coach and features (opt-in, shared quotas, streaming, structured output validation, plan overlap and window rules, DST-safe times, schema/validator sync, the real OpenAI SDK against a fake server) |
-| Frontend unit (Vitest + Testing Library) | `cd frontend && npm test` | API client session refresh, coach SSE parsing, data mappers, toast store, focus timer, dialog focus trap, safe rendering of coach text |
-| End-to-end (Playwright + axe-core) | `cd frontend && npm run test:e2e` | Zero WCAG 2.1 AA violations on every page in light and dark mode, dialog keyboard behaviour, error toasts, skeletons, 404, delete confirmation, no React console warnings, coach chat (stream, stop, add a suggestion, opt out), weekly review, plan my week, milestone suggestions |
+| Backend integration (Jest + Supertest) | `cd backend && TEST_DATABASE_URL=postgresql://…/growthtracker_test npm test` | Auth and token rotation, access control between users (IDOR), validation, goals/tasks/tracking endpoints, rate limiting, proxy gate, time-zone maths, demo seed, password change/reset (hashed single-use links, rate limits), data export and account deletion, Row Level Security on every table, AI coach and features (opt-in, shared quotas, streaming, structured output validation, plan overlap and window rules, DST-safe times, schema/validator sync, the real OpenAI SDK against a fake server) |
+| Frontend unit (Vitest + Testing Library) | `cd frontend && npm test` | API client session refresh, coach SSE parsing, data mappers, toast store, focus timer, dialog focus trap (incl. React StrictMode), password rules, safe rendering of coach text |
+| End-to-end (Playwright + axe-core) | `cd frontend && npm run test:e2e` | Zero WCAG 2.1 AA violations on every page in light and dark mode, dialog keyboard behaviour, error toasts, skeletons, 404, delete confirmation, no React console warnings, coach chat (stream, stop, add a suggestion, opt out), weekly review, plan my week, milestone suggestions, change password, the emailed reset link end to end, data download, account deletion |
 
-The backend tests run against a real Postgres database whose name must end in `_test`; every table is truncated between suites. The E2E suite needs the API running with the demo seed (and, for the coach tests, `OPENAI_BASE_URL` pointing at the fake OpenAI server) and starts the frontend itself (`API_ORIGIN` points it at the API; `E2E_CHANNEL=chrome` uses your installed Chrome instead of downloading Chromium). It changes the demo data, so re-run `npm run db:seed` before running it again.
+The backend tests run against a real Postgres database whose name must end in `_test`; every table is truncated between suites. The E2E suite needs the API running with the demo seed (and, for the coach tests, `OPENAI_BASE_URL` pointing at the fake OpenAI server; for the reset-link test, `MAIL_PROVIDER=outbox` with `MAIL_OUTBOX_DIR` and the same folder in `E2E_MAIL_OUTBOX`) and starts the frontend itself (`API_ORIGIN` points it at the API; `E2E_CHANNEL=chrome` uses your installed Chrome instead of downloading Chromium). It changes the demo data, so re-run `npm run db:seed` before running it again.
 
 GitHub Actions runs all three suites, plus lint, type checks and production builds, on every push and pull request. The E2E job runs the API in production mode behind the Next.js proxy, the same setup used on Render.
 
@@ -296,13 +303,27 @@ The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API
    If Render adds a suffix to a service name, use the URLs shown in the dashboard. Correct them later under **Environment**, then redeploy the app, because `API_ORIGIN` is read at build time.
 3. Optional: paste your OpenAI key into `OPENAI_API_KEY` (API service). Leave it empty to deploy without the coach.
 4. JWT secrets and `API_PROXY_SECRET` are generated by Render. The app copies the proxy secret from the API service, so there is nothing to paste.
-5. Deploys run only after CI passes (`autoDeployTrigger: checksPass`), and each service rebuilds only when its own folder changes.
+5. Optional, for **Forgot password**: set `MAIL_PROVIDER`, `MAIL_API_KEY` and `MAIL_FROM` on the API service ([Email](#email-password-reset)).
+6. Deploys run only after CI passes (`autoDeployTrigger: checksPass`), and each service rebuilds only when its own folder changes.
 
 ### Free-tier notes
 - Free services sleep after 15 minutes without traffic. The first visit afterwards waits about a minute while the app, and then the API, wake up.
 - Free instances have no pre-deploy step, so migrations run at the start of the API's start command.
 - `SEED_DEMO_ON_START=true` rebuilds the demo account (`demo@growthtracker.dev` / `demo-password-1`) on every cold start, so its data stays dated around "today" and visitors' changes are reset. Set it to `false` to keep demo data between restarts. Only the demo user is touched.
 - Render's free Postgres expires after 30 days, which is why the database lives on Supabase.
+
+### Email (password reset)
+Without email, everything works except **Forgot password**, which then says reset by email isn't set up. To turn it on, pick a provider and set three variables on the **growthtracker-api** service:
+
+| | Brevo (recommended to start) | Resend |
+|---|---|---|
+| Domain needed? | No: verify one sender address (your Gmail works) | Yes, to email anyone but yourself |
+| Free tier | 300 emails/day | 3,000/month |
+| `MAIL_PROVIDER` | `brevo` | `resend` |
+| `MAIL_API_KEY` | Brevo → **SMTP & API → API keys** | Resend → **API Keys** |
+| `MAIL_FROM` | The verified sender address | An address on your verified domain |
+
+Links in emails use `APP_URL`, which defaults to the first `CORS_ORIGIN`, so on Render there is nothing else to set. Locally with `MAIL_PROVIDER=none`, the API prints the reset link in its log instead of sending it.
 
 ---
 
@@ -315,6 +336,11 @@ The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API
 | POST | `/api/auth/logout` | Log out |
 | POST | `/api/auth/refresh` | Exchange the refresh cookie for a new access token (rotates the cookie) |
 | POST | `/api/auth/logout-all` | Revoke every session of the current user (not on the shared demo) |
+| PUT | `/api/auth/password` | Change password (current password required); signs out other devices |
+| POST | `/api/auth/password/forgot` | Email a reset link (same answer whether or not the account exists) |
+| POST | `/api/auth/password/reset` | Set a new password from a reset link, and sign in |
+| DELETE | `/api/auth/account` | Delete the account and all its data (password required) |
+| GET | `/api/users/me/export` | Download everything stored about the user (JSON) |
 | POST | `/api/auth/demo` | Sign in to the seeded demo account (when `DEMO_LOGIN_ENABLED=true`) |
 | GET | `/api/auth/me` | Get current user |
 | GET/POST | `/api/goals` | List / create goals |
@@ -369,6 +395,11 @@ The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API
 | `CORS_ORIGIN` | Allowed frontend origins (comma-separated) | `http://localhost:3000` |
 | `BCRYPT_ROUNDS` | bcrypt hashing rounds | `12` |
 | `DEMO_LOGIN_ENABLED` | Allow **Try the demo** (signs in to the seeded demo account) | `false` |
+| `MAIL_PROVIDER` | `none`, `brevo` or `resend` (`outbox` writes emails to files, for tests) | `none` |
+| `MAIL_API_KEY` / `MAIL_FROM` | Provider API key and verified sender address | — |
+| `MAIL_FROM_NAME` | Sender name in emails | `GrowthTracker` |
+| `APP_URL` | App URL used in email links | first `CORS_ORIGIN` |
+| `PASSWORD_RESET_RATE_LIMIT_MAX` | "Forgot password" requests per IP per window | `5` |
 | `OPENAI_API_KEY` | Enables the AI coach (server-side only) | — |
 | `OPENAI_MODEL` | Model for the coach | `gpt-6-luna` |
 | `OPENAI_REASONING_EFFORT` | `none` / `low` / `medium` / `high` | `low` |

@@ -23,6 +23,12 @@ interface AuthContextType {
   /** Revokes every session of this user, on all devices. */
   logoutEverywhere: () => Promise<void>;
   updateUser: (user: User) => void;
+  /** Changes the password; other devices are signed out, this one stays in. */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  /** Sets a new password from an emailed link, and signs in. */
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
+  /** Permanently deletes the account and ends the session. */
+  deleteAccount: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -104,6 +110,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const response = await apiClient.changePassword(currentPassword, newPassword);
+    if (response.data?.user) setUser(response.data.user);
+  };
+
+  const resetPassword = async (token: string, newPassword: string) => {
+    const response = await apiClient.resetPassword(token, newPassword);
+    if (!response.data?.user) throw new Error(response.error || 'Couldn’t reset the password');
+    setUser(response.data.user);
+  };
+
+  const deleteAccount = async (password: string) => {
+    await apiClient.deleteAccount(password);
+    endSession();
+  };
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
@@ -114,6 +136,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     logoutEverywhere,
     updateUser: setUser,
+    changePassword,
+    resetPassword,
+    deleteAccount,
   };
 
   return (

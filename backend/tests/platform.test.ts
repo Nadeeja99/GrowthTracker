@@ -47,4 +47,12 @@ describe('platform behaviour', () => {
     for (let i = 0; i < 4; i++) statuses.push((await attempt()).status);
     expect(statuses).toEqual([401, 401, 401, 429]);
   });
+
+  // Runs after the failed-login test: being locked out of sign-in must not block a reset.
+  it('rate-limits "forgot password" requests per IP, separately from failed sign-ins', async () => {
+    const ask = () => request(app).post('/api/auth/password/forgot').set(viaProxy).send({ email: 'someone@example.test' });
+    const statuses = [];
+    for (let i = 0; i < 3; i++) statuses.push((await ask()).status);
+    expect(statuses).toEqual([200, 200, 429]);
+  });
 });
