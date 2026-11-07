@@ -35,9 +35,11 @@ function AppQuickCapture() {
           title: data.title,
           priority: data.priority as Task['priority'],
           status: 'todo',
-          tags: [],
+          tags: data.tags,
           subtasks: [],
           goalId: data.goalId,
+          dueDate: data.dueDate,
+          estimatedTime: data.estimatedTime,
         });
       }}
       onCreateActivity={async data => {

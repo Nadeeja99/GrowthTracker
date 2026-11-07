@@ -1,4 +1,19 @@
+import type { Server } from 'http';
+import request from 'supertest';
 import { testDatabaseUrl } from './test-db';
+
+// Supertest listens on a free port on every address, then connects to 127.0.0.1.
+// On a laptop, another program (VS Code, for one) can hold that port on
+// 127.0.0.1 alone, and then it answers instead of the app, with a stray 404 or a
+// hung-up socket. Those programs don't use IPv6, so connect over that instead.
+type WithServer = { serverAddress(app: Server, path: string): string; _server?: Server };
+const prototype = (request as unknown as { Test: { prototype: WithServer } }).Test.prototype;
+const { serverAddress } = prototype;
+prototype.serverAddress = function (this: WithServer, app, path) {
+  const url = serverAddress.call(this, app, path);
+  const address = (this._server ?? app).address();
+  return typeof address === 'object' && address?.family === 'IPv6' ? url.replace('127.0.0.1', '[::1]') : url;
+};
 
 // Never read backend/.env during tests (dotenv/config honours this path).
 process.env.DOTENV_CONFIG_PATH = '/nonexistent/.env';

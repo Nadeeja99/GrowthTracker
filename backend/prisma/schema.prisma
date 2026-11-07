@@ -26,6 +26,8 @@ model User {
   // Local times (HH:MM) for the push digests; null means off.
   morningDigestAt String?
   eveningDigestAt String?
+  // Secret in the private calendar feed URL; null means the feed is off.
+  calendarToken  String?  @unique
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

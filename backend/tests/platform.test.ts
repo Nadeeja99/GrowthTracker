@@ -32,6 +32,10 @@ describe('proxy gate', () => {
     expect((await request(app).post('/internal/digests/run')).status).toBe(404);
   });
 
+  it('leaves calendar feeds reachable by calendar apps, without the proxy secret', async () => {
+    expect((await request(app).get('/calendar/not-a-real-token.ics')).status).toBe(404);
+  });
+
   it('answers the app’s cross-origin wake-up ping on / without the secret', async () => {
     const res = await request(app).get('/').set('Origin', 'http://localhost:3000');
     expect(res.status).toBe(200);

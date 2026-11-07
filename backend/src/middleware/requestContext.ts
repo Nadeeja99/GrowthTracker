@@ -12,6 +12,10 @@ declare module 'express-serve-static-core' {
 const REQUEST_ID_HEADER = 'x-request-id';
 const VALID_REQUEST_ID = /^[\w-]{1,64}$/;
 
+/** The path for logs. Calendar feed URLs contain a secret, so that part is hidden. */
+export const loggablePath = (req: Request) =>
+  req.originalUrl.split('?')[0].replace(/^\/calendar\/.*/, '/calendar/[hidden]');
+
 // Tags every request with an id (reusing a well-formed upstream one, e.g. from
 // a proxy), echoes it in the response, and logs one line per request on finish.
 export const requestContext = (req: Request, res: Response, next: NextFunction): void => {
@@ -25,7 +29,7 @@ export const requestContext = (req: Request, res: Response, next: NextFunction):
     logger.info('request', {
       requestId: req.id,
       method: req.method,
-      path: req.originalUrl.split('?')[0],
+      path: loggablePath(req),
       status: res.statusCode,
       durationMs: Math.round(durationMs),
       userId: (req as AuthRequest).user?.id,

@@ -10,12 +10,13 @@ const expected = env.API_PROXY_SECRET ? Buffer.from(env.API_PROXY_SECRET) : null
  * URL) are refused, so X-Forwarded-For can only come from our own proxy chain
  * and per-IP rate limits can't be dodged by forging it. /health stays open for
  * the platform's health checks, / for the app's wake-up ping, and the scheduled
- * digest job has its own secret (requireCronSecret).
+ * digest job has its own secret (requireCronSecret). Calendar apps can't send
+ * this header, and the URL they use holds a secret of its own.
  */
 const OPEN_PATHS = ['/health', '/', '/internal/digests/run'];
 
 export const requireProxy = (req: Request, res: Response, next: NextFunction): void => {
-  if (!expected || OPEN_PATHS.includes(req.path)) return next();
+  if (!expected || OPEN_PATHS.includes(req.path) || req.path.startsWith('/calendar/')) return next();
   const given = Buffer.from(req.get('x-proxy-secret') ?? '');
   if (given.length === expected.length && timingSafeEqual(given, expected)) return next();
   res.status(403).json({ success: false, error: 'Forbidden' });

@@ -32,9 +32,20 @@ const readSavedCache = (page: Page) => page.evaluate(() => new Promise<unknown>(
   }
 }))
 
+/**
+ * Waits for the service worker. `serviceWorker.ready` never settles if the file
+ * is missing, so a build without it would otherwise wait out every test's
+ * timeout with no clue why.
+ */
+async function workerReady(page: Page) {
+  const worker = await page.request.get('/sw.js')
+  expect(worker.status(), 'public/sw.js is missing from this build: is it committed?').toBe(200)
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined))
+}
+
 /** Waits until the pages and the plan are both saved on the device. */
 async function readyForOffline(page: Page) {
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined))
+  await workerReady(page)
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true)
   await expect.poll(() => page.evaluate(async () => {
     const saved = (await Promise.all((await caches.keys()).map(async name => (await caches.open(name)).keys()))).flat()
@@ -228,7 +239,7 @@ test.describe('notifications', () => {
     await fakeBrowserPush(page)
     await registerViaUi(page)
     await page.goto('/settings')
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined))
+    await workerReady(page)
 
     await page.getByRole('button', { name: 'Turn on notifications' }).click()
     await expect(page.getByText('Notifications are on for this device.')).toBeVisible()
@@ -250,7 +261,7 @@ test.describe('notifications', () => {
     await page.context().grantPermissions(['notifications'])
     await registerViaUi(page)
     await page.goto('/settings')
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined))
+    await workerReady(page)
 
     const cdp = await context.newCDPSession(page)
     const registrationId = new Promise<string>(resolve => {

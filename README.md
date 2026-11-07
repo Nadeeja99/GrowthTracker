@@ -29,9 +29,9 @@ A full-stack planner with goals, time blocks, tasks, habits, a focus timer and a
   - Row Level Security on every table
   - you own your data: password reset by email, a full JSON export, and account deletion
 - **Tested end to end:**
-  - 146 API integration tests against real Postgres, including the real OpenAI SDK against a local fake of its streaming protocol
-  - 68 unit tests
-  - 45 Playwright journeys with axe-core accessibility checks, including the emailed password-reset link and using the app with the network cut
+  - 169 API integration tests against real Postgres, including the real OpenAI SDK against a local fake of its streaming protocol
+  - 138 unit tests
+  - 51 Playwright journeys with axe-core accessibility checks, including the emailed password-reset link and using the app with the network cut
   - CI runs all of it on every push, and Render deploys only after CI passes
 - **Accessible and fast:**
   - Lighthouse 100 for accessibility and best practices on every page, 92–96 for performance
@@ -97,7 +97,8 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 - Accurate in background tabs (wall-clock based)
 
 ### Everywhere
-- **Quick Capture**: `Cmd/Ctrl+K` to add a task or block from any page
+- **Quick Capture in plain English**: `Cmd/Ctrl+K` from any page, then type "Gym tomorrow 6pm for 45 min" or "Finish report by Friday !high #work @aws". A live preview shows what it understood, and any of it can be changed before saving
+- **Calendar link**: see your time blocks and due dates in Google Calendar, Apple Calendar or Outlook through a private, read-only link
 - **Forms**: first field focused, `Cmd/Ctrl+Enter` submits
 - **Design**: one blue accent on warm zinc neutrals, 1px borders instead of heavy shadows, Inter typography
 - **Theme**: Light / Dark / System picker in Settings (System by default), applied before first paint so there's no flash
@@ -348,6 +349,31 @@ Links in emails use `APP_URL`, which defaults to the first `CORS_ORIGIN`, so on 
 
 What's sent is deliberately small: a stack trace, the page or API path, and the request ID that links to the logs. Request bodies, headers, cookies, query strings, IP addresses and breadcrumbs are never sent, because they can hold passwords, reset links and journal entries. Expected errors, such as failed validation or a dropped connection, aren't reported. Browser error tracking adds 30 KB, loaded separately after the page, and nothing at all without a DSN.
 
+### Quick Capture
+It's a set of rules in `frontend/src/lib/captureParser.ts`, not AI, so it's instant, free, works offline, and your text stays on your device.
+
+| Type | Examples |
+|---|---|
+| Day | `today`, `tonight`, `tomorrow`, `friday`, `next friday`, `in 3 days`, `next week`, `12 nov`, `Nov 12th`, `2026-12-01` |
+| Time | `6pm`, `6:30pm`, `18:00`, `at 7`, `noon`, `9-11am`, `from 9 to 11`, `tomorrow morning` |
+| Length | `for 45 min`, `for 2h`, `1h30`, `for half an hour` |
+| Deadline | `by friday`, `due 3 dec` |
+| Details | `!high`, `low priority`, `#tag`, `@goal` |
+
+- A time makes it a time block, and anything else is a task. Start with `task:` or `block:` to choose.
+- `by` and `due` always make a task with a deadline, even with a time.
+- A length with no time becomes the task's estimate.
+- `at 7` on its own means the next sensible 7: 1 to 6 are afternoon, and 7 to 12 are morning unless that's already gone today.
+- Short day names like `sun` and `sat` only count after a word like `on` or `next`, or before a time, so "sit in the sun" stays a title. Whole day names always count, so wrap words in quotes to keep them: `watch "Friday Night Lights"`.
+- Number-only dates like `12/11` are ignored, because they mean different days in different countries.
+
+### Calendar link
+**Settings → Calendar** gives you a private link to a read-only iCalendar feed: time blocks from 30 days ago to 180 days ahead, plus open tasks with due dates as all-day events. Skipped and rescheduled blocks are left out.
+
+- The link goes straight to the API, because a request forwarded by the app can't wake a sleeping API. A calendar app that arrives while it's asleep may time out and try again on its next refresh.
+- Calendar apps refresh on their own timing, from about an hour to a day, so changes aren't instant.
+- Calendar apps can't sign in, so **the link itself is the password**. It's kept out of the logs and error reports. **Replace link** makes the old one stop working, and so does **Sign out everywhere**, changing your password, or deleting your account. After those, turn it on again and re-add it to your calendars.
+
 ### Phone app
 **Offline** needs no setup. A service worker (`frontend/public/sw.js`) keeps the app's pages and files on the device, and the plan is saved in the browser's own storage.
 
@@ -389,6 +415,8 @@ How it works and what to expect:
 | GET/PUT | `/api/push/settings` | Whether push is available, and the digest times |
 | POST/DELETE | `/api/push/subscriptions` | Register / remove this device for notifications |
 | POST | `/api/push/test` | Send a test notification to your devices |
+| GET/POST/DELETE | `/api/calendar` | Read, create or replace, and turn off the private calendar link |
+| GET | `/calendar/:token.ics` | The calendar feed (the token is the credential) |
 | POST | `/internal/digests/run` | Send the digests that are due (scheduled job, needs `DIGEST_CRON_SECRET`) |
 | POST | `/api/auth/demo` | Sign in to the seeded demo account (when `DEMO_LOGIN_ENABLED=true`) |
 | GET | `/api/auth/me` | Get current user |

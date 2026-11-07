@@ -28,6 +28,7 @@ import focusSessionRoutes from './routes/focusSessions';
 import coachRoutes from './routes/coach';
 import aiRoutes from './routes/ai';
 import pushRoutes from './routes/push';
+import calendarRoutes, { calendarFeed } from './routes/calendar';
 
 export const app = express();
 
@@ -81,7 +82,17 @@ const passwordResetLimiter = rateLimit({
   message: { success: false, error: 'Too many reset requests. Please try again later.' },
 });
 
+// Calendar apps poll on their own schedule, so a generous limit is plenty.
+const calendarLimiter = rateLimit({
+  windowMs: env.RATE_LIMIT_WINDOW_MS,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many requests',
+});
+
 app.use('/api/', apiLimiter);
+app.use('/calendar', calendarLimiter);
 // Password checks count towards the same failed-attempt budget as sign-in.
 app.use(['/api/auth/login', '/api/auth/register', '/api/auth/password', '/api/auth/account'], authLimiter);
 app.use('/api/auth/password/forgot', passwordResetLimiter);
@@ -116,6 +127,8 @@ app.post('/internal/digests/run', requireCronSecret, async (_req, res) => {
   res.json({ success: true, data: await runDigests() });
 });
 
+app.get('/calendar/:file', calendarFeed);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/goals', goalRoutes);
@@ -129,6 +142,7 @@ app.use('/api/focus-sessions', focusSessionRoutes);
 app.use('/api/coach', coachRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

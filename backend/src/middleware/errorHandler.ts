@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { ZodError } from 'zod';
 import { logger } from '../utils/logger';
 import { reportError } from '../services/monitoring';
+import { loggablePath } from './requestContext';
 import { env } from '../config/env';
 
 export interface AppError extends Error {
@@ -18,7 +19,7 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  const context = { requestId: req.id, method: req.method, path: req.originalUrl.split('?')[0] };
+  const context = { requestId: req.id, method: req.method, path: loggablePath(req) };
 
   if (err instanceof ZodError) {
     logger.warn('Request rejected', { ...context, status: 400, fields: err.issues.map(e => e.path.join('.')) });

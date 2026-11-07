@@ -775,6 +775,20 @@ class ApiClient {
     return this.request('/push/test', { method: 'POST' });
   }
 
+  // Private calendar feed
+  async getCalendarFeed(): Promise<ApiResponse<{ token: string | null }>> {
+    return this.request('/calendar');
+  }
+
+  /** Turns the feed on, or replaces the link if it's already on. */
+  async createCalendarFeed(): Promise<ApiResponse<{ token: string }>> {
+    return this.request('/calendar', { method: 'POST' });
+  }
+
+  async deleteCalendarFeed(): Promise<ApiResponse> {
+    return this.request('/calendar', { method: 'DELETE' });
+  }
+
   // AI features (share the coach's opt-in and daily budget)
   async getWeeklyReview(weekStart: string): Promise<ApiResponse<{ review: WeeklyReview | null }>> {
     return this.request(`/ai/weekly-review?weekStart=${weekStart}`);

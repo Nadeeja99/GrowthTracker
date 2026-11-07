@@ -188,7 +188,8 @@ router.post('/logout', async (_req, res) => {
 router.post('/logout-all', authenticate, async (req: AuthRequest, res) => {
   // Everyone shares the demo account; one visitor mustn't sign out the rest.
   if (req.user!.email === DEMO_EMAIL) throw new HttpError(403, 'Not available on the shared demo account.');
-  await prisma.user.update({ where: { id: req.user!.id }, data: { tokenVersion: { increment: 1 } } });
+  // The calendar link goes too: it shows the same plan, to anyone who has a copy.
+  await prisma.user.update({ where: { id: req.user!.id }, data: { tokenVersion: { increment: 1 }, calendarToken: null } });
   // Notifications show the user's plan, so revoked devices stop getting them too.
   await prisma.pushSubscription.deleteMany({ where: { userId: req.user!.id } });
   res.clearCookie(REFRESH_COOKIE, refreshCookieOptions);
@@ -232,7 +233,7 @@ router.put('/password', authenticate, async (req: AuthRequest, res) => {
 
   const user = await prisma.user.update({
     where: { id: req.user!.id },
-    data: { password: await bcrypt.hash(newPassword, env.BCRYPT_ROUNDS), tokenVersion: { increment: 1 } },
+    data: { password: await bcrypt.hash(newPassword, env.BCRYPT_ROUNDS), tokenVersion: { increment: 1 }, calendarToken: null },
     select: sessionUserSelect,
   });
   await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
@@ -312,7 +313,7 @@ router.post('/password/reset', async (req: AuthRequest, res) => {
     await tx.pushSubscription.deleteMany({ where: { userId: record.userId } });
     return tx.user.update({
       where: { id: record.userId },
-      data: { password, tokenVersion: { increment: 1 } },
+      data: { password, tokenVersion: { increment: 1 }, calendarToken: null },
       select: sessionUserSelect,
     });
   });
