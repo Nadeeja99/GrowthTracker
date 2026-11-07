@@ -1,5 +1,25 @@
 import { z } from 'zod';
 
+// The app shows the first validation message to the user, so zod's default
+// wording ("Too big: expected string to have <=100 characters") is replaced.
+// A message set on a schema still wins over these.
+z.config({
+  customError: issue => {
+    if (issue.input === undefined) return 'This field is required';
+    if (issue.code === 'too_small') {
+      if (issue.origin === 'string') return issue.minimum === 1 ? 'This field is required' : `Use at least ${issue.minimum} characters`;
+      if (issue.origin === 'array') return `Add at least ${issue.minimum} item${issue.minimum === 1 ? '' : 's'}`;
+      return `Must be at least ${issue.minimum}`;
+    }
+    if (issue.code === 'too_big') {
+      if (issue.origin === 'string') return `Use at most ${issue.maximum} characters`;
+      if (issue.origin === 'array') return `Use at most ${issue.maximum} items`;
+      return `Must be at most ${issue.maximum}`;
+    }
+    return undefined; // zod's default for everything else
+  },
+});
+
 const isValidTimeZone = (tz: string) => {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: tz });
@@ -208,8 +228,8 @@ export const createHabitCompletionSchema = z.object({
 });
 
 export const paginationSchema = z.object({
-  page: z.string().transform(Number).pipe(z.number().min(1)).default('1'),
-  limit: z.string().transform(Number).pipe(z.number().min(1).max(500)).default('50'),
+  page: z.string().transform(Number).pipe(z.number().min(1)).default(1),
+  limit: z.string().transform(Number).pipe(z.number().min(1).max(500)).default(50),
 });
 
 // Calendar days (YYYY-MM-DD) interpreted in the user's time zone, inclusive.

@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, RotateCw } from 'lucide-react';
+import { reportError } from '@/lib/monitoring';
 
 interface ErrorFallbackProps {
   error: unknown;
@@ -12,8 +13,8 @@ interface ErrorFallbackProps {
 /** Shared UI for route error boundaries: explain, offer a retry and a way out. */
 export function ErrorFallback({ error, retry }: ErrorFallbackProps) {
   useEffect(() => {
-    // Phase 7: report to an error tracker instead of only the console.
     console.error(error);
+    reportError(error);
   }, [error]);
 
   const digest = error instanceof Error && 'digest' in error ? String(error.digest) : null;

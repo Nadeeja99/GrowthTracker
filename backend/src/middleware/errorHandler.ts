@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import { ZodError } from 'zod';
 import { logger } from '../utils/logger';
+import { reportError } from '../services/monitoring';
 import { env } from '../config/env';
 
 export interface AppError extends Error {
@@ -20,12 +21,12 @@ export const errorHandler = (
   const context = { requestId: req.id, method: req.method, path: req.originalUrl.split('?')[0] };
 
   if (err instanceof ZodError) {
-    logger.warn('Request rejected', { ...context, status: 400, fields: err.errors.map(e => e.path.join('.')) });
+    logger.warn('Request rejected', { ...context, status: 400, fields: err.issues.map(e => e.path.join('.')) });
     res.status(400).json({
       success: false,
       error: 'Validation failed',
       requestId: req.id,
-      validationErrors: err.errors.map(e => ({
+      validationErrors: err.issues.map(e => ({
         field: e.path.join('.'),
         message: e.message,
       })),
@@ -69,7 +70,10 @@ export const errorHandler = (
   // unless it was written for users (HttpError, e.g. "AI is busy, try again").
   if (statusCode >= 500) {
     logger.error('Request failed', { ...context, status: statusCode, error: err.message, stack: err.stack });
-    if (!err.isOperational) message = 'Internal Server Error';
+    if (!err.isOperational) {
+      message = 'Internal Server Error';
+      reportError(err, context);
+    }
   } else {
     logger.warn('Request rejected', { ...context, status: statusCode, error: message });
   }

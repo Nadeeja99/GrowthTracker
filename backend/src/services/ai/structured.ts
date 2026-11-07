@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { HttpError } from '../../utils/httpError';
 import { logger } from '../../utils/logger';
+import { reportError } from '../monitoring';
 import { friendlyAiError } from './model';
 import { beginAiRequest } from './request';
 import { AiFeature } from './usage';
@@ -35,6 +36,7 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
     } catch (error) {
       await ai.finish('error');
       logger.error('AI request failed', { userId: req.user.id, feature: req.feature, error: (error as Error).message });
+      reportError(error, { feature: req.feature });
       throw new HttpError(502, friendlyAiError(error));
     }
 

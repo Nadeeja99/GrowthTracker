@@ -225,7 +225,7 @@ describe('schemas sent to the model match the validators', () => {
     if (json.type === 'array') return [shapeOf(json.items)];
     return 'leaf';
   }
-  function zodShape(schema: z.ZodTypeAny): unknown {
+  function zodShape(schema: z.core.$ZodType): unknown {
     if (schema instanceof z.ZodNullable || schema instanceof z.ZodOptional) return zodShape(schema.unwrap());
     if (schema instanceof z.ZodObject) return Object.fromEntries(Object.keys(schema.shape).sort().map(k => [k, zodShape(schema.shape[k])]));
     if (schema instanceof z.ZodArray) return [zodShape(schema.element)];

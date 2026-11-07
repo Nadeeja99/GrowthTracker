@@ -36,6 +36,8 @@ test('streams a reply and adds a suggested block to the plan', async ({ page }) 
 
   await page.keyboard.press('Escape')
   await page.goto('/plan')
+  // The block is for tomorrow, and the calendar's weeks run Sunday to Saturday.
+  if (await page.evaluate(() => new Date().getDay() === 6)) await page.getByRole('button', { name: 'Next week' }).click()
   await expect(page.getByText('Focused session').first()).toBeVisible()
 })
 

@@ -21,6 +21,13 @@ describe('proxy gate', () => {
     expect(health.body.database).toBe('up');
   });
 
+  it('offers the health check through the proxy, for monitoring the whole chain', async () => {
+    expect((await request(app).get('/api/health')).status).toBe(403);
+    const res = await request(app).get('/api/health').set(viaProxy);
+    expect(res.status).toBe(200);
+    expect(res.body.database).toBe('up');
+  });
+
   it('answers the app’s cross-origin wake-up ping on / without the secret', async () => {
     const res = await request(app).get('/').set('Origin', 'http://localhost:3000');
     expect(res.status).toBe(200);

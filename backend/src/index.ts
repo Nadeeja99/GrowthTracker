@@ -5,6 +5,7 @@ import { Server } from 'http';
 import { app } from './app';
 import { logger } from './utils/logger';
 import { connectDB, disconnectDB } from './config/database';
+import { flushErrors } from './services/monitoring';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 let server: Server | undefined;
@@ -30,6 +31,7 @@ const shutdown = (reason: string, exitCode = 0) => {
   closeServer
     .then(() => disconnectDB())
     .catch(error => logger.error('Error during shutdown', { error }))
+    .then(() => flushErrors())
     .finally(() => process.exit(exitCode));
 };
 

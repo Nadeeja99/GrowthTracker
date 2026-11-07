@@ -8,8 +8,9 @@ const numberFromEnv = (fallback: number) =>
   z.coerce.number().int().nonnegative().default(fallback);
 
 // Hosts often store an unset variable as "", which should mean "not configured".
-const optionalSecret = (schema: z.ZodString) =>
-  z.preprocess(value => (value === '' ? undefined : value), schema.optional());
+const emptyAsUnset = <T extends z.ZodType>(schema: T) =>
+  z.preprocess(value => (value === '' ? undefined : value), schema);
+const optionalSecret = (schema: z.ZodString) => emptyAsUnset(schema.optional());
 
 const envSchema = z
   .object({
@@ -56,7 +57,7 @@ const envSchema = z
     // Email (password reset links). "none" turns email features off; in
     // development the link is then logged instead. "outbox" writes each email
     // as a JSON file to MAIL_OUTBOX_DIR, for automated tests.
-    MAIL_PROVIDER: z.enum(['none', 'brevo', 'resend', 'outbox']).default('none'),
+    MAIL_PROVIDER: emptyAsUnset(z.enum(['none', 'brevo', 'resend', 'outbox']).default('none')),
     MAIL_API_KEY: optionalSecret(z.string().min(10, 'MAIL_API_KEY looks too short')),
     // The sender address. Brevo: a verified sender (a Gmail address works).
     // Resend: an address on a domain you've verified there.
@@ -67,6 +68,9 @@ const envSchema = z
     APP_URL: optionalSecret(z.string().url('APP_URL must be a URL like https://growthtracker.onrender.com')),
     // "Forgot password" requests per IP per window (every request counts).
     PASSWORD_RESET_RATE_LIMIT_MAX: numberFromEnv(5),
+
+    // Error reporting. Without a DSN, errors only go to the logs.
+    SENTRY_DSN: optionalSecret(z.string().url('SENTRY_DSN must be a URL')),
 
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
     BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),

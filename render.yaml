@@ -72,6 +72,9 @@ services:
         sync: false
       - key: MAIL_FROM
         sync: false # the verified sender address
+      # Error reporting (README → Monitoring). Without it, errors only go to the logs.
+      - key: SENTRY_DSN
+        sync: false
 
   - type: web
     name: growthtracker
@@ -100,5 +103,8 @@ services:
       # Shows "Try the demo" (read at build time).
       - key: NEXT_PUBLIC_DEMO_LOGIN
         value: 'true'
+      # Error reporting in the browser (read at build time, so redeploy after changing it).
+      - key: NEXT_PUBLIC_SENTRY_DSN
+        sync: false
       - key: NEXT_TELEMETRY_DISABLED
         value: '1'

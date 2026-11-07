@@ -21,3 +21,5 @@ delete process.env.DEMO_LOGIN_ENABLED;
 // Tests capture email with setMailerForTests; never use a real provider.
 for (const key of ['MAIL_PROVIDER', 'MAIL_API_KEY', 'MAIL_FROM', 'MAIL_OUTBOX_DIR', 'APP_URL']) delete process.env[key];
 process.env.PASSWORD_RESET_RATE_LIMIT_MAX ??= '100000';
+// Tests never report to a real Sentry project; monitoring.test.ts uses a local fake.
+delete process.env.SENTRY_DSN;

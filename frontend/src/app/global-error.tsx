@@ -1,9 +1,14 @@
 'use client'; // Error boundaries must be Client Components
 
+import { useEffect } from 'react';
+import { reportError } from '@/lib/monitoring';
+
 // Last resort when the root layout itself fails. It replaces the whole
 // document, so global CSS isn't loaded: styles are inline, and the colours
 // follow the OS light/dark preference via `color-scheme`.
-export default function GlobalError({ retry }: { error: unknown; retry: () => void }) {
+export default function GlobalError({ error, retry }: { error: unknown; retry: () => void }) {
+  useEffect(() => reportError(error), [error]);
+
   return (
     <html lang="en" style={{ colorScheme: 'light dark' }}>
       <body style={{ margin: 0, minHeight: '100vh', display: 'grid', placeItems: 'center', fontFamily: 'system-ui, sans-serif', padding: 16 }}>

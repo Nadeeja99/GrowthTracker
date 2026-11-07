@@ -89,8 +89,10 @@ app.use(cookieParser());
 app.use(compression());
 
 // Health check used by the host and uptime monitors. It queries the database
-// so a broken connection is reported (503) instead of a false "OK".
-app.get('/health', async (_req, res) => {
+// so a broken connection is reported (503) instead of a false "OK". /api/health
+// is the same check through the app's proxy, which also proves the shared
+// secret matches.
+app.get(['/health', '/api/health'], async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     res.status(200).json({ status: 'OK', database: 'up', uptime: process.uptime(), timestamp: new Date().toISOString() });

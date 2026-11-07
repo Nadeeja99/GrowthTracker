@@ -10,6 +10,7 @@ import { applySuggestion, CoachSuggestion, normalizeSuggestions, suggestActionsT
 import { AiModelError, friendlyAiError, getAiModel } from '../services/ai/model';
 import { beginAiRequest } from '../services/ai/request';
 import { userQuota } from '../services/ai/usage';
+import { reportError } from '../services/monitoring';
 
 const router = Router();
 
@@ -148,6 +149,7 @@ router.post('/messages', async (req: AuthRequest, res) => {
       await ai.finish(aborted ? 'aborted' : 'error');
       if (!aborted) {
         logger.error('Coach reply failed', { userId: user.id, status: error instanceof AiModelError ? error.status : undefined, error: (error as Error).message });
+        reportError(error, { feature: 'coach' });
         send('error', { message: friendlyAiError(error) });
       }
     } finally {

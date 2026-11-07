@@ -1,0 +1,30 @@
+name: Uptime
+
+# Wakes the live app and fails (GitHub then emails you) if it doesn't come up
+# healthy. Six-hourly on purpose: a monitor pinging every few minutes would keep
+# both free Render services awake and use up the workspace's 750 free hours a
+# month. These checks also run a database query, which counts as activity for
+# Supabase's free-plan pausing.
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Live app is healthy
+    if: github.repository == 'Nadeeja99/GrowthTracker'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      # Retries cover cold starts, which take about a minute per service.
+      - name: API and database
+        run: curl --silent --show-error --fail --retry 12 --retry-all-errors --retry-delay 15 --max-time 90 https://growthtracker-api.onrender.com/health
+
+      # After the API, because a request from another Render service doesn't wake it.
+      - name: App, through its proxy to the API
+        run: curl --silent --show-error --fail --retry 12 --retry-all-errors --retry-delay 15 --max-time 90 https://growthtracker-q51x.onrender.com/api/health

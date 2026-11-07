@@ -14,6 +14,7 @@ import { env } from '../config/env';
 import { DEMO_EMAIL } from '../config/demo';
 import { HttpError } from '../utils/httpError';
 import { getMailer, passwordResetEmail } from '../services/mail';
+import { reportError } from '../services/monitoring';
 
 const router = Router();
 
@@ -255,8 +256,10 @@ router.post('/password/forgot', async (req: AuthRequest, res) => {
   res.json({ success: true, message: 'If an account uses that email, a reset link is on its way.' });
 
   if (!user || user.email === DEMO_EMAIL) return;
-  sendResetLink(user, mailer).catch(error =>
-    logger.error('Password reset email failed', { userId: user.id, error: (error as Error).message }));
+  sendResetLink(user, mailer).catch(error => {
+    logger.error('Password reset email failed', { userId: user.id, error: (error as Error).message });
+    reportError(error, { feature: 'password-reset-email' });
+  });
 });
 
 async function sendResetLink(user: { id: string; email: string; firstName: string | null }, mailer: ReturnType<typeof getMailer>) {
