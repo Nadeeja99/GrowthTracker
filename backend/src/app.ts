@@ -27,6 +27,7 @@ import reflectionRoutes from './routes/reflections';
 import focusSessionRoutes from './routes/focusSessions';
 import coachRoutes from './routes/coach';
 import aiRoutes from './routes/ai';
+import journalRoutes from './routes/journal';
 import pushRoutes from './routes/push';
 import calendarRoutes, { calendarFeed } from './routes/calendar';
 
@@ -141,6 +142,7 @@ app.use('/api/reflections', reflectionRoutes);
 app.use('/api/focus-sessions', focusSessionRoutes);
 app.use('/api/coach', coachRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/journal', journalRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/calendar', calendarRoutes);
 

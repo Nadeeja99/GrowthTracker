@@ -282,6 +282,14 @@ export const createFocusSessionSchema = z.object({
   path: ['endedAt'],
 });
 
+export const journalSearchSchema = z.object({
+  query: z.string().trim().min(1, 'Type something to search for').max(200),
+});
+
+export const journalAskSchema = z.object({
+  question: z.string().trim().min(1, 'Type a question').max(300),
+});
+
 export const coachMessageSchema = z.object({
   message: z.string().trim().min(1, 'Message is required').max(1000, 'Keep messages under 1000 characters'),
 });

@@ -16,22 +16,58 @@ export interface Script {
   delayMs?: number;
 }
 
+// Words that mean the same thing share a slot, which is what real embeddings
+// do and keyword search can't.
+const SAME_MEANING: Record<string, string> = { exhausted: 'tired', drained: 'tired', worn: 'tired', jogging: 'run', running: 'run' };
+
+/** A repeatable 512-dimension vector: words hashed into slots, then normalised. */
+export function fakeEmbedding(text: string): number[] {
+  const vector = new Array<number>(512).fill(0);
+  for (const raw of text.toLowerCase().match(/[a-z]+/g) ?? []) {
+    const word = SAME_MEANING[raw] ?? raw;
+    let hash = 7;
+    for (const char of word) hash = (hash * 31 + char.charCodeAt(0)) % 512;
+    vector[hash] += 1;
+  }
+  const length = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0)) || 1;
+  // Never all zeros: pgvector can't compare a zero vector by angle.
+  return vector.map((value, i) => (value / length) || (i === 0 ? 1e-6 : 0));
+}
+
 export interface FakeOpenAI {
   url: string;
   requests: Array<{ headers: http.IncomingHttpHeaders; body: Record<string, unknown> }>;
+  /** Calls to /embeddings, kept apart from the model calls above. */
+  embeddingRequests: Array<{ input: string[]; model: string; dimensions: number; encoding_format: string }>;
+  /** Respond to /embeddings with this HTTP error. */
+  embeddingError?: number;
   /** A fixed script, or one computed from each request body. */
   script: Script | ((body: Record<string, unknown>) => Script);
   close: () => Promise<void>;
 }
 
 export async function startFakeOpenAI(port = 0): Promise<FakeOpenAI> {
-  const fake = { requests: [], script: {} } as unknown as FakeOpenAI;
+  const fake = { requests: [], embeddingRequests: [], script: {} } as unknown as FakeOpenAI;
 
   const server = http.createServer((req, res) => {
     let raw = '';
     req.on('data', chunk => (raw += chunk));
     req.on('end', () => {
       const body = JSON.parse(raw || '{}');
+
+      if (req.url?.endsWith('/embeddings')) {
+        fake.embeddingRequests.push(body);
+        if (fake.embeddingError) {
+          res.writeHead(fake.embeddingError, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: { message: 'Simulated embeddings error', type: 'error', code: null } }));
+          return;
+        }
+        const data = (body.input as string[]).map((text, index) => ({ object: 'embedding', index, embedding: fakeEmbedding(text) }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ object: 'list', model: body.model, data, usage: { prompt_tokens: 10 * data.length, total_tokens: 10 * data.length } }));
+        return;
+      }
+
       fake.requests.push({ headers: req.headers, body });
       const script = typeof fake.script === 'function' ? fake.script(body) : fake.script;
       const { text = [], toolArgs, status = 'completed', httpError, delayMs = 0 } = script;

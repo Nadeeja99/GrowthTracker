@@ -20,6 +20,10 @@ class FakeModel implements AiModel {
     throw new Error('not used');
   }
 
+  async embed(): Promise<never> {
+    throw new Error('not used');
+  }
+
   async generate(req: GenerateRequest): Promise<GenerateResult> {
     this.requests.push(req);
     const json = typeof this.output === 'string' ? this.output : JSON.stringify(this.output);

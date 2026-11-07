@@ -41,6 +41,7 @@ const envSchema = z
     // that it isn't configured.
     OPENAI_API_KEY: optionalSecret(z.string().min(20, 'OPENAI_API_KEY looks too short')),
     OPENAI_MODEL: z.string().min(1).default('gpt-6-luna'),
+    OPENAI_EMBEDDING_MODEL: z.string().min(1).default('text-embedding-3-small'),
     OPENAI_REASONING_EFFORT: z.enum(['none', 'low', 'medium', 'high']).default('low'),
     // Hard ceiling per reply (reasoning tokens count towards it).
     AI_MAX_OUTPUT_TOKENS: numberFromEnv(1500),

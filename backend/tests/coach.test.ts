@@ -26,6 +26,10 @@ class FakeModel implements AiModel {
   async generate(): Promise<GenerateResult> {
     throw new Error('not used by the coach');
   }
+
+  async embed(): Promise<never> {
+    throw new Error('not used by the coach');
+  }
 }
 
 const action = (overrides: Record<string, unknown>) => ({

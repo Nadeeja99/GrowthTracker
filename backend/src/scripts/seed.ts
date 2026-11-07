@@ -12,6 +12,17 @@ import { addDays, dateKeyInZone, dateOnly, zonedTimeToInstant } from '../utils/d
 
 export { DEMO_EMAIL };
 
+// Keyed by days before today. Written so that searching and asking have
+// something to find, including words that only match by meaning.
+const DEMO_NOTES: Record<string, string> = {
+  '-6': 'Great study session on VPC peering. Mornings before work really are my best time.',
+  '-5': 'Long day at work, but the evening walk cleared my head.',
+  '-4': 'Physio said to ease off the long runs for two weeks.',
+  '-3': 'Practice exam went better than expected. Networking is still my weakest area.',
+  '-2': 'Slept badly, skipped the run.',
+  '-1': 'Felt drained after back-to-back meetings. Too much coffee, not enough lunch.',
+};
+
 const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'demo-password-1';
 const TIMEZONE = process.env.SEED_TIMEZONE ?? 'UTC';
 
@@ -99,9 +110,8 @@ export async function seedDemo() {
   await prisma.habitCompletion.createMany({ data: completions });
 
   await prisma.reflection.createMany({
-    data: [-6, -5, -4, -3, -2, -1].map(d => ({
-      userId, date: dateOnly(day(d)), performance: d % 2 ? 4 : 3, energy: d === -2 ? 2 : 4, mood: 4,
-      notes: d === -2 ? 'Slept badly, skipped the run.' : 'Solid day.',
+    data: Object.entries(DEMO_NOTES).map(([d, notes]) => ({
+      userId, date: dateOnly(day(Number(d))), performance: Number(d) % 2 ? 4 : 3, energy: d === '-2' ? 2 : 4, mood: 4, notes,
     })),
   });
 

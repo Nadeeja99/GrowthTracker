@@ -41,3 +41,16 @@ export async function signOut(page: Page) {
   await page.getByRole('menuitem', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/auth$/)
 }
+
+/** Calls the API as the signed-in user, for setting up data and checking what reached it. */
+export function api(page: Page, path: string, init: { method?: string; body?: unknown } = {}) {
+  return page.evaluate(async ({ path, init }) => {
+    const refreshed = await (await fetch('/api/auth/refresh', { method: 'POST' })).json()
+    const response = await fetch(`/api${path}`, {
+      method: init.method ?? 'GET',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${refreshed.data.accessToken}` },
+      body: init.body ? JSON.stringify(init.body) : undefined,
+    })
+    return response.json()
+  }, { path, init })
+}

@@ -230,6 +230,28 @@ export interface CoachTurn {
   usage: CoachUsage;
 }
 
+export interface StreamOptions {
+  onDelta: (text: string) => void;
+  signal?: AbortSignal;
+}
+
+export interface JournalNote {
+  date: string;
+  notes: string;
+  performance: number | null;
+  energy: number | null;
+  mood: number | null;
+}
+
+export interface JournalAnswer {
+  /** Citations are written as [YYYY-MM-DD]; each one is a note in `sources`. */
+  answer: string;
+  sources: JournalNote[];
+  /** 'keywords': the search by meaning was unavailable, so exact words were used. */
+  method: 'hybrid' | 'keywords';
+  usage: CoachUsage;
+}
+
 export interface WeeklyReviewContent {
   headline: string;
   wins: string[];
@@ -707,14 +729,16 @@ class ApiClient {
    * `onDelta` receives each fragment as it arrives; resolves with the saved
    * turn. Aborting `signal` stops the reply.
    */
-  async streamCoachMessage(
-    message: string,
-    { onDelta, signal }: { onDelta: (text: string) => void; signal?: AbortSignal }
-  ): Promise<CoachTurn> {
-    const send = () => fetch(`${this.baseURL}/coach/messages`, {
+  async streamCoachMessage(message: string, options: StreamOptions): Promise<CoachTurn> {
+    return this.streamEvents('/coach/messages', { message }, options);
+  }
+
+  /** Reads a stream of `delta` events and resolves with its `done` event. */
+  private async streamEvents<T>(endpoint: string, body: unknown, { onDelta, signal }: StreamOptions): Promise<T> {
+    const send = () => fetch(`${this.baseURL}${endpoint}`, {
       method: 'POST',
       headers: this.jsonHeaders(),
-      body: JSON.stringify({ message }),
+      body: JSON.stringify(body),
       credentials: 'include',
       signal,
     });
@@ -747,11 +771,21 @@ class ApiClient {
         const event = /^event: (.*)$/m.exec(chunk)?.[1];
         const data = JSON.parse(/^data: (.*)$/m.exec(chunk)?.[1] ?? 'null');
         if (event === 'delta') onDelta(data.text);
-        else if (event === 'done') return data as CoachTurn;
+        else if (event === 'done') return data as T;
         else if (event === 'error') throw new ApiError(data.message, 502);
       }
     }
     throw new ApiError('The reply was interrupted. Please try again.', 0);
+  }
+
+  // Journal (the notes in daily reviews)
+  async searchJournal(query: string): Promise<ApiResponse<{ notes: JournalNote[] }>> {
+    return this.request('/journal/search', { method: 'POST', body: JSON.stringify({ query }) });
+  }
+
+  /** Streams an answer drawn from the journal; resolves with its checked sources. */
+  async askJournal(question: string, options: StreamOptions): Promise<JournalAnswer> {
+    return this.streamEvents('/journal/ask', { question }, options);
   }
 
   // Push notifications

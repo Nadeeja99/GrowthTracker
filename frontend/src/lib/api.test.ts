@@ -153,6 +153,16 @@ describe('coach streaming', () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ message: 'Hello' });
   });
 
+  it('streams a journal answer through the same reader', async () => {
+    const answer = { answer: 'You were tired.', sources: [], method: 'hybrid', usage: { used: 1, limit: 20, remaining: 19 } };
+    fetchMock.mockResolvedValueOnce(sse([`event: delta\ndata: {"text":"You were tired."}\n\nevent: done\ndata: ${JSON.stringify(answer)}\n\n`]));
+    const deltas: string[] = [];
+    await expect(apiClient.askJournal('Tired?', { onDelta: d => deltas.push(d) })).resolves.toEqual(answer);
+    expect(deltas).toEqual(['You were tired.']);
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/journal\/ask$/);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ question: 'Tired?' });
+  });
+
   it('turns an error event into an ApiError', async () => {
     fetchMock.mockResolvedValueOnce(sse(['event: error\ndata: {"message":"The AI service is busy"}\n\n']));
     await expect(apiClient.streamCoachMessage('Hello', { onDelta: () => {} })).rejects.toMatchObject({ message: 'The AI service is busy' });

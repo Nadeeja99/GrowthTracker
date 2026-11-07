@@ -31,10 +31,11 @@ The work was to make it something you'd trust with your week, and that an employ
 | Backend | Validated config, rate limiting, request IDs, structured logs, ownership checks on every relation, versioned migrations, a demo seed. |
 | Auth | 15-minute in-memory access tokens, rotating httpOnly refresh cookie, "sign out everywhere" via a token version. |
 | Frontend | A server-state cache with targeted invalidation, a design system with light and dark themes, skeletons, error boundaries, toasts that say what failed and why. |
-| Quality | 169 API integration tests, 138 unit tests, 51 end-to-end journeys with accessibility checks, CI, and deploys gated on CI. |
+| Quality | 236 API integration tests, 151 unit tests, 56 end-to-end journeys with accessibility checks, CI, and deploys gated on CI. |
 | Phone | Works offline with check-ins that sync later, opens instantly from saved data, and sends morning and evening push digests. |
 | Capture | Plain-English quick add with a live preview, parsed on the device, and a private calendar feed for other calendar apps. |
 | AI | A streaming coach, weekly review, week planner and goal breakdown, all on one guarded request pipeline. |
+| Journal | Free keyword search over daily notes, and answers with hybrid retrieval (full-text search plus pgvector) whose citations are checked by the server. |
 
 ## Key decisions and trade-offs
 
@@ -97,13 +98,24 @@ Accessibility is checked automatically and treated as a test failure:
 
 Lighthouse scores 100 for accessibility on every page. Getting there surfaced a real bug that axe at desktop size had missed: icon buttons whose labels were hidden on phones.
 
+### 7. Two imperfect searches instead of one
+Daily notes are short and personal. Keyword search misses "exhausted" when you ask about being tired, while embeddings blur the exact words a journal is full of, like a physio's name. Whichever one is chosen fails on a common question. A vector database was also more than this needed: each search covers one person's few hundred notes.
+
+**Decision:** run both inside Postgres and merge their rankings by position (reciprocal rank fusion), since their scores can't be compared. There's no vector index, because an exact scan of one user's notes took about 20 ms on three years of data and is more accurate.
+
+**Consequences, handled in code:**
+- Notes are embedded the first time someone asks, not when they're saved. Nothing leaves the app until the feature is used, and the free tier needs no background job.
+- Neither search understands time, so a question naming a period is parsed with rules and limited to that period.
+- The model can invent a plausible date, so citations are checked on the server against the notes it was given.
+- A restricted API key may not allow embeddings, so retrieval falls back to keywords and the answer says so.
+
 ## Results
 
 - **Lighthouse (mobile):**
   - accessibility 100 and best practices 100 on every page
   - performance 92–96
   - layout shift close to 0 after making AI cards wait for their status instead of popping in
-- **Tests:** 169 backend, 138 frontend unit and 51 end-to-end. CI runs them all, and Render deploys only after CI passes.
+- **Tests:** 236 backend, 151 frontend unit and 56 end-to-end. CI runs them all, and Render deploys only after CI passes.
 - **Security:** the API answers only through the proxy, every relation is ownership-checked, configuration is validated at boot, and failed logins are rate-limited.
 
 ## Next steps

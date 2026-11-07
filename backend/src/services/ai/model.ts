@@ -53,13 +53,29 @@ export interface GenerateResult {
   truncated: boolean;
 }
 
+export interface EmbedRequest {
+  texts: string[];
+  signal?: AbortSignal;
+}
+
+export interface EmbedResult {
+  /** One vector per text, in the same order. */
+  vectors: number[][];
+  inputTokens: number;
+}
+
 export interface AiModel {
   readonly name: string;
   /** A streamed chat reply, optionally with a tool call. */
   reply(request: ReplyRequest): Promise<ReplyResult>;
   /** A single JSON document matching a schema (structured output). */
   generate(request: GenerateRequest): Promise<GenerateResult>;
+  /** Vectors for finding texts by meaning. */
+  embed(request: EmbedRequest): Promise<EmbedResult>;
 }
+
+/** Must match the column in the journal_search migration. */
+export const EMBEDDING_DIMENSIONS = 512;
 
 /** Thrown for provider failures; `status` is the provider's HTTP status, if any. */
 export class AiModelError extends Error {
@@ -127,6 +143,17 @@ class OpenAIModel implements AiModel {
         outputTokens: response.usage?.output_tokens ?? 0,
         truncated: response.status === 'incomplete',
       };
+    });
+  }
+
+  async embed({ texts, signal }: EmbedRequest): Promise<EmbedResult> {
+    return this.call(async () => {
+      const response = await this.client.embeddings.create(
+        { model: env.OPENAI_EMBEDDING_MODEL, input: texts, dimensions: EMBEDDING_DIMENSIONS, encoding_format: 'float' },
+        { signal }
+      );
+      const ordered = [...response.data].sort((a, b) => a.index - b.index);
+      return { vectors: ordered.map(item => item.embedding), inputTokens: response.usage.prompt_tokens };
     });
   }
 

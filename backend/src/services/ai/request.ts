@@ -1,6 +1,7 @@
 // The checks every AI request goes through before anything is sent to the
 // provider, and the usage record it leaves behind.
 import { prisma } from '../../config/database';
+import { env } from '../../config/env';
 import { HttpError } from '../../utils/httpError';
 import { AiModel, getAiModel } from './model';
 import { AiFeature, globalLimitReached, userQuota } from './usage';
@@ -13,9 +14,20 @@ const inFlight = new Set<string>();
 export interface AiRequest {
   model: AiModel;
   /** Records the outcome (once; later calls are ignored). */
-  finish(status: 'ok' | 'error' | 'aborted', tokens?: { inputTokens: number; outputTokens: number }): Promise<void>;
+  finish(status: 'ok' | 'error' | 'aborted' | 'skipped', tokens?: { inputTokens: number; outputTokens: number }): Promise<void>;
   /** Lets the user start another request. Call in `finally`. */
   release(): void;
+}
+
+/**
+ * Records embedding tokens so they show up in cost tracking. Embeddings cost a
+ * tiny fraction of an answer, so they don't spend the user's daily requests.
+ */
+export async function recordEmbeddingUsage(userId: string, inputTokens: number): Promise<void> {
+  if (!inputTokens) return;
+  await prisma.aiUsage
+    .create({ data: { userId, model: env.OPENAI_EMBEDDING_MODEL, feature: 'journal_embedding', status: 'background', inputTokens } })
+    .catch(() => undefined);
 }
 
 /**

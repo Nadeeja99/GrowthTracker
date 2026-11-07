@@ -28,6 +28,7 @@ export function CoachDataNotice() {
   return (
     <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-gray-400">
       <li>Each AI request (coach messages, weekly reviews, week plans, milestone suggestions) sends the relevant goals, tasks, time blocks, habits and recent daily reviews (including notes) to OpenAI.</li>
+      <li>Asking your journal sends your question and the few notes most likely to answer it. So they can be found by meaning, your notes are also sent once to OpenAI to be indexed the first time you ask, and again if you edit them. Turning the coach off deletes that index.</li>
       <li>Your email address and password are never sent. OpenAI doesn&apos;t use API data to train its models.</li>
       <li>The coach only suggests changes; nothing is added to your plan unless you choose to.</li>
     </ul>

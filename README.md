@@ -21,6 +21,7 @@ A full-stack planner with goals, time blocks, tasks, habits, a focus timer and a
   - a streamed chat over Server-Sent Events, plus strict JSON-schema structured output
   - every answer re-validated with zod, and rules the model can't be trusted with enforced in code (no overlapping blocks, nothing in the past, only your own goals)
   - opt-in, per-user and global daily caps, and a usage log
+  - answers from your own journal through hybrid retrieval (Postgres full-text search plus pgvector embeddings, merged by reciprocal rank fusion), where the server checks every citation against the notes the model was actually given
 - **Production-shaped:**
   - same-origin proxy, so the auth cookie stays first-party; httpOnly rotating refresh tokens and an in-memory access token
   - rate limiting, request IDs and structured logs
@@ -29,9 +30,9 @@ A full-stack planner with goals, time blocks, tasks, habits, a focus timer and a
   - Row Level Security on every table
   - you own your data: password reset by email, a full JSON export, and account deletion
 - **Tested end to end:**
-  - 169 API integration tests against real Postgres, including the real OpenAI SDK against a local fake of its streaming protocol
-  - 138 unit tests
-  - 51 Playwright journeys with axe-core accessibility checks, including the emailed password-reset link and using the app with the network cut
+  - 236 API integration tests against real Postgres, including the real OpenAI SDK against a local fake of its streaming protocol
+  - 151 unit tests
+  - 56 Playwright journeys with axe-core accessibility checks, including the emailed password-reset link and using the app with the network cut
   - CI runs all of it on every push, and Render deploys only after CI passes
 - **Accessible and fast:**
   - Lighthouse 100 for accessibility and best practices on every page, 92–96 for performance
@@ -90,6 +91,8 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 - **Weekly review** (Insights): wins, what slipped, **patterns** linking your daily energy, mood and notes to what got done, and priorities for next week, each addable as a task. Generated on request and saved, so revisiting it costs nothing.
 - **Plan my week** (Plan): proposes time blocks that move each goal towards its weekly target, inside the hours you choose. You tick the ones you want and add them in one go.
 - **Suggest milestones** (Goals): breaks a goal into checkpoints, dated within its deadline, skipping ones it already has.
+
+- **Ask your journal** (Insights): search your daily review notes for free, or ask a question and get a short answer that links to the notes it came from. See [how it works](#ask-your-journal).
 
 ### Focus timer (available everywhere)
 - Pomodoro timer in a slide-over panel that **keeps running while you switch tabs**; the header shows the countdown
@@ -188,7 +191,7 @@ GrowthTracker/
 ### Prerequisites
 
 - Node.js 22+
-- PostgreSQL 14+ (local, Docker or Supabase)
+- PostgreSQL 14+ with the [pgvector](https://github.com/pgvector/pgvector) extension available: Supabase includes it, and the Docker image `pgvector/pgvector:pg16` works locally. A plain Postgres install fails on the `journal_search` migration until pgvector is installed.
 
 ### 1. Clone the repository
 
@@ -263,11 +266,26 @@ browser ──POST /api/coach/messages──► API ──Responses API (stream)
   - The default model is `gpt-6-luna` ($0.10 / $0.50 per 1M input/output tokens), roughly $0.0002 per message. Change it with `OPENAI_MODEL`.
 - **Tested without a key.** Backend tests use a fake model for route logic, plus a local server that speaks the Responses streaming protocol, which exercises the real SDK. The E2E suite runs the whole flow against that fake server: stream, stop, add a suggestion, opt out.
 
-**Setting up your key:** in the OpenAI dashboard, create a project, create a key restricted to the model endpoints, and set a monthly budget. Put the key in `backend/.env` as `OPENAI_API_KEY` locally, and in the API service's environment on Render.
+**Setting up your key:** in the OpenAI dashboard, create a project, create a key restricted to the model endpoints, and set a monthly budget. A restricted key also needs the **Embeddings** endpoint, and if the project limits its models, `text-embedding-3-small`. Without them Ask your journal still works, but on exact words only. Put the key in `backend/.env` as `OPENAI_API_KEY` locally, and in the API service's environment on Render.
 
 **Without a key:** start the fake server (`cd backend && npx ts-node --transpile-only tests/fake-openai-server.ts`), then run the API with `OPENAI_API_KEY=sk-fake-local-key OPENAI_BASE_URL=http://127.0.0.1:5100/v1`.
 
 ---
+
+### Ask your journal
+
+Searching is free and works without AI. Asking uses the same opt-in and daily budget as the coach: one question is one request.
+
+1. **Index on first use.** New and edited notes are embedded when you ask a question, never when you save a review, so nothing leaves the app until you use the feature and no background job is needed. A SHA-256 hash of each note means unchanged notes aren't sent again. A note is at most 5,000 characters, so each one is embedded whole.
+2. **Find.** Three ranked lists are merged by reciprocal rank fusion, because their scores aren't comparable: Postgres full-text search for exact words such as names, pgvector cosine distance for meaning ("exhausted" for a question about being tired), and, when the question names a period ("last week", "in March"), that period's latest notes. A question about a period only ever sees that period.
+3. **Answer.** The model gets the question and the eight best notes, not the whole journal, inside the data block that marks them as information rather than instructions. It's told to answer only from them, cite each claim by date, and never state totals, because it can't see every note.
+4. **Check.** The server removes any citation that isn't one of the notes it sent, so a made-up date can't appear as a source. If a period has no notes, the app says so without calling the model.
+
+- **Private by design:** questions and answers aren't saved or logged, and the words are sent by POST so they stay out of URLs. Turning the coach off deletes the index.
+- **Degrades instead of failing:** if embeddings are unavailable, the answer uses exact words alone and says so.
+- **No vector index, on purpose:** each search covers one person's notes, found through an existing index. With three years of daily notes across 50 users, either search took about 20 ms, and scanning exactly is more accurate than an approximate index.
+- **Cost:** `text-embedding-3-small` runs at about 62,500 pages per dollar, so indexing a year of notes costs a fraction of a cent. Vectors are stored at 512 dimensions rather than 1,536 to keep them small. Embedding tokens are recorded in the usage log but don't spend daily requests.
+- **Limit:** quality with real embeddings hasn't been measured yet. An evaluation set is planned as part of Phase 14.
 
 ## Testing
 
@@ -277,7 +295,7 @@ browser ──POST /api/coach/messages──► API ──Responses API (stream)
 | Frontend unit (Vitest + Testing Library) | `cd frontend && npm test` | API client session refresh, coach SSE parsing, data mappers, toast store, focus timer, dialog focus trap (incl. React StrictMode), password rules, safe rendering of coach text |
 | End-to-end (Playwright + axe-core) | `cd frontend && npm run test:e2e` | Zero WCAG 2.1 AA violations on every page in light and dark mode, dialog keyboard behaviour, error toasts, skeletons, 404, delete confirmation, no React console warnings, coach chat (stream, stop, add a suggestion, opt out), weekly review, plan my week, milestone suggestions, change password, the emailed reset link end to end, data download, account deletion |
 
-The backend tests run against a real Postgres database whose name must end in `_test`; every table is truncated between suites. The E2E suite needs the API running with the demo seed (and, for the coach tests, `OPENAI_BASE_URL` pointing at the fake OpenAI server; for the reset-link test, `MAIL_PROVIDER=outbox` with `MAIL_OUTBOX_DIR` and the same folder in `E2E_MAIL_OUTBOX`) and starts the frontend itself (`API_ORIGIN` points it at the API; `E2E_CHANNEL=chrome` uses your installed Chrome instead of downloading Chromium). It changes the demo data, so re-run `npm run db:seed` before running it again.
+The backend tests run against a real Postgres database with pgvector available, whose name must end in `_test`; every table is truncated between suites. The E2E suite needs the API running with the demo seed (and, for the coach tests, `OPENAI_BASE_URL` pointing at the fake OpenAI server; for the reset-link test, `MAIL_PROVIDER=outbox` with `MAIL_OUTBOX_DIR` and the same folder in `E2E_MAIL_OUTBOX`) and starts the frontend itself (`API_ORIGIN` points it at the API; `E2E_CHANNEL=chrome` uses your installed Chrome instead of downloading Chromium). It changes the demo data, so re-run `npm run db:seed` before running it again.
 
 `npm run test:e2e:pwa` runs `frontend/e2e/pwa/` against a production build, because the service worker doesn't run in development. It needs the API to have `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (any generated pair).
 
@@ -446,6 +464,8 @@ How it works and what to expect:
 | GET/POST | `/api/ai/weekly-review` | Saved review for a week (`?weekStart=`) / write or rewrite it |
 | POST | `/api/ai/week-plan` | Propose time blocks for this or next week within a daily window |
 | POST | `/api/ai/goals/:id/milestones` | Suggest milestones for a goal |
+| POST | `/api/journal/search` | Find daily review notes by keyword (free, no AI) |
+| POST | `/api/journal/ask` | Answer a question from the journal, streamed as Server-Sent Events |
 | GET | `/api/analytics/overview` | Analytics summary |
 | GET | `/api/analytics/goal-progress` | Per-goal progress analytics |
 | GET | `/api/analytics/weekly-trends` | Weekly task and habit trends |
@@ -483,6 +503,7 @@ How it works and what to expect:
 | `PASSWORD_RESET_RATE_LIMIT_MAX` | "Forgot password" requests per IP per window | `5` |
 | `OPENAI_API_KEY` | Enables the AI coach (server-side only) | — |
 | `OPENAI_MODEL` | Model for the coach | `gpt-6-luna` |
+| `OPENAI_EMBEDDING_MODEL` | Model for finding journal notes by meaning (changing it re-indexes notes as they're next used) | `text-embedding-3-small` |
 | `OPENAI_REASONING_EFFORT` | `none` / `low` / `medium` / `high` | `low` |
 | `AI_MAX_OUTPUT_TOKENS` | Token ceiling per reply | `1500` |
 | `AI_DAILY_LIMIT` / `AI_DEMO_DAILY_LIMIT` / `AI_GLOBAL_DAILY_LIMIT` | AI requests per user per day / for the demo account / across all users per UTC day | `20` / `30` / `500` |

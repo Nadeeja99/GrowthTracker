@@ -1,24 +1,11 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { registerViaUi, signOut } from '../helpers'
+import { api, registerViaUi, signOut } from '../helpers'
 
 // Runs against a production build, with the browser's network really cut:
 // the service worker only exists there (see playwright.config.ts).
 
 const dateKey = (date = new Date()) => date.toISOString().slice(0, 10)
-
-/** Calls the API as the signed-in user, for setting up data and checking what reached it. */
-function api(page: Page, path: string, init: { method?: string; body?: unknown } = {}) {
-  return page.evaluate(async ({ path, init }) => {
-    const refreshed = await (await fetch('/api/auth/refresh', { method: 'POST' })).json()
-    const response = await fetch(`/api${path}`, {
-      method: init.method ?? 'GET',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${refreshed.data.accessToken}` },
-      body: init.body ? JSON.stringify(init.body) : undefined,
-    })
-    return response.json()
-  }, { path, init })
-}
 
 const readSavedCache = (page: Page) => page.evaluate(() => new Promise<unknown>(resolve => {
   const open = indexedDB.open('keyval-store')
@@ -141,6 +128,22 @@ test('explains itself instead of hanging on anything that needs a connection', a
   await page.getByLabel(/name/i).first().fill('Stretch')
   await page.getByRole('button', { name: /Create|Save|Add/ }).last().click()
   await expect(page.getByText(/offline/i).first()).toBeVisible()
+})
+
+test('journal search explains itself instead of hanging', async ({ page, context }) => {
+  await userWithAPlan(page)
+  await page.goto('/insights')
+  await expect(page.getByRole('heading', { name: 'Your journal' })).toBeVisible()
+  await expect.poll(() => page.evaluate(async () => {
+    const saved = (await Promise.all((await caches.keys()).map(async name => (await caches.open(name)).keys()))).flat()
+    return saved.some(request => new URL(request.url).pathname === '/insights')
+  })).toBe(true)
+  await context.setOffline(true)
+
+  await page.getByRole('textbox', { name: 'Search your journal' }).fill('report')
+  await page.getByRole('button', { name: 'Search' }).click()
+
+  await expect(page.getByRole('alert').filter({ hasText: /offline/i })).toBeVisible()
 })
 
 test('signing out removes the saved plan from the device', async ({ page, context }) => {

@@ -10,6 +10,7 @@ import { applySuggestion, CoachSuggestion, normalizeSuggestions, suggestActionsT
 import { AiModelError, friendlyAiError, getAiModel } from '../services/ai/model';
 import { beginAiRequest } from '../services/ai/request';
 import { userQuota } from '../services/ai/usage';
+import { abortWhenClientLeaves, openEventStream } from '../services/ai/stream';
 import { reportError } from '../services/monitoring';
 
 const router = Router();
@@ -48,10 +49,14 @@ router.get('/', async (req: AuthRequest, res) => {
   });
 });
 
-// Opt in or out. Turning the coach off keeps the conversation; clearing it is separate.
+// Opt in or out. Turning the coach off keeps the conversation; clearing it is
+// separate. The journal index goes, since it only exists for AI features.
 router.put('/settings', async (req: AuthRequest, res) => {
   const { enabled } = coachSettingsSchema.parse(req.body);
-  await prisma.user.update({ where: { id: req.user!.id }, data: { aiCoachEnabled: enabled } });
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: req.user!.id }, data: { aiCoachEnabled: enabled } }),
+    ...(enabled ? [] : [prisma.journalEmbedding.deleteMany({ where: { reflection: { userId: req.user!.id } } })]),
+  ]);
   logger.info('Coach setting changed', { userId: req.user!.id, enabled });
   res.json({ success: true, data: { enabled } });
 });
@@ -88,21 +93,8 @@ router.post('/messages', async (req: AuthRequest, res) => {
       throw error;
     });
 
-    res.status(200).set({
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      // no-transform also stops the compression middleware from buffering the stream.
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
-    });
-    res.flushHeaders();
-    const send = (event: string, data: unknown) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-
-    // Stop generating (and paying for) a reply nobody will read.
-    const controller = new AbortController();
-    res.on('close', () => {
-      if (!res.writableEnded) controller.abort();
-    });
+    const send = openEventStream(res);
+    const controller = abortWhenClientLeaves(res);
 
     const startedAt = new Date();
     try {

@@ -6,7 +6,7 @@ import { env } from '../../config/env';
 import { DEMO_EMAIL } from '../../config/demo';
 import { dateKeyInZone, startOfDayInZone } from '../../utils/dates';
 
-export type AiFeature = 'coach' | 'weekly_review' | 'week_plan' | 'goal_breakdown';
+export type AiFeature = 'coach' | 'weekly_review' | 'week_plan' | 'goal_breakdown' | 'journal';
 
 const COUNTED = ['pending', 'ok', 'aborted'];
 

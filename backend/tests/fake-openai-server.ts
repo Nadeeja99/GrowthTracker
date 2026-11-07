@@ -65,8 +65,14 @@ function goalBreakdown(data: any) {
   };
 }
 
+function journalReply(data: any): Script {
+  const note = data.notes[0];
+  return { delayMs: 40, text: `In the notes I found, you wrote: ${note.notes} [${note.date}]`.match(/\S+\s*/g) ?? [] };
+}
+
 function reply(body: Record<string, unknown>): Script {
   const data = dataOf(body);
+  if (data.totalNotes) return journalReply(data);
   const format = (body.text as { format?: { name?: string } } | undefined)?.format?.name;
   const json = format === 'weekly_review' ? weeklyReview(data)
     : format === 'week_plan' ? weekPlan(data)

@@ -221,10 +221,28 @@ model Reflection {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  embedding JournalEmbedding?
 
   @@unique([userId, date])
   @@map("reflections")
+}
+
+// What a review note means, as numbers, for finding it by meaning rather than
+// by exact words. Created the first time the user asks their journal, so
+// saving a review never calls the AI provider. Written with raw SQL: Prisma
+// has no vector type.
+model JournalEmbedding {
+  reflectionId String                                @id
+  // The model and text this was made from, so edited notes are noticed.
+  model        String
+  contentHash  String
+  embedding    Unsupported("extensions.vector(512)")
+  updatedAt    DateTime                              @updatedAt
+
+  reflection Reflection @relation(fields: [reflectionId], references: [id], onDelete: Cascade)
+
+  @@map("journal_embeddings")
 }
 
 // A focused work interval from the focus timer. Breaks are not recorded.
@@ -277,9 +295,11 @@ model AiUsage {
   id           String   @id @default(cuid())
   userId       String?
   model        String
-  // coach | weekly_review | week_plan | goal_breakdown
+  // coach | weekly_review | week_plan | goal_breakdown | journal | journal_embedding
   feature      String   @default("coach")
-  status       String // pending | ok | error | aborted
+  // pending | ok | error | aborted | skipped | background. Only pending, ok and
+  // aborted count towards the daily caps.
+  status       String
   inputTokens  Int      @default(0)
   outputTokens Int      @default(0)
   durationMs   Int?
