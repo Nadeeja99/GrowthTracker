@@ -28,6 +28,10 @@ describe('proxy gate', () => {
     expect(res.body.database).toBe('up');
   });
 
+  it('hides the scheduled digest job until a secret is configured', async () => {
+    expect((await request(app).post('/internal/digests/run')).status).toBe(404);
+  });
+
   it('answers the app’s cross-origin wake-up ping on / without the secret', async () => {
     const res = await request(app).get('/').set('Origin', 'http://localhost:3000');
     expect(res.status).toBe(200);

@@ -50,7 +50,7 @@ router.get('/me/export', async (req: AuthRequest, res) => {
         where: { id: userId },
         select: {
           id: true, email: true, username: true, firstName: true, lastName: true, avatar: true,
-          timezone: true, aiCoachEnabled: true, createdAt: true, updatedAt: true,
+          timezone: true, aiCoachEnabled: true, morningDigestAt: true, eveningDigestAt: true, createdAt: true, updatedAt: true,
         },
       }),
       prisma.goal.findMany({ where: { userId }, include: { milestones: true }, orderBy: { createdAt: 'asc' } }),

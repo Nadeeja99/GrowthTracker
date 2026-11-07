@@ -7,6 +7,7 @@ export const queryKeys = {
   reflections: ['reflections'] as const,
   focusSessions: ['focus-sessions'] as const,
   coach: ['coach'] as const,
+  pushSettings: ['push-settings'] as const,
   weeklyReview: (weekStart: string) => ['weekly-review', weekStart] as const,
   analyticsOverview: (startDate: string, endDate: string) => ['analytics', 'overview', startDate, endDate] as const,
 };

@@ -12,6 +12,8 @@ import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
 import { requestContext } from './middleware/requestContext';
 import { requireProxy } from './middleware/requireProxy';
+import { requireCronSecret } from './middleware/requireCronSecret';
+import { runDigests } from './services/digests';
 
 import authRoutes from './routes/auth-simple';
 import userRoutes from './routes/users';
@@ -25,6 +27,7 @@ import reflectionRoutes from './routes/reflections';
 import focusSessionRoutes from './routes/focusSessions';
 import coachRoutes from './routes/coach';
 import aiRoutes from './routes/ai';
+import pushRoutes from './routes/push';
 
 export const app = express();
 
@@ -108,6 +111,11 @@ app.get('/', (_req, res) => {
   res.status(200).json({ status: 'OK' });
 });
 
+// Called on a schedule, because a free instance sleeps and can't run its own timer.
+app.post('/internal/digests/run', requireCronSecret, async (_req, res) => {
+  res.json({ success: true, data: await runDigests() });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/goals', goalRoutes);
@@ -120,6 +128,7 @@ app.use('/api/reflections', reflectionRoutes);
 app.use('/api/focus-sessions', focusSessionRoutes);
 app.use('/api/coach', coachRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/push', pushRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

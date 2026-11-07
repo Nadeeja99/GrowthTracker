@@ -45,6 +45,13 @@ export function zonedTimeToInstant(dateKey: string, minutes: number, timeZone: s
   return new Date(wallClockAsUtc - correctedOffset);
 }
 
+/** Minutes since local midnight at `instant`, as seen in `timeZone`. */
+export function minutesIntoDayInZone(instant: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hourCycle: 'h23', hour: '2-digit', minute: '2-digit' }).formatToParts(instant);
+  const get = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find(p => p.type === type)?.value);
+  return get('hour') * 60 + get('minute');
+}
+
 export function addDays(dateKey: string, days: number): string {
   const [year, month, day] = dateKey.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day) + days * DAY_MS).toISOString().slice(0, 10);

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { signIn } from './helpers'
 
 test.beforeEach(async ({ page }) => signIn(page))
@@ -8,20 +8,44 @@ test('the first Tab stop is "Skip to content"', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused()
 })
 
+const deleteTask = async (page: Page) => {
+  await page.getByRole('button', { name: 'Delete Buy new running shoes' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click()
+}
+
 test('a failed save shows a toast with what failed and why', async ({ page }) => {
+  await page.goto('/plan')
+  await page.route('**/api/tasks/*', route => route.request().method() === 'DELETE'
+    ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"success":false,"error":"Internal Server Error"}' })
+    : route.continue())
+  await deleteTask(page)
+  await expect(page.getByRole('alert').filter({ hasText: 'Couldn’t delete the task. Internal Server Error' })).toBeVisible()
+})
+
+test('a network failure says you seem to be offline', async ({ page }) => {
+  await page.goto('/plan')
+  await page.route('**/api/tasks/*', route => route.request().method() === 'DELETE' ? route.abort('internetdisconnected') : route.continue())
+  await deleteTask(page)
+  await expect(page.getByRole('alert').filter({ hasText: 'offline' })).toBeVisible()
+})
+
+test('a check-in survives a server error and keeps trying', async ({ page }) => {
   await page.goto('/plan')
   await page.route('**/api/tasks/*', route => route.request().method() === 'PUT'
     ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"success":false,"error":"Internal Server Error"}' })
     : route.continue())
   await page.getByRole('button', { name: /mark "write readme for portfolio" as done/i }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Couldn’t save the task. Internal Server Error' })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: '1 check-in waiting to sync.' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /mark "write readme for portfolio" as not done/i })).toBeVisible()
 })
 
-test('a network failure says you seem to be offline', async ({ page }) => {
+test('a check-in the server refuses says so', async ({ page }) => {
   await page.goto('/plan')
-  await page.route('**/api/tasks/*', route => route.request().method() === 'PUT' ? route.abort('internetdisconnected') : route.continue())
+  await page.route('**/api/tasks/*', route => route.request().method() === 'PUT'
+    ? route.fulfill({ status: 404, contentType: 'application/json', body: '{"success":false,"error":"Task not found"}' })
+    : route.continue())
   await page.getByRole('button', { name: /mark "write readme for portfolio" as done/i }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'offline' })).toBeVisible()
+  await expect(page.getByRole('alert').filter({ hasText: 'Couldn’t save your check-in for “Write README for portfolio”.' })).toBeVisible()
 })
 
 test('pages show a skeleton while loading', async ({ page }) => {

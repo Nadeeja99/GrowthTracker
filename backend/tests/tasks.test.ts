@@ -67,3 +67,20 @@ it('returns 400 with field errors for invalid input (B7)', async () => {
   expect(res.body.validationErrors.length).toBeGreaterThan(0);
   expect(res.body.requestId).toBeTruthy();
 });
+
+describe('completing a task from an offline check-in', () => {
+  it('keeps the time it really happened, but never a future one', async () => {
+    const { token } = await registerUser(app);
+    const create = (title: string) => request(app).post('/api/tasks').set(auth(token)).send({ title });
+    const earlier = (await create('Earlier')).body.data.task.id;
+    const future = (await create('Future')).body.data.task.id;
+    const complete = (id: string, completedAt: string) =>
+      request(app).put(`/api/tasks/${id}`).set(auth(token)).send({ status: 'COMPLETED', completedAt });
+
+    const past = await complete(earlier, '2026-01-02T03:04:05.000Z');
+    expect(past.body.data.task.completedAt).toBe('2026-01-02T03:04:05.000Z');
+
+    const later = await complete(future, '2999-01-01T00:00:00.000Z');
+    expect(new Date(later.body.data.task.completedAt).getTime()).toBeLessThanOrEqual(Date.now());
+  });
+});

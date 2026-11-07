@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { AlertCircle, RotateCw } from 'lucide-react';
+import { describeError } from '@/lib/toast';
 
 interface QueryLike {
   isLoading: boolean;
@@ -38,7 +39,7 @@ export function PageError({ error, onRetry }: { error: Error; onRetry: () => voi
     <div className="max-w-md mx-auto text-center py-24" role="alert">
       <AlertCircle className="w-10 h-10 mx-auto text-red-600 dark:text-red-400" />
       <h2 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">Couldn&apos;t load this page</h2>
-      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{error.message}</p>
+      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{describeError(error)}</p>
       <button
         onClick={onRetry}
         className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"

@@ -189,6 +189,8 @@ router.post('/logout-all', authenticate, async (req: AuthRequest, res) => {
   // Everyone shares the demo account; one visitor mustn't sign out the rest.
   if (req.user!.email === DEMO_EMAIL) throw new HttpError(403, 'Not available on the shared demo account.');
   await prisma.user.update({ where: { id: req.user!.id }, data: { tokenVersion: { increment: 1 } } });
+  // Notifications show the user's plan, so revoked devices stop getting them too.
+  await prisma.pushSubscription.deleteMany({ where: { userId: req.user!.id } });
   res.clearCookie(REFRESH_COOKIE, refreshCookieOptions);
 
   logger.info('All sessions revoked', { userId: req.user!.id });
@@ -234,6 +236,8 @@ router.put('/password', authenticate, async (req: AuthRequest, res) => {
     select: sessionUserSelect,
   });
   await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+  // This device registers again the next time the app opens.
+  await prisma.pushSubscription.deleteMany({ where: { userId: user.id } });
 
   logger.info('Password changed', { userId: user.id });
   res.json({ success: true, message: 'Password changed', data: issueSession(res, user) });
@@ -305,6 +309,7 @@ router.post('/password/reset', async (req: AuthRequest, res) => {
     const claimed = await tx.passwordResetToken.updateMany({ where: { id: record.id, usedAt: null }, data: { usedAt: now } });
     if (claimed.count === 0) throw new HttpError(400, INVALID_RESET_LINK);
     await tx.passwordResetToken.deleteMany({ where: { userId: record.userId, id: { not: record.id } } });
+    await tx.pushSubscription.deleteMany({ where: { userId: record.userId } });
     return tx.user.update({
       where: { id: record.userId },
       data: { password, tokenVersion: { increment: 1 } },

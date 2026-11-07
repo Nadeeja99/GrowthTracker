@@ -23,3 +23,5 @@ for (const key of ['MAIL_PROVIDER', 'MAIL_API_KEY', 'MAIL_FROM', 'MAIL_OUTBOX_DI
 process.env.PASSWORD_RESET_RATE_LIMIT_MAX ??= '100000';
 // Tests never report to a real Sentry project; monitoring.test.ts uses a local fake.
 delete process.env.SENTRY_DSN;
+// Tests capture notifications with setPushSenderForTests; push.test.ts sets its own keys.
+for (const key of ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT', 'DIGEST_CRON_SECRET']) delete process.env[key];

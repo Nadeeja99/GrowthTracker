@@ -4,7 +4,7 @@ import { toDateKey } from '@/lib/dates';
 
 // Consecutive days with a completion, ending today. A habit not done *yet*
 // today doesn't break the streak: it counts back from yesterday instead.
-function computeStreak(completions: BackendHabitCompletion[]): number {
+export function computeStreak(completions: Array<Pick<BackendHabitCompletion, 'date'>>): number {
   if (completions.length === 0) return 0;
   const completedDates = new Set(completions.map(c => c.date.slice(0, 10)));
   const check = new Date();

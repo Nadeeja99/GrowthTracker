@@ -156,6 +156,8 @@ export const updateTaskSchema = z.object({
   dueDate: z.string().datetime().nullable().optional(),
   estimatedTime: z.number().min(1).optional(),
   actualTime: z.number().min(1).optional(),
+  // When a check-in made offline really happened; it reaches the server later.
+  completedAt: z.string().datetime().optional(),
   goalId: z.string().optional().nullable(),
   tags: tagsSchema.optional(),
   subtasks: subtaskListSchema.optional(),
@@ -295,6 +297,38 @@ export const weekPlanRequestSchema = z.object({
   // The part of each day the plan may use, in the user's local time.
   window: z.object({ start: clockTimeSchema, end: clockTimeSchema }).default({ start: '07:00', end: '21:00' }),
 });
+
+// The server sends a request to this URL, so only real push services are
+// accepted; anything else would let a user aim the server at any address.
+const PUSH_SERVICE_HOSTS = [
+  /^fcm\.googleapis\.com$/,
+  /^([a-z0-9-]+\.)*push\.apple\.com$/,
+  /^updates\.push\.services\.mozilla\.com$/,
+  /^([a-z0-9-]+\.)*notify\.windows\.com$/,
+];
+
+const isPushServiceUrl = (value: string) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.port && PUSH_SERVICE_HOSTS.some(host => host.test(url.hostname));
+  } catch {
+    return false;
+  }
+};
+
+const pushEndpointSchema = z.string().max(1000).refine(isPushServiceUrl, 'This browser’s push service isn’t supported');
+
+export const pushSubscriptionSchema = z.object({
+  endpoint: pushEndpointSchema,
+  keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
+});
+
+export const pushEndpointBodySchema = z.object({ endpoint: pushEndpointSchema });
+
+// Half-hour steps, the interval the digests are sent on.
+const digestTimeSchema = z.string().regex(/^([01]\d|2[0-3]):(00|30)$/, 'Choose a time on the hour or half hour').nullable();
+
+export const digestSettingsSchema = z.object({ morning: digestTimeSchema, evening: digestTimeSchema });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

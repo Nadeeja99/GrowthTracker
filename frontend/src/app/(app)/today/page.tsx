@@ -7,9 +7,10 @@ import { TodaySkeleton } from '@/components/ui/Skeleton';
 import { useFocus } from '@/contexts/FocusContext';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useGoalsWithStats } from '@/hooks/data/useGoals';
-import { useScheduleMutations, useSchedules } from '@/hooks/data/useSchedules';
-import { useTaskMutations, useTasks } from '@/hooks/data/useTasks';
-import { useHabitMutations, useHabits } from '@/hooks/data/useHabits';
+import { useSchedules } from '@/hooks/data/useSchedules';
+import { useTasks } from '@/hooks/data/useTasks';
+import { useHabits } from '@/hooks/data/useHabits';
+import { useCheckIns } from '@/hooks/data/useCheckIns';
 import { useReflections, useSaveReflection } from '@/hooks/data/useReflections';
 import { toDateKey } from '@/lib/dates';
 import { useCoach } from '@/hooks/data/useCoach';
@@ -24,9 +25,7 @@ export default function TodayPage() {
   const tasks = useTasks();
   const habits = useHabits();
   const reflections = useReflections();
-  const scheduleMutations = useScheduleMutations();
-  const taskMutations = useTaskMutations();
-  const habitMutations = useHabitMutations();
+  const checkIn = useCheckIns();
   const saveReflection = useSaveReflection();
 
   const status = combineQueries(goals, schedules, tasks, habits, reflections);
@@ -45,10 +44,10 @@ export default function TodayPage() {
       tasks={tasks.data ?? []}
       habits={habits.data ?? []}
       dailyRating={reflections.data?.find(r => r.date === today) ?? null}
-      onActivityStatusChange={(id, status) => scheduleMutations.update.mutate({ id, updates: { status } })}
-      onTaskStatusChange={(id, status) => taskMutations.update.mutate({ id, updates: { status } })}
+      onActivityStatusChange={checkIn.block}
+      onTaskStatusChange={checkIn.task}
       onCompleteHabit={(id, date) => {
-        if (!habits.data?.find(h => h.id === id)?.completedToday) habitMutations.complete.mutate({ id, date });
+        if (!habits.data?.find(h => h.id === id)?.completedToday) checkIn.habit(id, date);
       }}
       onSaveDailyRating={async rating => { await saveReflection.mutateAsync({ date: today, rating }); }}
       onNavigate={href => router.push(href)}

@@ -3,10 +3,14 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { onlineManager, useQueryClient } from '@tanstack/react-query';
 import { Sun, Moon, Target, LogOut, ChevronDown, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { checkInStore, flushCheckIns } from '@/lib/checkIns';
+import { toast } from '@/lib/toast';
 import { NAV_ITEMS, isActivePath } from '@/lib/navigation';
 import { FocusButton } from '@/components/Focus/FocusPanel';
 import { CoachButton } from '@/components/Coach/CoachPanel';
@@ -16,6 +20,8 @@ export function Header() {
   const { isDark, toggle } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const currentLabel = NAV_ITEMS.find(item => isActivePath(pathname, item.href))?.label
@@ -38,6 +44,18 @@ export function Header() {
 
   const handleLogout = async () => {
     setShowUserMenu(false);
+    // Ending the session means clearing a cookie only the server can touch.
+    if (!onlineManager.isOnline()) {
+      toast.error('You need a connection to sign out.');
+      return;
+    }
+    await flushCheckIns(queryClient);
+    const waiting = checkInStore.getSnapshot().length;
+    if (waiting && !(await confirm({
+      title: `Sign out with ${waiting} unsynced check-in${waiting === 1 ? '' : 's'}?`,
+      message: 'They haven’t reached the server yet, and signing out removes them from this device.',
+      confirmLabel: 'Sign out anyway',
+    }))) return;
     await logout();
     router.push('/auth');
   };

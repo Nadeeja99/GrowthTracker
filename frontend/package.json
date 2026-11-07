@@ -10,12 +10,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:pwa": "next build && E2E_PWA=1 playwright test"
   },
   "dependencies": {
     "@sentry/browser": "^11.11.0",
     "@tanstack/react-query": "^5.104.5",
+    "@tanstack/react-query-persist-client": "^5.107.1",
     "clsx": "^2.1.1",
+    "idb-keyval": "^6.3.0",
     "lucide-react": "^1.61.0",
     "next": "^16.4.3",
     "prism-react-renderer": "^2.4.1",

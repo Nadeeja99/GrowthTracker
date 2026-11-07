@@ -5,11 +5,13 @@ import { PageError, combineQueries } from '@/components/ui/PageState';
 import { HabitsSkeleton } from '@/components/ui/Skeleton';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { useHabitMutations, useHabits } from '@/hooks/data/useHabits';
+import { useCheckIns } from '@/hooks/data/useCheckIns';
 
 export default function HabitsPage() {
   const { isMobile } = useDeviceDetection();
   const habits = useHabits();
   const m = useHabitMutations();
+  const checkIn = useCheckIns();
 
   const status = combineQueries(habits);
   if (status.isLoading) return <HabitsSkeleton />;
@@ -23,7 +25,7 @@ export default function HabitsPage() {
       onDeleteHabit={async id => { await m.remove.mutateAsync(id); }}
       onCompleteHabit={async (id, date) => {
         if (habits.data?.find(h => h.id === id)?.completedToday) return;
-        await m.complete.mutateAsync({ id, date });
+        checkIn.habit(id, date);
       }}
       isMobile={isMobile}
     />

@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
-import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React, { useEffect, useState } from 'react';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { Toaster } from '@/components/ui/Toaster';
 import { ApiError } from '@/lib/api';
 import { describeError, toast } from '@/lib/toast';
+import { registerServiceWorker } from '@/lib/serviceWorker';
 
 declare module '@tanstack/react-query' {
   interface Register {
@@ -39,6 +40,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       },
     }),
     defaultOptions: {
+      // Fail at once with a clear message instead of waiting silently for a
+      // connection. Check-ins, which do wait, have their own queue (lib/checkIns).
+      mutations: { networkMode: 'always' },
       queries: {
         staleTime: 30_000,
         // Retry transient failures only; client errors (incl. 429) won't succeed on retry.
@@ -48,6 +52,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       },
     },
   }));
+
+  useEffect(() => {
+    // It assumes it's online until told otherwise, and the app can open offline.
+    onlineManager.setOnline(navigator.onLine);
+    registerServiceWorker();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

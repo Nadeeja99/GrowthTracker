@@ -72,6 +72,15 @@ const envSchema = z
     // Error reporting. Without a DSN, errors only go to the logs.
     SENTRY_DSN: optionalSecret(z.string().url('SENTRY_DSN must be a URL')),
 
+    // Push notifications. Create the pair with `npx web-push generate-vapid-keys`.
+    // Without them, the Notifications section of Settings says they're off.
+    VAPID_PUBLIC_KEY: optionalSecret(z.string().min(40, 'VAPID_PUBLIC_KEY looks too short')),
+    VAPID_PRIVATE_KEY: optionalSecret(z.string().min(20, 'VAPID_PRIVATE_KEY looks too short')),
+    // Who push services contact about problems. Defaults to the app's URL.
+    VAPID_SUBJECT: optionalSecret(z.string().regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT must start with mailto: or https://')),
+    // Shared with the scheduled job that sends the digests (.github/workflows/digests.yml).
+    DIGEST_CRON_SECRET: optionalSecret(z.string().min(32, 'DIGEST_CRON_SECRET must be at least 32 characters')),
+
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
     BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
   })
@@ -86,6 +95,10 @@ const envSchema = z
   .refine(env => env.MAIL_PROVIDER !== 'outbox' || !!env.MAIL_OUTBOX_DIR, {
     message: 'MAIL_OUTBOX_DIR is required when MAIL_PROVIDER is outbox',
     path: ['MAIL_OUTBOX_DIR'],
+  })
+  .refine(env => !!env.VAPID_PUBLIC_KEY === !!env.VAPID_PRIVATE_KEY, {
+    message: 'VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be set together',
+    path: ['VAPID_PUBLIC_KEY'],
   })
   .refine(env => env.NODE_ENV !== 'production' || !!env.API_PROXY_SECRET, {
     message: 'API_PROXY_SECRET is required in production (the API must only be reachable through the app proxy)',

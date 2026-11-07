@@ -9,9 +9,10 @@ const expected = env.API_PROXY_SECRET ? Buffer.from(env.API_PROXY_SECRET) : null
  * shared secret header. Requests without it (direct calls to the API's public
  * URL) are refused, so X-Forwarded-For can only come from our own proxy chain
  * and per-IP rate limits can't be dodged by forging it. /health stays open for
- * the platform's health checks, and / for the app's wake-up ping.
+ * the platform's health checks, / for the app's wake-up ping, and the scheduled
+ * digest job has its own secret (requireCronSecret).
  */
-const OPEN_PATHS = ['/health', '/'];
+const OPEN_PATHS = ['/health', '/', '/internal/digests/run'];
 
 export const requireProxy = (req: Request, res: Response, next: NextFunction): void => {
   if (!expected || OPEN_PATHS.includes(req.path)) return next();

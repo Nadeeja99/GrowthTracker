@@ -5,6 +5,7 @@ import { Habit } from '@/types';
 import { apiClient } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { mapBackendHabitToFrontend } from '@/lib/habitMapper';
+import { withPendingHabits } from '@/lib/checkIns';
 
 type HabitInput = { name: string; description?: string; frequency: string; targetCount: number };
 
@@ -12,7 +13,7 @@ export function useHabits() {
   return useQuery({
     queryKey: queryKeys.habits,
     // One request: the list includes each habit's recent completions.
-    queryFn: async () => (await apiClient.getHabits()).data!.habits.map(mapBackendHabitToFrontend),
+    queryFn: async () => withPendingHabits((await apiClient.getHabits()).data!.habits.map(mapBackendHabitToFrontend)),
   });
 }
 
@@ -39,11 +40,5 @@ export function useHabitMutations() {
     onSuccess: (_res, id) => queryClient.setQueryData<Habit[]>(queryKeys.habits, old => old?.filter(h => h.id !== id)),
   });
 
-  const complete = useMutation({
-    meta: { action: 'complete the habit' },
-    mutationFn: ({ id, date }: { id: string; date: string }) => apiClient.completeHabit(id, { date }),
-    onSuccess: refetch, // streaks and "done today" are derived from completions
-  });
-
-  return { create, update, remove, complete };
+  return { create, update, remove };
 }

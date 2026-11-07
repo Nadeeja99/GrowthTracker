@@ -93,7 +93,7 @@ jobs:
       # would make `npm ci` skip devDependencies (ts-node, Playwright).
       API_PROXY_SECRET: ci-only-proxy-secret-0123456789abcdef0123456789ab
       PORT: 5000
-      CORS_ORIGIN: http://localhost:3100
+      CORS_ORIGIN: http://localhost:3100,http://localhost:3101
       # All browser traffic reaches the API from the Next.js server's IP, so the
       # whole suite shares one per-IP budget; lift it so the run isn't throttled.
       RATE_LIMIT_MAX_REQUESTS: 100000
@@ -126,6 +126,8 @@ jobs:
           npx prisma generate
           npx prisma migrate deploy
           npm run build
+          # Throwaway push keys, so the notification settings are switched on.
+          eval "$(node -e "const k = require('web-push').generateVAPIDKeys(); console.log('export VAPID_PUBLIC_KEY=' + k.publicKey + ' VAPID_PRIVATE_KEY=' + k.privateKey)")"
           # Same commands as Render's start: compiled seed, then the API in
           # production mode (it only accepts requests through the app's proxy).
           node dist/scripts/seed.js
@@ -143,6 +145,11 @@ jobs:
       - name: Run Playwright
         working-directory: frontend
         run: npm run test:e2e
+
+      # Against a production build, because the service worker only runs there.
+      - name: Run Playwright (offline mode and notifications)
+        working-directory: frontend
+        run: npm run test:e2e:pwa
 
       - name: Upload report
         if: failure()

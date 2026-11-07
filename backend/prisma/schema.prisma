@@ -23,6 +23,9 @@ model User {
   tokenVersion   Int      @default(0)
   // Opt-in: nothing is sent to the AI provider until the user turns this on.
   aiCoachEnabled Boolean  @default(false)
+  // Local times (HH:MM) for the push digests; null means off.
+  morningDigestAt String?
+  eveningDigestAt String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -37,6 +40,8 @@ model User {
   aiUsage             AiUsage[]
   weeklyReviews       WeeklyReview[]
   passwordResetTokens PasswordResetToken[]
+  pushSubscriptions   PushSubscription[]
+  digestDeliveries    DigestDelivery[]
 
   @@map("users")
 }
@@ -362,4 +367,34 @@ enum HabitFrequency {
   DAILY
   WEEKLY
   MONTHLY
+}
+
+// One browser or phone that agreed to receive notifications.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// Claims a digest for a day, so overlapping or repeated runs can't send it twice.
+model DigestDelivery {
+  id        String   @id @default(cuid())
+  kind      String
+  date      DateTime @db.Date
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, date])
+  @@index([createdAt])
+  @@map("digest_deliveries")
 }

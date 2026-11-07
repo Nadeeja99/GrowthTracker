@@ -9,13 +9,14 @@ import {
   mapFrontendActivityToBackend,
   mapFrontendActivityUpdateToBackend,
 } from '@/lib/scheduleMapper';
+import { withPendingBlocks } from '@/lib/checkIns';
 
 export type ActivityInput = Omit<ScheduleActivity, 'id' | 'taskTitle'>;
 
 export function useSchedules() {
   return useQuery({
     queryKey: queryKeys.schedules,
-    queryFn: async () => (await apiClient.getSchedules()).data!.schedules.map(mapBackendScheduleToFrontend),
+    queryFn: async () => withPendingBlocks((await apiClient.getSchedules()).data!.schedules.map(mapBackendScheduleToFrontend)),
   });
 }
 

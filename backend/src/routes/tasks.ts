@@ -158,7 +158,9 @@ router.put('/:id', async (req: AuthRequest, res) => {
   // clear it when the task is reopened so completion analytics stay correct.
   let completedAt: Date | null | undefined;
   if (validatedData.status === 'COMPLETED') {
-    completedAt = task.completedAt ?? new Date();
+    const now = new Date();
+    const reported = validatedData.completedAt ? new Date(validatedData.completedAt) : now;
+    completedAt = task.completedAt ?? (reported < now ? reported : now);
   } else if (validatedData.status !== undefined) {
     completedAt = null;
   }

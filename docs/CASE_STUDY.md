@@ -31,7 +31,8 @@ The work was to make it something you'd trust with your week, and that an employ
 | Backend | Validated config, rate limiting, request IDs, structured logs, ownership checks on every relation, versioned migrations, a demo seed. |
 | Auth | 15-minute in-memory access tokens, rotating httpOnly refresh cookie, "sign out everywhere" via a token version. |
 | Frontend | A server-state cache with targeted invalidation, a design system with light and dark themes, skeletons, error boundaries, toasts that say what failed and why. |
-| Quality | 110 API integration tests, 47 unit tests, 30 end-to-end journeys with accessibility checks, CI, and deploys gated on CI. |
+| Quality | 146 API integration tests, 68 unit tests, 45 end-to-end journeys with accessibility checks, CI, and deploys gated on CI. |
+| Phone | Works offline with check-ins that sync later, opens instantly from saved data, and sends morning and evening push digests. |
 | AI | A streaming coach, weekly review, week planner and goal breakdown, all on one guarded request pipeline. |
 
 ## Key decisions and trade-offs
@@ -101,12 +102,11 @@ Lighthouse scores 100 for accessibility on every page. Getting there surfaced a 
   - accessibility 100 and best practices 100 on every page
   - performance 92–96
   - layout shift close to 0 after making AI cards wait for their status instead of popping in
-- **Tests:** 110 backend, 47 frontend unit and 30 end-to-end. CI runs them all, and Render deploys only after CI passes.
+- **Tests:** 146 backend, 68 frontend unit and 45 end-to-end. CI runs them all, and Render deploys only after CI passes.
 - **Security:** the API answers only through the proxy, every relation is ownership-checked, configuration is validated at boot, and failed logins are rate-limited.
 
 ## Next steps
 
 - **Faster first paint on app pages.** Largest Contentful Paint is about 3 s on throttled mobile because the session restore and the first data fetch happen client-side, one after the other. Server-rendering the first view, with the session read on the server, would remove that wait.
 - **Evaluation for the AI features.** A small set of fixed user snapshots with graded expectations (grounded in the data? sensible plan?), run whenever the prompt or model changes.
-- **Error reporting** from the browser, and a usage dashboard over `ai_usage`.
-- **Notifications** (a morning plan and an evening review prompt) as a PWA push.
+- **A usage dashboard** over `ai_usage`.

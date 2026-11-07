@@ -1,15 +1,16 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { SubTask, Task } from '@/types';
+import { Task } from '@/types';
 import { apiClient, BackendTask } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
+import { withPendingTasks } from '@/lib/checkIns';
 import { mapBackendTaskToFrontend, mapFrontendTaskToBackend, mapFrontendTaskUpdateToBackend } from '@/lib/taskMapper';
 
 export function useTasks() {
   return useQuery({
     queryKey: queryKeys.tasks,
-    queryFn: async () => (await apiClient.getTasks()).data!.tasks.map(mapBackendTaskToFrontend),
+    queryFn: async () => withPendingTasks((await apiClient.getTasks()).data!.tasks.map(mapBackendTaskToFrontend)),
   });
 }
 
@@ -46,25 +47,5 @@ export function useTaskMutations() {
     },
   });
 
-  // Optimistic: the checkbox flips immediately and rolls back if the save fails.
-  const updateSubtask = useMutation({
-    meta: { action: 'update the subtask' },
-    mutationFn: ({ taskId, subtaskId, updates }: { taskId: string; subtaskId: string; updates: Partial<SubTask> }) =>
-      apiClient.updateSubtask(taskId, subtaskId, { title: updates.title, completed: updates.completed }),
-    onMutate: async ({ taskId, subtaskId, updates }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.tasks });
-      const previous = queryClient.getQueryData<Task[]>(queryKeys.tasks);
-      queryClient.setQueryData<Task[]>(queryKeys.tasks, old => old?.map(task =>
-        task.id === taskId
-          ? { ...task, subtasks: task.subtasks.map(st => (st.id === subtaskId ? { ...st, ...updates } : st)) }
-          : task
-      ));
-      return { previous };
-    },
-    onError: (_error, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(queryKeys.tasks, context.previous);
-    },
-  });
-
-  return { create, update, remove, updateSubtask };
+  return { create, update, remove };
 }

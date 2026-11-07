@@ -4,10 +4,15 @@ import { defineConfig, devices } from '@playwright/test'
 // `npm run db:seed` in backend/). Playwright starts the frontend itself, in dev
 // mode, so React's development-only warnings are caught too. The suite edits
 // the demo data (e.g. deletes a task), so re-seed before running it again.
-const PORT = Number(process.env.E2E_PORT ?? 3100)
+//
+// E2E_PWA=1 runs e2e/pwa/ against a production build instead (`npm run
+// test:e2e:pwa`), because the service worker only runs there.
+const PWA = !!process.env.E2E_PWA
+const PORT = Number(process.env.E2E_PORT ?? (PWA ? 3101 : 3100))
 
 export default defineConfig({
-  testDir: './e2e',
+  testDir: PWA ? './e2e/pwa' : './e2e',
+  testIgnore: PWA ? undefined : '**/pwa/**',
   // Tests share the demo account, so they run one at a time.
   workers: 1,
   fullyParallel: false,
@@ -23,10 +28,11 @@ export default defineConfig({
   },
   projects: [
     // E2E_CHANNEL=chrome uses an installed Chrome instead of Playwright's Chromium.
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], channel: process.env.E2E_CHANNEL } },
+    // Notifications need full Chromium: the default headless build always denies them.
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], channel: process.env.E2E_CHANNEL ?? (PWA ? 'chromium' : undefined) } },
   ],
   webServer: {
-    command: `npx next dev -p ${PORT}`,
+    command: `npx next ${PWA ? 'start' : 'dev'} -p ${PORT}`,
     url: `http://localhost:${PORT}/auth`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

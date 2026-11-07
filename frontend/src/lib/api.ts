@@ -264,6 +264,14 @@ export interface SuggestedMilestone {
   why: string;
 }
 
+export interface PushSettings {
+  /** False when this server has no push keys, or for the shared demo account. */
+  available: boolean;
+  publicKey: string | null;
+  morning: string | null;
+  evening: string | null;
+}
+
 /** An error response from the API, with its HTTP status. */
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -324,6 +332,10 @@ class ApiClient {
 
   private async request<T>(endpoint: string, options: RequestInit = {}, isRetry = false): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
+
+    // The app can open from saved data before the session is back: wait for it
+    // here instead of sending a request that's bound to get a 401.
+    if (endpoint !== '/auth/refresh') await this.refreshInFlight?.catch(() => undefined);
 
     const headers: HeadersInit = { ...this.jsonHeaders(), ...options.headers };
 
@@ -528,6 +540,7 @@ class ApiClient {
     dueDate?: string | null;
     estimatedTime?: number;
     actualTime?: number;
+    completedAt?: string;
     goalId?: string | null;
     tags?: string[];
     subtasks?: SubtaskWritePayload[];
@@ -739,6 +752,27 @@ class ApiClient {
       }
     }
     throw new ApiError('The reply was interrupted. Please try again.', 0);
+  }
+
+  // Push notifications
+  async getPushSettings(): Promise<ApiResponse<PushSettings>> {
+    return this.request('/push/settings');
+  }
+
+  async savePushTimes(times: { morning: string | null; evening: string | null }): Promise<ApiResponse> {
+    return this.request('/push/settings', { method: 'PUT', body: JSON.stringify(times) });
+  }
+
+  async savePushSubscription(subscription: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<ApiResponse> {
+    return this.request('/push/subscriptions', { method: 'POST', body: JSON.stringify(subscription) });
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<ApiResponse> {
+    return this.request('/push/subscriptions', { method: 'DELETE', body: JSON.stringify({ endpoint }) });
+  }
+
+  async sendTestPush(): Promise<ApiResponse> {
+    return this.request('/push/test', { method: 'POST' });
   }
 
   // AI features (share the coach's opt-in and daily budget)

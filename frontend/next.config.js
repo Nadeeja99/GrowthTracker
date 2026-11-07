@@ -15,6 +15,12 @@ const nextConfig = {
   },
   // Lets Sentry show real file names. The repository is public, so this reveals nothing new.
   productionBrowserSourceMaps: true,
+  async headers() {
+    return [
+      // Always check for a new service worker instead of trusting a cached copy.
+      { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }] },
+    ]
+  },
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${API_ORIGIN}/api/:path*` }]
   },

@@ -75,6 +75,14 @@ services:
       # Error reporting (README → Monitoring). Without it, errors only go to the logs.
       - key: SENTRY_DSN
         sync: false
+      # Push notifications (README → Phone app). Without the keys, offline mode
+      # still works and Settings says notifications aren't set up.
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: DIGEST_CRON_SECRET
+        sync: false # same value as the GitHub secret of that name
 
   - type: web
     name: growthtracker
