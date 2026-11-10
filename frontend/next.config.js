@@ -11,7 +11,7 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_API_WAKE_URL: `${API_ORIGIN}/`,
     // Ties error reports to the deploy that caused them.
-    NEXT_PUBLIC_RELEASE: process.env.RENDER_GIT_COMMIT ?? '',
+    NEXT_PUBLIC_RELEASE: process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.RENDER_GIT_COMMIT ?? '',
   },
   // Lets Sentry show real file names. The repository is public, so this reveals nothing new.
   productionBrowserSourceMaps: true,

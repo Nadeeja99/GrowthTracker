@@ -2,8 +2,9 @@ name: Uptime
 
 # Wakes the live app and fails (GitHub then emails you) if it doesn't come up
 # healthy. Six-hourly on purpose: a monitor pinging every few minutes would keep
-# both free Render services awake and use up the workspace's 750 free hours a
-# month. These checks also run a database query, which counts as activity for
+# the free Render API awake all month, using nearly all of the workspace's 750
+# free hours, and the demo account would stop being reset (that happens on cold
+# starts). These checks also run a database query, which counts as activity for
 # Supabase's free-plan pausing.
 
 on:
@@ -21,10 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      # Retries cover cold starts, which take about a minute per service.
+      # Retries cover the API's cold start, which takes about a minute.
       - name: API and database
         run: curl --silent --show-error --fail --retry 12 --retry-all-errors --retry-delay 15 --max-time 90 https://growthtracker-api.onrender.com/health
 
-      # After the API, because a request from another Render service doesn't wake it.
+      # After the API, so a failure here points at the app or its proxy rather
+      # than a cold start.
       - name: App, through its proxy to the API
-        run: curl --silent --show-error --fail --retry 12 --retry-all-errors --retry-delay 15 --max-time 90 https://growthtracker-q51x.onrender.com/api/health
+        run: curl --silent --show-error --fail --retry 12 --retry-all-errors --retry-delay 15 --max-time 90 https://growth-tracker-azure.vercel.app/api/health

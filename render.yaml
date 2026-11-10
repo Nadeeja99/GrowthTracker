@@ -1,5 +1,6 @@
-# Render Blueprint: the Next.js app and the Express API as two free web services.
-# The database is Supabase Postgres (Render's free Postgres expires after 30 days).
+# Render Blueprint: the Express API as a free web service. The Next.js app runs
+# on Vercel, and the database is Supabase Postgres (Render's free Postgres
+# expires after 30 days).
 #
 # The browser only talks to the app. Next.js forwards /api/* to the API with a
 # shared secret header, so the refresh cookie stays first-party and the API
@@ -8,9 +9,10 @@
 # Values marked `sync: false` are asked for once, when the Blueprint is created.
 #
 # Region: Singapore, the closest Render region to South Asia. Keep the Supabase
-# project in the same region (ap-southeast-1): every request makes several
-# API <-> database round trips. A service's region can't be changed after it's
-# created; changing it here means creating the services again.
+# project (ap-southeast-1) and the Vercel app's function region (sin1) there
+# too: every request makes several API <-> database round trips. A service's
+# region can't be changed after it's created; changing it here means creating
+# the service again.
 
 services:
   - type: web
@@ -36,9 +38,11 @@ services:
         value: '22'
       - key: NODE_ENV
         value: production
-      # client -> Render -> Next.js -> Render -> API
+      # Hops in front of the API when requests come through the app on Vercel.
+      # With 2, every visitor shared Vercel's outbound IPs. README → Deployment
+      # shows how to check it against the rate-limit headers.
       - key: TRUST_PROXY
-        value: '2'
+        value: '3'
       - key: DATABASE_URL
         sync: false # Supabase transaction pooler (port 6543, ?pgbouncer=true)
       - key: DIRECT_URL
@@ -47,10 +51,11 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
+      # Copy this value to the Vercel project's API_PROXY_SECRET.
       - key: API_PROXY_SECRET
         generateValue: true
       - key: CORS_ORIGIN
-        sync: false # the app's URL, e.g. https://growthtracker.onrender.com
+        sync: false # the app's URL, e.g. https://growth-tracker-azure.vercel.app
       - key: SEED_DEMO_ON_START
         value: 'true'
       # "Try the demo" on the sign-in page (pairs with NEXT_PUBLIC_DEMO_LOGIN on the app).
@@ -83,36 +88,3 @@ services:
         sync: false
       - key: DIGEST_CRON_SECRET
         sync: false # same value as the GitHub secret of that name
-
-  - type: web
-    name: growthtracker
-    runtime: node
-    plan: free
-    region: singapore
-    rootDir: frontend
-    buildCommand: npm ci --include=dev && npm run build
-    startCommand: npm start
-    healthCheckPath: /auth
-    autoDeployTrigger: checksPass
-    buildFilter:
-      paths: ['frontend/**']
-    envVars:
-      - key: NODE_VERSION
-        value: '22'
-      # Public URL of the API. Read at build time (it's baked into the rewrites),
-      # so redeploy the app after changing it.
-      - key: API_ORIGIN
-        sync: false # e.g. https://growthtracker-api.onrender.com
-      - key: API_PROXY_SECRET
-        fromService:
-          type: web
-          name: growthtracker-api
-          envVarKey: API_PROXY_SECRET
-      # Shows "Try the demo" (read at build time).
-      - key: NEXT_PUBLIC_DEMO_LOGIN
-        value: 'true'
-      # Error reporting in the browser (read at build time, so redeploy after changing it).
-      - key: NEXT_PUBLIC_SENTRY_DSN
-        sync: false
-      - key: NEXT_TELEMETRY_DISABLED
-        value: '1'
