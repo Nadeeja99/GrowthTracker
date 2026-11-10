@@ -6,7 +6,7 @@
 
 A full-stack planner with goals, time blocks, tasks, habits, a focus timer and analytics. On top sit OpenAI-powered features: a streaming coach, weekly reviews, week planning and milestone suggestions, all validated server-side before they touch your data.
 
-**Live demo:** [growthtracker-q51x.onrender.com](https://growthtracker-q51x.onrender.com). Press **Try the demo** for a seeded account; no sign-up needed. It runs on free hosting, so the first visit can take about a minute to wake up. · **[Case study](docs/CASE_STUDY.md)**
+**Live demo:** [growth-tracker-azure.vercel.app](https://growth-tracker-azure.vercel.app). Press **Try the demo** for a seeded account; no sign-up needed. The API runs on free hosting, so the first visit can take about a minute while it wakes up. · **[Case study](docs/CASE_STUDY.md)**
 
 <p align="center">
   <img src="docs/screenshots/coach.gif" alt="The AI coach streaming a reply that cites the user's goal hours, then adding its suggested time block to the plan" width="360">
@@ -33,7 +33,7 @@ A full-stack planner with goals, time blocks, tasks, habits, a focus timer and a
   - 236 API integration tests against real Postgres, including the real OpenAI SDK against a local fake of its streaming protocol
   - 151 unit tests
   - 56 Playwright journeys with axe-core accessibility checks, including the emailed password-reset link and using the app with the network cut
-  - CI runs all of it on every push, and Render deploys only after CI passes
+  - CI runs all of it on every push, and Vercel and Render deploy only after CI passes
 - **Accessible and fast:**
   - Lighthouse 100 for accessibility and best practices on every page, 92–96 for performance
   - zero axe violations in light and dark mode; keyboard-complete dialogs
@@ -42,14 +42,14 @@ A full-stack planner with goals, time blocks, tasks, habits, a focus timer and a
 
 ```mermaid
 flowchart LR
-  B[Browser] -->|pages + /api/*| W["Next.js 16 app<br/>(Render web service)"]
+  B[Browser] -->|pages + /api/*| W["Next.js 16 app<br/>(Vercel)"]
   W -->|"/api/* rewrite<br/>+ x-proxy-secret"| A["Express API<br/>(Render web service)"]
   A -->|Prisma| D[(Supabase Postgres)]
   A -->|"Responses API<br/>stream + structured output"| O[OpenAI]
-  GH[GitHub Actions CI] -.->|checks pass| R[Render auto-deploy]
+  GH[GitHub Actions CI] -.->|checks pass| R[Vercel + Render deploys]
 ```
 
-The browser only talks to the Next.js app, which forwards `/api/*` to the API with a shared secret. The API rejects anything that didn't come through the app. [Deployment](#deployment-render--supabase-free-tier) explains why: on `onrender.com` a cross-service cookie would be third-party.
+The browser only talks to the Next.js app, which forwards `/api/*` to the API with a shared secret. The API rejects anything that didn't come through the app. [Deployment](#deployment-vercel--render--supabase-free-tier) explains why: the app and the API are on different sites, so a cookie set by the API would be third-party.
 
 ---
 
@@ -182,7 +182,7 @@ GrowthTracker/
     └── tests/                 # Jest + Supertest integration tests
 ```
 
-`frontend/e2e/` holds the Playwright suite, `frontend/public/sw.js` the service worker, `.github/workflows/` the CI pipeline and scheduled jobs, and `render.yaml` the deployment Blueprint.
+`frontend/e2e/` holds the Playwright suite, `frontend/public/sw.js` the service worker, `.github/workflows/` the CI pipeline and scheduled jobs, and `render.yaml` the API's deployment Blueprint.
 
 ---
 
@@ -299,41 +299,52 @@ The backend tests run against a real Postgres database with pgvector available, 
 
 `npm run test:e2e:pwa` runs `frontend/e2e/pwa/` against a production build, because the service worker doesn't run in development. It needs the API to have `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (any generated pair).
 
-GitHub Actions runs all three suites, plus lint, type checks and production builds, on every push and pull request. The E2E job runs the API in production mode behind the Next.js proxy, the same setup used on Render.
+GitHub Actions runs all three suites, plus lint, type checks and production builds, on every push and pull request. The E2E job runs the API in production mode behind the Next.js proxy, the same setup as the live app.
 
 ---
 
-## Deployment (Render + Supabase, free tier)
+## Deployment (Vercel + Render + Supabase, free tier)
 
 ```
-browser ──► growthtracker.onrender.com (Next.js) ──/api/*──► growthtracker-api.onrender.com (Express) ──► Supabase Postgres
-                 adds x-proxy-secret                              rejects requests without it
+browser ──► growth-tracker-azure.vercel.app (Next.js) ──/api/*──► growthtracker-api.onrender.com (Express) ──► Supabase Postgres
+                 adds x-proxy-secret                                    rejects requests without it
 ```
 
-The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API, so the refresh cookie is first-party (`SameSite=Strict`). That matters because `onrender.com` is a public suffix: two Render subdomains count as different sites, and a cookie set by one is cross-site for the other. The API refuses any request that doesn't carry the shared `API_PROXY_SECRET`, which also means client IPs (used for rate limiting) can't be spoofed by calling it directly.
+The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API, so the refresh cookie is first-party (`SameSite=Strict`). That matters because the app (`vercel.app`) and the API (`onrender.com`) are different sites, and a cookie set by the API would be cross-site for the app. The API refuses any request that doesn't carry the shared `API_PROXY_SECRET`, which also means client IPs (used for rate limiting) can't be spoofed by calling it directly.
 
 ### 1. Database (Supabase)
-1. Create a project in the **same region as the Render services** (`render.yaml` uses Singapore, so pick Southeast Asia (Singapore), `ap-southeast-1`). Every request makes several API ↔ database round trips, so distance between them matters more than distance to you.
+1. Create a project in the **same region as the API** (`render.yaml` uses Singapore, so pick Southeast Asia (Singapore), `ap-southeast-1`). Every request makes several API ↔ database round trips, so distance between them matters more than distance to you.
 2. **Connect → ORMs → Prisma** gives two strings: the transaction pooler (port 6543) is `DATABASE_URL`, with `?pgbouncer=true` added; the session pooler (port 5432) is `DIRECT_URL`. Use the pooler hosts: Supabase's direct host is IPv6-only.
 3. **If the database was created earlier with `prisma db push`**, mark the baseline as applied once from your machine: `DATABASE_URL=… DIRECT_URL=… npm run db:migrate:baseline`. Render applies every later migration on start.
 
-### 2. Render
-1. Push to GitHub, then in Render choose **New → Blueprint** and select the repository. `render.yaml` creates both services.
+### 2. API (Render)
+1. Push to GitHub, then in Render choose **New → Blueprint** and select the repository. `render.yaml` creates the API service.
 2. Fill in the prompted values:
    - `DATABASE_URL` and `DIRECT_URL`: from step 1.
-   - `CORS_ORIGIN`: the app URL, e.g. `https://growthtracker.onrender.com`.
-   - `API_ORIGIN`: the API URL, e.g. `https://growthtracker-api.onrender.com`.
-
-   If Render adds a suffix to a service name, use the URLs shown in the dashboard. Correct them later under **Environment**, then redeploy the app, because `API_ORIGIN` is read at build time.
-3. Optional: paste your OpenAI key into `OPENAI_API_KEY` (API service). Leave it empty to deploy without the coach.
-4. JWT secrets and `API_PROXY_SECRET` are generated by Render. The app copies the proxy secret from the API service, so there is nothing to paste.
-5. Optional, for **Forgot password**: set `MAIL_PROVIDER`, `MAIL_API_KEY` and `MAIL_FROM` on the API service ([Email](#email-password-reset)).
-6. Optional, for error reports: set `SENTRY_DSN` on the API service and `NEXT_PUBLIC_SENTRY_DSN` on the app ([Monitoring](#monitoring)).
+   - `CORS_ORIGIN`: the app's URL from step 3, e.g. `https://growth-tracker-azure.vercel.app`. Fill it in once the app exists.
+3. Optional: paste your OpenAI key into `OPENAI_API_KEY`. Leave it empty to deploy without the coach.
+4. JWT secrets and `API_PROXY_SECRET` are generated by Render. Copy `API_PROXY_SECRET` for step 3.
+5. Optional, for **Forgot password**: set `MAIL_PROVIDER`, `MAIL_API_KEY` and `MAIL_FROM` ([Email](#email-password-reset)).
+6. Optional, for error reports: set `SENTRY_DSN` ([Monitoring](#monitoring)).
 7. Optional, for notifications: see [Phone app](#phone-app).
-8. Deploys run only after CI passes (`autoDeployTrigger: checksPass`), and each service rebuilds only when its own folder changes.
+8. Deploys run only after CI passes (`autoDeployTrigger: checksPass`), and only when `backend/` changes.
+
+### 3. App (Vercel)
+1. In Vercel choose **Add New → Project**, import the repository and set **Root Directory** to `frontend`. Next.js is detected.
+2. Add these variables for **Production** only, so preview builds can't reach the live API:
+   - `API_ORIGIN`: the API's URL, e.g. `https://growthtracker-api.onrender.com`.
+   - `API_PROXY_SECRET`: the value from step 2.
+   - `NEXT_PUBLIC_DEMO_LOGIN`: `true`, to show **Try the demo**.
+   - `NEXT_TELEMETRY_DISABLED`: `1`.
+   - Optional: `NEXT_PUBLIC_SENTRY_DSN` ([Monitoring](#monitoring)) and `NEXT_PUBLIC_SITE_URL` (a custom domain; the project's production URL is used otherwise).
+3. Deploy. Then, under **Settings**, set the function region to Singapore (`sin1`), next to the API, and Node.js to 22. `API_ORIGIN` and the `NEXT_PUBLIC_*` values are read at build time, so redeploy after changing any of them.
+4. Under **Settings → Deployment Checks**, require the `Frontend` and `End-to-end` CI jobs, so a deploy goes live only after CI passes.
+5. Set `CORS_ORIGIN` on the API to the app's URL (step 2).
+
+`TRUST_PROXY` in `render.yaml` matches this setup. To check it, call `/api/health` on the app a few times and watch the `RateLimit-Remaining` header: it should go down by one each time, also when the request carries a made-up `X-Forwarded-For` header. A count that jumps around means the value is too low (visitors share Vercel's outbound IPs); a fresh count for a made-up header means it's too high.
 
 ### Free-tier notes
-- Free services sleep after 15 minutes without traffic. The first visit afterwards waits about a minute while the app, and then the API, wake up.
+- The app on Vercel doesn't sleep. The API on Render sleeps after 15 minutes without traffic, and the first visit afterwards waits about a minute while it wakes up.
 - Free instances have no pre-deploy step, so migrations run at the start of the API's start command.
 - `SEED_DEMO_ON_START=true` rebuilds the demo account (`demo@growthtracker.dev` / `demo-password-1`) on every cold start, so its data stays dated around "today" and visitors' changes are reset. Set it to `false` to keep demo data between restarts. Only the demo user is touched.
 - Render's free Postgres expires after 30 days, which is why the database lives on Supabase.
@@ -349,13 +360,13 @@ Without email, everything works except **Forgot password**, which then says rese
 | `MAIL_API_KEY` | Brevo → **SMTP & API → API keys** | Resend → **API Keys** |
 | `MAIL_FROM` | The verified sender address | An address on your verified domain |
 
-Links in emails use `APP_URL`, which defaults to the first `CORS_ORIGIN`, so on Render there is nothing else to set. Locally with `MAIL_PROVIDER=none`, the API prints the reset link in its log instead of sending it.
+Links in emails use `APP_URL`, which defaults to the first `CORS_ORIGIN` (the app's URL), so there is nothing else to set. Locally with `MAIL_PROVIDER=none`, the API prints the reset link in its log instead of sending it.
 
 ### Monitoring
 **Is it up?** `.github/workflows/uptime.yml` checks the live app every six hours, and GitHub emails you if a check fails. It needs no setup and also runs by hand from **Actions → Uptime → Run workflow**.
 
 - It calls `/health` on the API, then `/api/health` on the app. The second goes through the proxy, so it proves the app, the shared secret, the API and the database all work together.
-- It's six-hourly on purpose. Render gives a workspace 750 free hours a month, so a monitor pinging both services every few minutes would keep them awake and get them suspended before the month ends.
+- It's six-hourly on purpose. A monitor pinging every few minutes would keep the API awake all month, using nearly all of the 750 free hours Render gives a workspace, and the demo account would stop being reset, because that happens on cold starts.
 - Each check runs a database query, which helps keep Supabase from pausing a quiet free project. Supabase doesn't guarantee a set amount of activity is enough, so opening the app now and then helps too.
 - GitHub turns off scheduled workflows after 60 days without repository activity, and emails you first.
 
@@ -483,7 +494,7 @@ How it works and what to expect:
 | `DIRECT_URL` | Direct (non-pooled) connection used by migrations | — |
 | `JWT_SECRET` | Secret for access tokens (min. 32 chars) | — |
 | `JWT_REFRESH_SECRET` | Secret for refresh tokens (min. 32 chars, must differ) | — |
-| `TRUST_PROXY` | Reverse-proxy hops in front of the API (`2` on Render behind the Next.js proxy) | `0` |
+| `TRUST_PROXY` | Reverse-proxy hops in front of the API (`3` on Render behind the app on Vercel) | `0` |
 | `API_PROXY_SECRET` | Shared with the frontend; when set, only proxied requests are served. Required in production | — |
 | `RATE_LIMIT_MAX_REQUESTS` | API requests per IP per window (15 min) | `600` |
 | `AUTH_RATE_LIMIT_MAX` | Failed login/register attempts per IP per window | `10` |
@@ -516,7 +527,7 @@ How it works and what to expect:
 | `API_PROXY_SECRET` | Sent to the API as `x-proxy-secret` on every proxied request | — |
 | `NEXT_PUBLIC_API_URL` | Optional: call an API directly instead of through the proxy | `/api` |
 | `NEXT_PUBLIC_DEMO_LOGIN` | Show **Try the demo** on the sign-in page (build time) | — |
-| `NEXT_PUBLIC_SITE_URL` | Public URL for link previews and the sitemap (Render's URL is used if unset) | — |
+| `NEXT_PUBLIC_SITE_URL` | Public URL for link previews and the sitemap (Vercel's production URL is used if unset) | — |
 | `NEXT_PUBLIC_SENTRY_DSN` | Reports browser errors to Sentry (build time) | — |
 
 ---

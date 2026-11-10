@@ -308,11 +308,11 @@ const NO_REFRESH_ENDPOINTS = [
   '/auth/password/forgot', '/auth/password/reset',
 ];
 
-// Render's free tier stops the API after 15 idle minutes. Requests forwarded by
-// the app's server don't start it again: Render answers them at once with its
-// own 502 page. A request straight from the browser does start it, so the app
-// pings the API once when it opens, and requests that arrive before it is up
-// wait for it and retry.
+// Render's free tier stops the API after 15 idle minutes. A request forwarded
+// by the app's proxy can then get Render's own 502 page instead of an API
+// response. A request straight from the browser starts it, so the app pings the
+// API once when it opens, and requests that arrive before it is up wait for it
+// and retry.
 const API_WAKE_URL = process.env.NEXT_PUBLIC_API_WAKE_URL;
 const WAKE_TIMEOUT_MS = 90_000;
 const WAKE_RETRY_DELAY_MS = 5_000;

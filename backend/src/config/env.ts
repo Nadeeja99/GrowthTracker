@@ -26,7 +26,8 @@ const envSchema = z
     CORS_ORIGIN: z.string().default('http://localhost:3000'),
     // Number of reverse-proxy hops in front of the app, needed for correct client
     // IPs (which per-IP rate limiting depends on). On Render behind the Next.js
-    // proxy: client -> Render -> Next.js -> Render -> API = 2.
+    // app on Vercel: 3. Too low and every visitor shares Vercel's outbound IPs;
+    // too high and a client can pick its own IP with X-Forwarded-For.
     TRUST_PROXY: numberFromEnv(0),
     // Shared with the Next.js app; when set, only requests carrying it are served.
     API_PROXY_SECRET: z.string().min(32, 'API_PROXY_SECRET must be at least 32 characters').optional(),
@@ -66,7 +67,7 @@ const envSchema = z
     MAIL_FROM_NAME: z.string().min(1).default('GrowthTracker'),
     MAIL_OUTBOX_DIR: optionalSecret(z.string().min(1)),
     // Public URL of the app, for links in emails. Defaults to the first CORS origin.
-    APP_URL: optionalSecret(z.string().url('APP_URL must be a URL like https://growthtracker.onrender.com')),
+    APP_URL: optionalSecret(z.string().url('APP_URL must be a URL like https://growth-tracker-azure.vercel.app')),
     // "Forgot password" requests per IP per window (every request counts).
     PASSWORD_RESET_RATE_LIMIT_MAX: numberFromEnv(5),
 

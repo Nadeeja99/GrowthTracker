@@ -2,7 +2,7 @@
 
 A personal planning app taken from a working prototype to a deployable, tested product, with AI features built to be safe around real user data.
 
-**Stack:** Next.js 16 · React 19 · TanStack Query · Tailwind · Express · Prisma · PostgreSQL (Supabase) · OpenAI Responses API · Jest · Vitest · Playwright · GitHub Actions · Render
+**Stack:** Next.js 16 · React 19 · TanStack Query · Tailwind · Express · Prisma · PostgreSQL (Supabase) · OpenAI Responses API · Jest · Vitest · Playwright · GitHub Actions · Vercel · Render
 
 ---
 
@@ -40,13 +40,13 @@ The work was to make it something you'd trust with your week, and that an employ
 ## Key decisions and trade-offs
 
 ### 1. A same-origin proxy instead of cross-site cookies
-The app and the API are separate services. On Render both live on `onrender.com`, which is on the Public Suffix List, so `app.onrender.com` and `api.onrender.com` are *different sites*. A refresh cookie set by the API would be third-party, and browsers increasingly block those.
+The app and the API are separate services on different sites: the app on `vercel.app`, the API on `onrender.com`. (Both are on the Public Suffix List, so even two subdomains of either would be *different sites*.) A refresh cookie set by the API would be third-party, and browsers increasingly block those.
 
 **Decision:** the browser only talks to the Next.js app, which rewrites `/api/*` to the API. The cookie stays first-party with `SameSite=Strict`.
 
 **Consequences, handled in code:**
 - The API must not be reachable around the proxy. It rejects requests without a shared secret header, which the Next.js proxy injects.
-- Rate limiting needs the real client IP through two hops (`trust proxy = 2`). It can't be spoofed, because direct calls are rejected.
+- Rate limiting needs the real client IP through the proxy chain (`trust proxy = 3`). It can't be spoofed, because direct calls are rejected. Moving the app to Vercel added a hop, which showed up as one client's requests landing in several rate-limit buckets.
 
 ### 2. Tokens: short-lived, in memory, rotated
 The access token never touches `localStorage`. On page load the app restores the session from the httpOnly refresh cookie.
@@ -81,12 +81,12 @@ CI has no API key. There are two layers:
 The same fake server powers the Playwright suite, which drives the coach, weekly review and planner in a real browser.
 
 ### 5. Free hosting, honestly
-Everything runs on free tiers: Render for both services and Supabase for Postgres (Render's free database expires after 30 days).
+Everything runs on free tiers: Vercel for the app, Render for the API and Supabase for Postgres (Render's free database expires after 30 days). The app moved from Render to Vercel so that it no longer sleeps; only the API does.
 
 | Constraint | How it's handled |
 |---|---|
 | No pre-deploy step on the free tier | Migrations run at the start of the API's start command. |
-| Free services sleep after 15 idle minutes | The first visit takes about a minute. Sign-in says "waking up the server" after 4 seconds instead of looking broken, and the session check on page load starts waking the API immediately. |
+| The free API sleeps after 15 idle minutes | The first visit takes about a minute. Sign-in says "waking up the server" after 4 seconds instead of looking broken, and the session check on page load starts waking the API immediately. |
 | A shared demo account | **Try the demo** signs in without a password. The demo is re-seeded on each cold start, so its dates stay current and visitors' changes are undone. "Sign out everywhere" is disabled there, so one visitor can't sign out the rest. |
 
 ### 6. Accessibility as a test, not a checklist
@@ -115,7 +115,7 @@ Daily notes are short and personal. Keyword search misses "exhausted" when you a
   - accessibility 100 and best practices 100 on every page
   - performance 92–96
   - layout shift close to 0 after making AI cards wait for their status instead of popping in
-- **Tests:** 236 backend, 151 frontend unit and 56 end-to-end. CI runs them all, and Render deploys only after CI passes.
+- **Tests:** 236 backend, 151 frontend unit and 56 end-to-end. CI runs them all, and Vercel and Render deploy only after CI passes.
 - **Security:** the API answers only through the proxy, every relation is ownership-checked, configuration is validated at boot, and failed logins are rate-limited.
 
 ## Next steps
