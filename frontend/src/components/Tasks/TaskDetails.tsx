@@ -1,10 +1,18 @@
 'use client';
 
 import React from 'react';
-import { X, Edit, Trash2, CheckSquare, Square, Calendar, Flag } from 'lucide-react';
+import { X, Edit, Trash2, CheckSquare, Square, Calendar, Flag, Clock } from 'lucide-react';
 import { Task, Goal } from '@/types';
 import { cn } from '@/lib/utils';
+import { lengthLabel } from '@/lib/dates';
 import { useDialog } from '@/hooks/useDialog';
+
+/** "Estimated 1h · logged 1h 15m", or whichever half is known. */
+function timeSummary(estimated?: number | null, logged?: number) {
+  if (estimated && logged) return `Estimated ${lengthLabel(estimated)} · logged ${lengthLabel(logged)}`;
+  if (estimated) return `Estimated ${lengthLabel(estimated)}`;
+  return `Logged ${lengthLabel(logged ?? 0)}`;
+}
 
 interface TaskDetailsProps {
   task: Task;
@@ -224,6 +232,19 @@ export function TaskDetails({
                   )}>
                     {getDueDateText(task.dueDate)}
                   </span>
+                </div>
+              </div>
+            )}
+
+            {/* Time: the estimate, and what the focus timer logged */}
+            {(task.estimatedTime || task.actualTime) && (
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  Time
+                </h4>
+                <div className="flex items-center space-x-2 text-gray-900 dark:text-white">
+                  <Clock className="w-5 h-5 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+                  <span>{timeSummary(task.estimatedTime, task.actualTime)}</span>
                 </div>
               </div>
             )}

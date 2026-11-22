@@ -40,7 +40,8 @@ export function mapBackendTaskToFrontend(backendTask: BackendTask): Task {
     completedAt: backendTask.completedAt,
     subtasks: (backendTask.subtasks ?? []).map(st => ({ id: st.id, title: st.title, completed: st.completed })),
     tags: backendTask.tags?.map(t => t.name) ?? [],
-    estimatedTime: backendTask.estimatedTime,
+    estimatedTime: backendTask.estimatedTime ?? undefined,
+    actualTime: backendTask.actualTime ?? undefined,
   };
 }
 
@@ -66,7 +67,7 @@ export function mapFrontendTaskToBackend(task: Omit<Task, 'id' | 'createdAt'>): 
     status: STATUS_TO_BACKEND[task.status] ?? 'PENDING',
     dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : undefined,
     goalId: task.goalId || undefined,
-    estimatedTime: task.estimatedTime,
+    estimatedTime: task.estimatedTime ?? undefined,
     tags: task.tags,
     subtasks: toSubtaskPayload(task.subtasks),
   };
@@ -79,7 +80,7 @@ export function mapFrontendTaskUpdateToBackend(updates: Partial<Task>): {
   status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   dueDate?: string | null;
   goalId?: string | null;
-  estimatedTime?: number;
+  estimatedTime?: number | null;
   tags?: string[];
   subtasks?: SubtaskWritePayload[];
 } {

@@ -4,7 +4,7 @@
 
 **Plan the week, do the day, review it, and see what actually moves your goals,** with an AI coach that reads your own data.
 
-A full-stack planner with goals, time blocks, tasks, habits, a focus timer and analytics. On top sit OpenAI-powered features: a streaming coach, weekly reviews, week planning and milestone suggestions, all validated server-side before they touch your data.
+A full-stack planner with goals, time blocks, tasks, habits, a focus timer and analytics. On top sit OpenAI-powered features: a streaming coach, weekly reviews, week planning and milestone suggestions, all validated server-side before they touch your data. A machine-learning model, built and evaluated in Python, learns how long your tasks really take compared with your estimates.
 
 **Live demo:** [growth-tracker-azure.vercel.app](https://growth-tracker-azure.vercel.app). Press **Try the demo** for a seeded account; no sign-up needed. The API runs on free hosting, so the first visit can take about a minute while it wakes up. · **[Case study](docs/CASE_STUDY.md)**
 
@@ -22,6 +22,11 @@ A full-stack planner with goals, time blocks, tasks, habits, a focus timer and a
   - every answer re-validated with zod, and rules the model can't be trusted with enforced in code (no overlapping blocks, nothing in the past, only your own goals)
   - opt-in, per-user and global daily caps, and a usage log
   - answers from your own journal through hybrid retrieval (Postgres full-text search plus pgvector embeddings, merged by reciprocal rank fusion), where the server checks every citation against the notes the model was actually given
+- **Machine learning, end to end** ([model card](ml/MODEL_CARD.md) · [notebook](ml/notebooks/estimate_calibration.ipynb)):
+  - a mixed-effects model that learns how far each person's estimates run over, with personal and per-goal adjustments that grow more trusted as their record grows
+  - trained in Python on simulated users, evaluated the way the app is used (each task predicted only from earlier ones), and compared against baselines and gradient boosting
+  - 80% ranges from conformal prediction that hold on unseen users (81% achieved)
+  - served from a 1 KB JSON file inside the API, with a parity test holding the TypeScript to the Python, and a CI check that the committed model matches a fresh run
 - **Production-shaped:**
   - same-origin proxy, so the auth cookie stays first-party; httpOnly rotating refresh tokens and an in-memory access token
   - rate limiting, request IDs and structured logs
@@ -30,9 +35,10 @@ A full-stack planner with goals, time blocks, tasks, habits, a focus timer and a
   - Row Level Security on every table
   - you own your data: password reset by email, a full JSON export, and account deletion
 - **Tested end to end:**
-  - 236 API integration tests against real Postgres, including the real OpenAI SDK against a local fake of its streaming protocol
-  - 151 unit tests
-  - 56 Playwright journeys with axe-core accessibility checks, including the emailed password-reset link and using the app with the network cut
+  - 294 API integration tests against real Postgres, including the real OpenAI SDK against a local fake of its streaming protocol
+  - 178 unit tests
+  - 25 Python tests for the model, including running the analysis notebook
+  - 59 Playwright journeys with axe-core accessibility checks, including the emailed password-reset link and using the app with the network cut
   - CI runs all of it on every push, and Vercel and Render deploy only after CI passes
 - **Accessible and fast:**
   - Lighthouse 100 for accessibility and best practices on every page, 92–96 for performance
@@ -46,6 +52,7 @@ flowchart LR
   W -->|"/api/* rewrite<br/>+ x-proxy-secret"| A["Express API<br/>(Render web service)"]
   A -->|Prisma| D[(Supabase Postgres)]
   A -->|"Responses API<br/>stream + structured output"| O[OpenAI]
+  ML["Python pipeline<br/>(ml/)"] -.->|"model.json<br/>(committed)"| A
   GH[GitHub Actions CI] -.->|checks pass| R[Vercel + Render deploys]
 ```
 
@@ -63,7 +70,8 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 - 7-day completion strip and weekly hours per goal (planned target vs. actual)
 
 ### Plan
-- **Tasks** with saved subtasks, tags, priority (low / medium / high), due dates and goal links
+- **Tasks** with saved subtasks, tags, priority (low / medium / high), due dates, estimates and goal links
+- **Estimate suggestions**: type an estimate and see how long tasks like it usually take *you*, with a range ("about 1h 25m; 8 in 10 take between 1h 10m and 1h 50m"), from your own finished, timed tasks. One tap uses it. See [how it works](#estimate-suggestions-how-the-model-works).
 - **Timeline**: week calendar and hour-by-hour day view of time blocks; block statuses pending, in-progress, completed, skipped, rescheduled
 - **Schedule a task** straight onto the timeline (prefilled block linked to the task)
 - **Recurring blocks**: date range + weekdays, created in a single bulk request
@@ -96,7 +104,7 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 
 ### Focus timer (available everywhere)
 - Pomodoro timer in a slide-over panel that **keeps running while you switch tabs**; the header shows the countdown
-- Start it from a task or a planned block; every interval (stopped-early ones after 1 minute) is saved and counts toward the goal's hours and the task's logged time
+- Start it from a task or a planned block; every interval (stopped-early ones after 1 minute) is saved and counts toward the goal's hours and the task's logged time, which is what estimate suggestions learn from
 - Accurate in background tabs (wall-clock based)
 
 ### Everywhere
@@ -145,6 +153,16 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 | [Winston](https://github.com/winstonjs/winston) | Logging |
 | [OpenAI Node SDK](https://github.com/openai/openai-node) | AI coach (Responses API, streaming, strict function calling) |
 
+### Machine learning
+| Technology | Purpose |
+|---|---|
+| Python 3.13 + [uv](https://docs.astral.sh/uv/) | Locked, reproducible environment |
+| [statsmodels](https://www.statsmodels.org/) | Linear mixed model, fitted by REML |
+| [pandas](https://pandas.pydata.org/) / [NumPy](https://numpy.org/) | Data handling |
+| [scikit-learn](https://scikit-learn.org/) | Gradient boosting, as a comparison |
+| [Matplotlib](https://matplotlib.org/) + Jupyter | Analysis notebook and model card charts |
+| [pytest](https://pytest.org/) + [Ruff](https://docs.astral.sh/ruff/) | Tests, lint and formatting |
+
 ---
 
 ## Project Structure
@@ -171,6 +189,12 @@ GrowthTracker/
 │       ├── lib/               # API client, mappers, utilities
 │       └── types/             # TypeScript type definitions
 │
+├── ml/                        # Python: estimate-calibration model
+│   ├── src/growthtracker_ml/  # Simulator, mixed model, evaluation, export
+│   ├── notebooks/             # The analysis, committed with outputs
+│   ├── reports/               # metrics.json and the model card's charts
+│   └── MODEL_CARD.md
+│
 └── backend/                   # Express API server
     ├── prisma/
     │   └── schema.prisma      # Database schema
@@ -191,6 +215,7 @@ GrowthTracker/
 ### Prerequisites
 
 - Node.js 22+
+- Optional, only to retrain the model: [uv](https://docs.astral.sh/uv/) (see [`ml/README.md`](ml/README.md))
 - PostgreSQL 14+ with the [pgvector](https://github.com/pgvector/pgvector) extension available: Supabase includes it, and the Docker image `pgvector/pgvector:pg16` works locally. A plain Postgres install fails on the `journal_search` migration until pgvector is installed.
 
 ### 1. Clone the repository
@@ -287,19 +312,37 @@ Searching is free and works without AI. Asking uses the same opt-in and daily bu
 - **Cost:** `text-embedding-3-small` runs at about 62,500 pages per dollar, so indexing a year of notes costs a fraction of a cent. Vectors are stored at 512 dimensions rather than 1,536 to keep them small. Embedding tokens are recorded in the usage log but don't spend daily requests.
 - **Limit:** quality with real embeddings hasn't been measured yet. An evaluation set is planned as part of Phase 14.
 
+---
+
+## Estimate suggestions: how the model works
+
+```
+ml/ (Python, offline)                                  backend/ (API, per request)
+simulated users ─► mixed model (REML) ─► model.json ─► your 50 latest timed tasks ─► "about 1h 25m (1h 10m–1h 50m)"
+                   tuned + tested by user               + closed-form personal offsets
+```
+
+- **The model** predicts log(actual ÷ estimate) from task size, priority, subtasks and due date, plus a personal adjustment and one per goal. Those adjustments are shrunk towards zero when there's little history, so three timed tasks nudge the answer and fifty mostly decide it. Details, numbers and limitations are in the **[model card](ml/MODEL_CARD.md)**.
+- **Evaluated as it's used.** Each held-out user's tasks are replayed in order, and every prediction uses only earlier tasks. On 80 test users it cut the average miss from 36.8 to 26.2 minutes, against a noise floor of 24.7. It also beat each person's own median overrun (28.6) and did as well as gradient boosting.
+- **Honest about its data.** It's trained on simulated users, because no real dataset exists. Suggestions appear only after 3 of your own timed tasks, the point where your record outweighs the population average.
+- **Cheap and private.** No AI provider is involved: the API loads a 1 KB JSON file at startup, and each suggestion is one small query for your recent tasks plus a few lines of arithmetic. Nothing leaves the server, and it isn't tied to the coach's opt-in.
+- **Kept in sync.** The Python pipeline writes the model and 29 test cases; a backend test holds the TypeScript implementation to them to 9 decimal places, and CI fails if the committed model doesn't match a fresh, deterministic training run. The API refuses to start with a model file that doesn't match its code.
+- **Try it on your data:** download your data in Settings, then `cd ml && uv run growthtracker-ml evaluate-export growthtracker-export.json` scores the model on your own tasks, locally.
+
 ## Testing
 
 | Suite | Command | What it covers |
 |---|---|---|
-| Backend integration (Jest + Supertest) | `cd backend && TEST_DATABASE_URL=postgresql://…/growthtracker_test npm test` | Auth and token rotation, access control between users (IDOR), validation, goals/tasks/tracking endpoints, rate limiting, proxy gate, time-zone maths, demo seed, password change/reset (hashed single-use links, rate limits), data export and account deletion, Row Level Security on every table, AI coach and features (opt-in, shared quotas, streaming, structured output validation, plan overlap and window rules, DST-safe times, schema/validator sync, the real OpenAI SDK against a fake server) |
-| Frontend unit (Vitest + Testing Library) | `cd frontend && npm test` | API client session refresh, coach SSE parsing, data mappers, toast store, focus timer, dialog focus trap (incl. React StrictMode), password rules, safe rendering of coach text |
-| End-to-end (Playwright + axe-core) | `cd frontend && npm run test:e2e` | Zero WCAG 2.1 AA violations on every page in light and dark mode, dialog keyboard behaviour, error toasts, skeletons, 404, delete confirmation, no React console warnings, coach chat (stream, stop, add a suggestion, opt out), weekly review, plan my week, milestone suggestions, change password, the emailed reset link end to end, data download, account deletion |
+| Backend integration (Jest + Supertest) | `cd backend && TEST_DATABASE_URL=postgresql://…/growthtracker_test npm test` | Auth and token rotation, access control between users (IDOR), validation, goals/tasks/tracking endpoints, rate limiting, proxy gate, time-zone maths, demo seed, password change/reset (hashed single-use links, rate limits), data export and account deletion, Row Level Security on every table, estimate suggestions (only your own finished, timed tasks; parity with the Python model), AI coach and features (opt-in, shared quotas, streaming, structured output validation, plan overlap and window rules, DST-safe times, schema/validator sync, the real OpenAI SDK against a fake server) |
+| Frontend unit (Vitest + Testing Library) | `cd frontend && npm test` | API client session refresh, coach SSE parsing, data mappers, toast store, focus timer, dialog focus trap (incl. React StrictMode), password rules, safe rendering of coach text, estimate suggestions (waiting for typing to pause, staying hidden on errors) and the estimate field |
+| ML (pytest + Ruff) | `cd ml && uv run pytest` | Feature and target limits, the closed-form offsets against statsmodels' own estimates, no use of later tasks when evaluating, conformal coverage, data export parsing, the notebook running top to bottom; `uv run growthtracker-ml check` confirms the committed model matches a fresh training run |
+| End-to-end (Playwright + axe-core) | `cd frontend && npm run test:e2e` | Zero WCAG 2.1 AA violations on every page in light and dark mode, dialog keyboard behaviour, error toasts, skeletons, 404, delete confirmation, no React console warnings, coach chat (stream, stop, add a suggestion, opt out), weekly review, plan my week, milestone suggestions, estimate suggestions, change password, the emailed reset link end to end, data download, account deletion |
 
-The backend tests run against a real Postgres database with pgvector available, whose name must end in `_test`; every table is truncated between suites. The E2E suite needs the API running with the demo seed (and, for the coach tests, `OPENAI_BASE_URL` pointing at the fake OpenAI server; for the reset-link test, `MAIL_PROVIDER=outbox` with `MAIL_OUTBOX_DIR` and the same folder in `E2E_MAIL_OUTBOX`) and starts the frontend itself (`API_ORIGIN` points it at the API; `E2E_CHANNEL=chrome` uses your installed Chrome instead of downloading Chromium). It changes the demo data, so re-run `npm run db:seed` before running it again.
+The backend tests run against a real Postgres database with pgvector available, whose name must end in `_test`; every table is truncated between suites. The suite sets that database's time zone to UTC+14, so SQL that only works in UTC fails in tests rather than in production. The E2E suite needs the API running with the demo seed (and, for the coach tests, `OPENAI_BASE_URL` pointing at the fake OpenAI server; for the reset-link test, `MAIL_PROVIDER=outbox` with `MAIL_OUTBOX_DIR` and the same folder in `E2E_MAIL_OUTBOX`) and starts the frontend itself (`API_ORIGIN` points it at the API; `E2E_CHANNEL=chrome` uses your installed Chrome instead of downloading Chromium). It changes the demo data, so re-run `npm run db:seed` before running it again.
 
 `npm run test:e2e:pwa` runs `frontend/e2e/pwa/` against a production build, because the service worker doesn't run in development. It needs the API to have `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` (any generated pair).
 
-GitHub Actions runs all three suites, plus lint, type checks and production builds, on every push and pull request. The E2E job runs the API in production mode behind the Next.js proxy, the same setup as the live app.
+GitHub Actions runs all four suites, plus lint, type checks and production builds, on every push and pull request. The E2E job runs the API in production mode behind the Next.js proxy, the same setup as the live app.
 
 ---
 
@@ -477,6 +520,7 @@ How it works and what to expect:
 | POST | `/api/ai/goals/:id/milestones` | Suggest milestones for a goal |
 | POST | `/api/journal/search` | Find daily review notes by keyword (free, no AI) |
 | POST | `/api/journal/ask` | Answer a question from the journal, streamed as Server-Sent Events |
+| GET | `/api/estimates` | How long a task like this usually takes you (`?minutes=&priority=&subtasks=&hasDueDate=&goalId=`), from your own timed tasks |
 | GET | `/api/analytics/overview` | Analytics summary |
 | GET | `/api/analytics/goal-progress` | Per-goal progress analytics |
 | GET | `/api/analytics/weekly-trends` | Weekly task and habit trends |

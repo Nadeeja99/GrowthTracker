@@ -33,6 +33,9 @@ const timeZoneSchema = z.string().max(64).refine(isValidTimeZone, 'Invalid IANA 
 const dateKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
 const prioritySchema = z.enum(['LOW', 'MEDIUM', 'HIGH']);
 
+// Task estimates: whole minutes (the column is an integer), at most a day.
+const minutesSchema = z.number().int('Use whole minutes').min(1).max(1440);
+
 export const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   username: z.string().min(3).max(30),
@@ -141,7 +144,7 @@ export const createTaskSchema = z.object({
   description: z.string().max(500).optional(),
   priority: prioritySchema.default('MEDIUM'),
   dueDate: z.string().datetime().optional(),
-  estimatedTime: z.number().min(1).optional(),
+  estimatedTime: minutesSchema.optional(),
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).default('PENDING'),
   goalId: z.string().optional(),
   tags: tagsSchema.optional(),
@@ -154,8 +157,9 @@ export const updateTaskSchema = z.object({
   priority: prioritySchema.optional(),
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
   dueDate: z.string().datetime().nullable().optional(),
-  estimatedTime: z.number().min(1).optional(),
-  actualTime: z.number().min(1).optional(),
+  // null clears the estimate.
+  estimatedTime: minutesSchema.nullable().optional(),
+  actualTime: z.number().int().min(1).optional(),
   // When a check-in made offline really happened; it reaches the server later.
   completedAt: z.string().datetime().optional(),
   goalId: z.string().optional().nullable(),
@@ -284,6 +288,15 @@ export const createFocusSessionSchema = z.object({
 
 export const journalSearchSchema = z.object({
   query: z.string().trim().min(1, 'Type something to search for').max(200),
+});
+
+export const estimateQuerySchema = z.object({
+  minutes: z.coerce.number().pipe(minutesSchema),
+  priority: prioritySchema.default('MEDIUM'),
+  subtasks: z.coerce.number().int().min(0).max(50).default(0),
+  hasDueDate: z.enum(['true', 'false']).default('false').transform(v => v === 'true'),
+  goalId: z.string().min(1).max(64).optional(),
+  excludeTaskId: z.string().min(1).max(64).optional(),
 });
 
 export const journalAskSchema = z.object({

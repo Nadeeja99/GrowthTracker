@@ -136,13 +136,42 @@ export interface BackendTask {
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   dueDate?: string;
   completedAt?: string;
-  estimatedTime?: number;
-  actualTime?: number;
+  estimatedTime?: number | null;
+  actualTime?: number | null;
   goalId?: string;
   createdAt: string;
   updatedAt: string;
   tags?: Array<{ name: string }>;
   subtasks?: BackendSubtask[];
+}
+
+export interface EstimateParams {
+  minutes: number;
+  priority: BackendPriority;
+  subtasks: number;
+  hasDueDate: boolean;
+  goalId?: string;
+  /** The task being edited, so it isn't used to predict itself. */
+  excludeTaskId?: string;
+}
+
+export interface EstimateSuggestion {
+  minutes: number;
+  suggestedMinutes: number;
+  lowMinutes: number;
+  highMinutes: number;
+  ratio: number;
+  /** Share of tasks the low–high range is expected to contain (0.8). */
+  coverage: number;
+  basedOn: { tasks: number; goalTasks: number };
+}
+
+export interface EstimateResult {
+  /** null until the person has finished `minHistory` timed tasks. */
+  estimate: EstimateSuggestion | null;
+  timedTasks: number;
+  minHistory: number;
+  modelVersion: string;
 }
 
 export interface BackendSchedule {
@@ -560,7 +589,7 @@ class ApiClient {
     priority?: string;
     status?: string;
     dueDate?: string | null;
-    estimatedTime?: number;
+    estimatedTime?: number | null;
     actualTime?: number;
     completedAt?: string;
     goalId?: string | null;
@@ -776,6 +805,19 @@ class ApiClient {
       }
     }
     throw new ApiError('The reply was interrupted. Please try again.', 0);
+  }
+
+  // Estimate suggestions, from the person's own finished, timed tasks
+  async getEstimate(params: EstimateParams, signal?: AbortSignal): Promise<ApiResponse<EstimateResult>> {
+    const query = new URLSearchParams({
+      minutes: String(params.minutes),
+      priority: params.priority,
+      subtasks: String(params.subtasks),
+      hasDueDate: String(params.hasDueDate),
+      ...(params.goalId && { goalId: params.goalId }),
+      ...(params.excludeTaskId && { excludeTaskId: params.excludeTaskId }),
+    });
+    return this.request(`/estimates?${query}`, { signal });
   }
 
   // Journal (the notes in daily reviews)

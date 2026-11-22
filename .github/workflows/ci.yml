@@ -68,6 +68,28 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  ml:
+    name: ML (lint, tests, notebook, reproducible model)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: ml/uv.lock
+      # Python 3.13 (from .python-version) and the exact locked packages.
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      # Includes running the notebook top to bottom.
+      - run: uv run pytest
+      # The committed model.json, parity cases and metrics must match a fresh,
+      # deterministic training run, so the API never serves a stale model.
+      - run: uv run growthtracker-ml check
+
   e2e:
     name: End-to-end (Playwright + axe)
     runs-on: ubuntu-latest

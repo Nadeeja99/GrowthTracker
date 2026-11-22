@@ -28,6 +28,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     // (A first load that fails has no data, so the page shows its own error.)
     queryCache: new QueryCache({
       onError: (error, query) => {
+        // Optional extras (like estimate suggestions) just stay hidden.
+        if (query.meta?.silent) return;
         if (query.state.data !== undefined) toast.error(`Couldn’t refresh your data. ${describeError(error)}`);
       },
     }),

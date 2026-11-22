@@ -6,6 +6,18 @@ import { Task, Goal, SubTask } from '@/types';
 import { cn } from '@/lib/utils';
 import { submitOnModEnter } from '@/lib/forms';
 import { useDialog } from '@/hooks/useDialog';
+import { EstimateSuggestion } from './EstimateSuggestion';
+
+const PRIORITY_TO_API = { low: 'LOW', medium: 'MEDIUM', high: 'HIGH' } as const;
+
+/** Whole minutes, 1 to 1440; null for empty; 'invalid' for anything else. */
+export function parseEstimate(text: string): number | null | 'invalid' {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  if (!/^\d+$/.test(trimmed)) return 'invalid';
+  const minutes = Number(trimmed);
+  return minutes >= 1 && minutes <= 1440 ? minutes : 'invalid';
+}
 
 interface TaskFormProps {
   goals: Goal[];
@@ -35,6 +47,9 @@ export function TaskForm({
     subtasks: task ? task.subtasks.map(st => ({ ...st })) : ([] as SubTask[]),
   }));
 
+  const [estimate, setEstimate] = useState(() => (task?.estimatedTime ? String(task.estimatedTime) : ''));
+  const minutes = parseEstimate(estimate);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newTag, setNewTag] = useState('');
   const [newSubTask, setNewSubTask] = useState('');
@@ -48,6 +63,9 @@ export function TaskForm({
     if (!formData.title.trim()) {
       newErrors.title = 'Please enter a task title';
     }
+    if (minutes === 'invalid') {
+      newErrors.estimate = 'Enter whole minutes, from 1 to 1440';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -58,7 +76,9 @@ export function TaskForm({
     if (validateForm()) {
       // Subtasks keep their own ids (new ones have none), so removing or
       // reordering items never reassigns an id to a different subtask.
-      onSubmit(formData);
+      // An emptied estimate on an existing task is cleared (null); otherwise left out.
+      const estimatedTime = typeof minutes === 'number' ? minutes : task?.estimatedTime ? null : undefined;
+      onSubmit({ ...formData, estimatedTime });
     }
   };
 
@@ -273,6 +293,44 @@ export function TaskForm({
                   <option value="completed">Completed</option>
                 </select>
               </div>
+            </div>
+
+            {/* Estimate, with what the person's own timed tasks suggest */}
+            <div>
+              <label htmlFor="task-estimate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Estimate in minutes (Optional)
+              </label>
+              <input
+                id="task-estimate"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                value={estimate}
+                onChange={(e) => {
+                  setEstimate(e.target.value);
+                  if (errors.estimate) setErrors(prev => ({ ...prev, estimate: '' }));
+                }}
+                aria-invalid={Boolean(errors.estimate)}
+                aria-describedby={errors.estimate ? 'task-estimate-error' : undefined}
+                placeholder="e.g. 45"
+                className="w-full md:w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {errors.estimate && (
+                <p id="task-estimate-error" className="text-red-600 dark:text-red-400 text-sm mt-1">{errors.estimate}</p>
+              )}
+              {formData.status !== 'completed' && (
+                <EstimateSuggestion
+                  params={typeof minutes === 'number' ? {
+                    minutes,
+                    priority: PRIORITY_TO_API[formData.priority],
+                    subtasks: formData.subtasks.length,
+                    hasDueDate: Boolean(formData.dueDate),
+                    goalId: formData.goalId || undefined,
+                    excludeTaskId: task?.id,
+                  } : null}
+                  onUse={value => setEstimate(String(value))}
+                />
+              )}
             </div>
 
             {/* Tags */}

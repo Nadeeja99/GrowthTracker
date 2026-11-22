@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { addDaysToKey, weekStartKey } from './dates';
+import { addDaysToKey, lengthLabel, weekStartKey } from './dates';
+
+describe('lengthLabel', () => {
+  it.each([[45, '45m'], [60, '1h'], [85, '1h 25m'], [150, '2h 30m']])('%i minutes is %s', (minutes, label) => {
+    expect(lengthLabel(minutes)).toBe(label);
+  });
+});
 
 describe('week helpers', () => {
   it('weeks start on Sunday, like the calendar', () => {

@@ -1,3 +1,5 @@
+import type { EstimateParams } from '@/lib/api';
+
 // Single source of truth for TanStack Query cache keys.
 export const queryKeys = {
   goals: ['goals'] as const,
@@ -9,6 +11,7 @@ export const queryKeys = {
   coach: ['coach'] as const,
   pushSettings: ['push-settings'] as const,
   calendarFeed: ['calendar-feed'] as const,
+  estimate: (params: EstimateParams | null) => ['estimate', params] as const,
   weeklyReview: (weekStart: string) => ['weekly-review', weekStart] as const,
   analyticsOverview: (startDate: string, endDate: string) => ['analytics', 'overview', startDate, endDate] as const,
 };

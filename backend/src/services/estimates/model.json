@@ -1,0 +1,66 @@
+{
+  "name": "estimate-calibration",
+  "features": [
+    "intercept",
+    "log_size",
+    "priority_high",
+    "priority_low",
+    "log_subtasks",
+    "has_due_date"
+  ],
+  "coefficients": [
+    0.208972,
+    -0.092738,
+    0.079513,
+    -0.049096,
+    0.066515,
+    0.042498
+  ],
+  "variances": {
+    "user": 0.049001,
+    "goal": 0.024987,
+    "noise": 0.128716
+  },
+  "historyLimit": 50,
+  "minHistory": 3,
+  "intervals": {
+    "coverage": 0.8,
+    "buckets": [
+      {
+        "minHistory": 0,
+        "low": -0.480333,
+        "high": 0.652073
+      },
+      {
+        "minHistory": 1,
+        "low": -0.540254,
+        "high": 0.61934
+      },
+      {
+        "minHistory": 5,
+        "low": -0.48431,
+        "high": 0.478883
+      },
+      {
+        "minHistory": 20,
+        "low": -0.433778,
+        "high": 0.450377
+      }
+    ]
+  },
+  "clamps": {
+    "minEstimate": 5,
+    "maxEstimate": 480,
+    "centreEstimate": 45,
+    "maxSubtasks": 20,
+    "maxLogRatio": 1.6094379124341003
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "trainedOn": "synthetic",
+    "generatorSeed": 13,
+    "trainUsers": 240,
+    "trainTasks": 15004,
+    "card": "ml/MODEL_CARD.md"
+  }
+}

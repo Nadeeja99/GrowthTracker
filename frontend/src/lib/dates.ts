@@ -25,3 +25,9 @@ export function addDaysToKey(key: string, days: number): string {
   date.setDate(date.getDate() + days);
   return toDateKey(date);
 }
+
+/** A duration in minutes, the short way: "45m", "1h", "1h 25m". */
+export function lengthLabel(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  return [hours && `${hours}h`, minutes % 60 && `${minutes % 60}m`].filter(Boolean).join(' ');
+}

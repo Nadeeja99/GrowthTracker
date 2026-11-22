@@ -86,6 +86,29 @@ export async function seedDemo() {
   await prisma.task.create({ data: { userId, title: 'Write README for portfolio', priority: 'HIGH', dueDate: dateOnly(day(-1)) } });
   await prisma.task.create({ data: { userId, goalId: read.id, title: 'Finish "Deep Work" chapter 4', priority: 'LOW' } });
 
+  // Finished tasks with an estimate and logged time, so estimate suggestions
+  // have a record to learn from: AWS work runs well over, the rest is close.
+  const timed: Array<[string, string | null, 'LOW' | 'MEDIUM' | 'HIGH', number, number, number]> = [
+    ['Watch VPC lectures', aws.id, 'MEDIUM', 60, 95, -18],
+    ['Read "Deep Work" chapters 1-3', read.id, 'LOW', 90, 80, -16],
+    ['Practice exam 1 (timed)', aws.id, 'HIGH', 120, 165, -15],
+    ['Plan training weeks', run.id, 'MEDIUM', 30, 30, -14],
+    ['Networking flashcards', aws.id, 'MEDIUM', 30, 50, -12],
+    ['Update CV', null, 'HIGH', 60, 90, -11],
+    ['Research half-marathon routes', run.id, 'LOW', 20, 25, -10],
+    ['IAM policy lab', aws.id, 'MEDIUM', 45, 70, -9],
+    ['Write book notes', read.id, 'LOW', 30, 25, -7],
+    ['Review practice exam 1 mistakes', aws.id, 'HIGH', 60, 85, -6],
+  ];
+  for (const [title, goalId, priority, estimatedTime, actualTime, d] of timed) {
+    await prisma.task.create({
+      data: {
+        userId, goalId, title, priority, estimatedTime, actualTime, status: 'COMPLETED',
+        createdAt: at(d - 2, 9), completedAt: at(d, 20),
+      },
+    });
+  }
+
   const blocks = [];
   for (let d = -3; d <= 3; d++) {
     blocks.push({ userId, goalId: aws.id, title: 'AWS study', startTime: at(d, 7), endTime: at(d, 8, 30), status: d < 0 ? 'COMPLETED' as const : 'PENDING' as const });

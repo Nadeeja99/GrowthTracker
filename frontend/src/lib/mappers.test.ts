@@ -4,7 +4,7 @@ import type { BackendHabitWithCompletions, BackendReflection } from '@/lib/api';
 import { parseDateKey, toDateKey } from './dates';
 import { applyGoalStats, mapGoalUpdateToBackend } from './goalMapper';
 import { mapBackendHabitToFrontend } from './habitMapper';
-import { mapFrontendTaskToBackend, mapFrontendTaskUpdateToBackend } from './taskMapper';
+import { mapBackendTaskToFrontend, mapFrontendTaskToBackend, mapFrontendTaskUpdateToBackend } from './taskMapper';
 import { mapBackendReflectionToRating, mapRatingToReflectionPayload } from './reflectionMapper';
 
 // Wednesday 28 Oct 2026, 15:00 local time.
@@ -89,6 +89,22 @@ describe('task mapping', () => {
 
   it('clears a due date with null and unlinks a goal with null', () => {
     expect(mapFrontendTaskUpdateToBackend({ dueDate: '', goalId: '' })).toEqual({ dueDate: null, goalId: null });
+  });
+
+  it('clears an estimate with null, and leaves it alone when absent', () => {
+    expect(mapFrontendTaskUpdateToBackend({ estimatedTime: null })).toEqual({ estimatedTime: null });
+    expect(mapFrontendTaskUpdateToBackend({ estimatedTime: 45 })).toEqual({ estimatedTime: 45 });
+    expect(mapFrontendTaskUpdateToBackend({ title: 'x' })).not.toHaveProperty('estimatedTime');
+    const created = mapFrontendTaskToBackend({ title: 't', priority: 'low', status: 'todo', tags: [], subtasks: [], estimatedTime: null });
+    expect(created.estimatedTime).toBeUndefined();
+  });
+
+  it('reads the estimate and logged time, treating null as absent', () => {
+    const base = { id: '1', title: 't', priority: 'MEDIUM' as const, status: 'COMPLETED' as const, createdAt: '', updatedAt: '' };
+    expect(mapBackendTaskToFrontend({ ...base, estimatedTime: 30, actualTime: 45 })).toMatchObject({ estimatedTime: 30, actualTime: 45 });
+    const empty = mapBackendTaskToFrontend({ ...base, estimatedTime: null, actualTime: null });
+    expect(empty.estimatedTime).toBeUndefined();
+    expect(empty.actualTime).toBeUndefined();
   });
 });
 
