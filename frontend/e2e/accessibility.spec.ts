@@ -50,16 +50,18 @@ test.describe('dialogs', () => {
       await button.focus()
       await button.click()
 
-      const dialog = page.locator('[role="dialog"][aria-modal="true"]').last()
+      // Only the app's dialogs: Next.js's development overlay is a (hidden) dialog too.
+      const appDialogs = page.locator('[role="dialog"]:not([data-nextjs-dialog])')
+      const dialog = appDialogs.and(page.locator('[aria-modal="true"]')).last()
       await expect(dialog).toBeVisible()
       await expectNoViolations(page)
 
       for (let i = 0; i < 25; i++) {
         await page.keyboard.press('Tab')
-        expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(true)
+        expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]:not([data-nextjs-dialog])'))).toBe(true)
       }
       await page.keyboard.press('Escape')
-      await expect(page.locator('[role="dialog"]')).toHaveCount(0)
+      await expect(appDialogs).toHaveCount(0)
       await expect(button).toBeFocused()
     })
   }

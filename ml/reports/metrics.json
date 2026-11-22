@@ -1,0 +1,194 @@
+{
+  "modelVersion": "1.0.0",
+  "data": {
+    "users": {
+      "train": 240,
+      "validation": 80,
+      "test": 80
+    },
+    "tasks": {
+      "train": 15004,
+      "validation": 4819,
+      "test": 5285
+    }
+  },
+  "fit": {
+    "coefficients": {
+      "intercept": 0.208972,
+      "log_size": -0.092738,
+      "priority_high": 0.079513,
+      "priority_low": -0.049096,
+      "log_subtasks": 0.066515,
+      "has_due_date": 0.042498
+    },
+    "trueEffects": {
+      "intercept": 0.22,
+      "log_size": -0.1,
+      "priority_high": 0.08,
+      "priority_low": -0.05,
+      "log_subtasks": 0.07,
+      "has_due_date": 0.04
+    },
+    "sd": {
+      "user": 0.2214,
+      "goal": 0.1581,
+      "noise": 0.3588
+    },
+    "converged": true
+  },
+  "tuning": {
+    "historyLimitScores": {
+      "10": 0.3087,
+      "25": 0.3011,
+      "50": 0.3,
+      "100": 0.299,
+      "200": 0.2987
+    },
+    "historyLimit": 50,
+    "minHistory": 3
+  },
+  "test": {
+    "estimate": {
+      "mae_minutes": 36.8132,
+      "median_ae_minutes": 17.0,
+      "mean_abs_log_error": 0.4684,
+      "within_20_percent": 0.2798,
+      "n": 5285
+    },
+    "global_ratio": {
+      "mae_minutes": 32.0807,
+      "median_ae_minutes": 15.25,
+      "mean_abs_log_error": 0.367,
+      "within_20_percent": 0.3544,
+      "n": 5285
+    },
+    "personal_ratio": {
+      "mae_minutes": 28.58,
+      "median_ae_minutes": 13.0,
+      "mean_abs_log_error": 0.311,
+      "within_20_percent": 0.4278,
+      "n": 5285
+    },
+    "model": {
+      "mae_minutes": 26.1936,
+      "median_ae_minutes": 11.9039,
+      "mean_abs_log_error": 0.2868,
+      "within_20_percent": 0.4632,
+      "n": 5285
+    },
+    "oracle": {
+      "mae_minutes": 24.7368,
+      "median_ae_minutes": 10.6918,
+      "mean_abs_log_error": 0.2674,
+      "within_20_percent": 0.5043,
+      "n": 5285
+    }
+  },
+  "testShownInApp": {
+    "estimate": {
+      "mae_minutes": 36.9994,
+      "median_ae_minutes": 17.0,
+      "mean_abs_log_error": 0.4686,
+      "within_20_percent": 0.2809,
+      "n": 5045
+    },
+    "global_ratio": {
+      "mae_minutes": 32.2003,
+      "median_ae_minutes": 15.125,
+      "mean_abs_log_error": 0.3666,
+      "within_20_percent": 0.3566,
+      "n": 5045
+    },
+    "personal_ratio": {
+      "mae_minutes": 28.5749,
+      "median_ae_minutes": 12.8889,
+      "mean_abs_log_error": 0.3088,
+      "within_20_percent": 0.4307,
+      "n": 5045
+    },
+    "model": {
+      "mae_minutes": 26.1744,
+      "median_ae_minutes": 11.7412,
+      "mean_abs_log_error": 0.2845,
+      "within_20_percent": 0.4672,
+      "n": 5045
+    },
+    "oracle": {
+      "mae_minutes": 24.9603,
+      "median_ae_minutes": 10.6661,
+      "mean_abs_log_error": 0.2682,
+      "within_20_percent": 0.5047,
+      "n": 5045
+    }
+  },
+  "testByHistory": {
+    "0": {
+      "estimate": 0.4731,
+      "global_ratio": 0.3874,
+      "personal_ratio": 0.3874,
+      "model": 0.3798,
+      "oracle": 0.2442,
+      "tasks": 80
+    },
+    "1-2": {
+      "estimate": 0.4582,
+      "global_ratio": 0.3681,
+      "personal_ratio": 0.3402,
+      "model": 0.3115,
+      "oracle": 0.2548,
+      "tasks": 160
+    },
+    "3-4": {
+      "estimate": 0.4793,
+      "global_ratio": 0.3937,
+      "personal_ratio": 0.334,
+      "model": 0.3143,
+      "oracle": 0.2611,
+      "tasks": 160
+    },
+    "5-9": {
+      "estimate": 0.4474,
+      "global_ratio": 0.3629,
+      "personal_ratio": 0.3409,
+      "model": 0.3092,
+      "oracle": 0.2754,
+      "tasks": 396
+    },
+    "10-19": {
+      "estimate": 0.463,
+      "global_ratio": 0.3694,
+      "personal_ratio": 0.3106,
+      "model": 0.2832,
+      "oracle": 0.2595,
+      "tasks": 737
+    },
+    "20-49": {
+      "estimate": 0.4627,
+      "global_ratio": 0.3658,
+      "personal_ratio": 0.3072,
+      "model": 0.2792,
+      "oracle": 0.2679,
+      "tasks": 1529
+    },
+    "50+": {
+      "estimate": 0.4776,
+      "global_ratio": 0.3649,
+      "personal_ratio": 0.3018,
+      "model": 0.282,
+      "oracle": 0.2705,
+      "tasks": 2223
+    }
+  },
+  "intervals": {
+    "validation": {
+      "target": 0.8,
+      "achieved": 0.8012,
+      "median_width_minutes": 50.1
+    },
+    "test": {
+      "target": 0.8,
+      "achieved": 0.8108,
+      "median_width_minutes": 55.6
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 A personal planning app taken from a working prototype to a deployable, tested product, with AI features built to be safe around real user data.
 
-**Stack:** Next.js 16 · React 19 · TanStack Query · Tailwind · Express · Prisma · PostgreSQL (Supabase) · OpenAI Responses API · Jest · Vitest · Playwright · GitHub Actions · Vercel · Render
+**Stack:** Next.js 16 · React 19 · TanStack Query · Tailwind · Express · Prisma · PostgreSQL (Supabase) · OpenAI Responses API · Python (statsmodels, pandas, scikit-learn) · Jest · Vitest · pytest · Playwright · GitHub Actions · Vercel · Render
 
 ---
 
@@ -31,11 +31,12 @@ The work was to make it something you'd trust with your week, and that an employ
 | Backend | Validated config, rate limiting, request IDs, structured logs, ownership checks on every relation, versioned migrations, a demo seed. |
 | Auth | 15-minute in-memory access tokens, rotating httpOnly refresh cookie, "sign out everywhere" via a token version. |
 | Frontend | A server-state cache with targeted invalidation, a design system with light and dark themes, skeletons, error boundaries, toasts that say what failed and why. |
-| Quality | 236 API integration tests, 151 unit tests, 56 end-to-end journeys with accessibility checks, CI, and deploys gated on CI. |
+| Quality | 294 API integration tests, 178 unit tests, 25 Python tests, 59 end-to-end journeys with accessibility checks, CI, and deploys gated on CI. |
 | Phone | Works offline with check-ins that sync later, opens instantly from saved data, and sends morning and evening push digests. |
 | Capture | Plain-English quick add with a live preview, parsed on the device, and a private calendar feed for other calendar apps. |
 | AI | A streaming coach, weekly review, week planner and goal breakdown, all on one guarded request pipeline. |
 | Journal | Free keyword search over daily notes, and answers with hybrid retrieval (full-text search plus pgvector) whose citations are checked by the server. |
+| Machine learning | A Python pipeline and notebook that train and evaluate a model of how long each person's tasks really take, served in the API as estimate suggestions with honest ranges. |
 
 ## Key decisions and trade-offs
 
@@ -109,13 +110,29 @@ Daily notes are short and personal. Keyword search misses "exhausted" when you a
 - The model can invent a plausible date, so citations are checked on the server against the notes it was given.
 - A restricted API key may not allow embeddings, so retrieval falls back to keywords and the answer says so.
 
+### 8. A small model, evaluated the way it's used
+The app records an estimate and, through the focus timer, the time a task really took. That's enough to tell someone *"tasks like this usually take you about 1h 25m"*. Two problems shaped the design: there's no real dataset (one person's tasks are far too few), and a bad suggestion is worse than none.
+
+**Decision:** a linear mixed model on log(actual ÷ estimate), fitted in Python on **simulated users**, and served from a 1 KB JSON file inside the API.
+
+- **Why this model.** People differ far more than tasks do, so most of the signal is personal. A mixed model shares strength between people (partial pooling): with three timed tasks the answer stays close to the population, with fifty it's mostly the person's own record, and the variances decide how fast. Gradient boosting given the same information did no better (error 0.290 against 0.287), and would have been a larger, harder-to-explain artefact.
+- **Why simulated data, and how to keep that honest.** The simulator's assumptions are written down, and three things are deliberately left out of the model: noise that varies by person, interrupted tasks, and improving estimates. Because the truth is known, the notebook shows the fit recovers the effects it was given, and how much error no model could remove.
+- **Evaluated as it's used.** Users are split into train, validation and test groups. Each test user's tasks are replayed in order, predicting every task only from earlier ones. Two settings (how much history to use, and when to start showing suggestions) were chosen on validation users only.
+- **Ranges that mean what they say.** The "8 in 10" range comes from split conformal prediction, sized separately for people with more or less history. It contained 81% of test tasks, and ranges for 50–95% all landed within 2.5 points of target.
+
+**Consequences, handled in code:**
+- The personal offsets have a closed form, so the API needs no ML runtime: one query for the person's latest 50 timed tasks, then arithmetic. The closed form matches statsmodels' estimates to 10⁻¹⁴.
+- Two implementations can drift apart, so the pipeline writes 29 test cases that the TypeScript must reproduce to 9 decimal places. CI retrains from scratch and fails if the committed model is stale, and the API refuses to start with a model file whose features don't match its code. Writing those checks caught a real mismatch: a clamp stored rounded to 6 decimals made the API differ from Python by about 10⁻⁸.
+- Population effects learned from simulated people are assumptions for real ones, so suggestions wait until a person's own record outweighs them: 3 timed tasks, derived from the fitted variances.
+
 ## Results
 
 - **Lighthouse (mobile):**
   - accessibility 100 and best practices 100 on every page
   - performance 92–96
   - layout shift close to 0 after making AI cards wait for their status instead of popping in
-- **Tests:** 236 backend, 151 frontend unit and 56 end-to-end. CI runs them all, and Vercel and Render deploy only after CI passes.
+- **Tests:** 294 backend, 178 frontend unit, 25 Python and 59 end-to-end. CI runs them all, and Vercel and Render deploy only after CI passes.
+- **Estimate suggestions (80 unseen simulated users):** the average miss fell from 36.8 minutes with the raw estimate to 26.2, against a noise floor of 24.7. That's 88% of the removable error, and better than each person's own median overrun (28.6).
 - **Security:** the API answers only through the proxy, every relation is ownership-checked, configuration is validated at boot, and failed logins are rate-limited.
 
 ## Next steps
@@ -123,3 +140,4 @@ Daily notes are short and personal. Keyword search misses "exhausted" when you a
 - **Faster first paint on app pages.** Largest Contentful Paint is about 3 s on throttled mobile because the session restore and the first data fetch happen client-side, one after the other. Server-rendering the first view, with the session read on the server, would remove that wait.
 - **Evaluation for the AI features.** A small set of fixed user snapshots with graded expectations (grounded in the data? sensible plan?), run whenever the prompt or model changes.
 - **A usage dashboard** over `ai_usage`.
+- **Retrain on real data.** The pipeline can already read the app's data export, and scores the shipped model on one person's file. Retraining needs many people's data, which doesn't exist yet.

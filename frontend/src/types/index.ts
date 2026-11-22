@@ -64,7 +64,10 @@ export interface Task {
   completedAt?: string;
   subtasks: SubTask[];
   tags: string[];
-  estimatedTime?: number;
+  /** Minutes. null means the estimate was cleared (sent to the API as null). */
+  estimatedTime?: number | null;
+  /** Minutes logged with the focus timer. */
+  actualTime?: number;
 }
 
 export interface SubTask {

@@ -5,7 +5,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { env } from '../../config/env';
-import { dateKeyInZone, dateOnly } from '../../utils/dates';
+import { dateKeyInZone } from '../../utils/dates';
 import { AiModel } from '../ai/model';
 import { recordEmbeddingUsage } from '../ai/request';
 import { reportError } from '../monitoring';
@@ -36,7 +36,9 @@ const toNote = ({ date, notes, performance, energy, mood }: Row): JournalNote =>
 const NOTE_COLUMNS = Prisma.sql`r.id, r.date, r.notes, r.performance, r.energy, r.mood`;
 
 const inRange = (range: DateRange | null) =>
-  (range ? Prisma.sql`AND r.date >= ${dateOnly(range.start)} AND r.date <= ${dateOnly(range.end)}` : Prisma.empty);
+  // Compare as dates: a JS Date would be a timestamp, which Postgres compares
+  // in the session's time zone and so shifts by a day outside UTC.
+  (range ? Prisma.sql`AND r.date >= ${range.start}::date AND r.date <= ${range.end}::date` : Prisma.empty);
 
 /** Ranked by matching words. Any word can match, so a whole question still finds notes. */
 function keywordMatches(userId: string, text: string, range: DateRange | null, limit: number) {

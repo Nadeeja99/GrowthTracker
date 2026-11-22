@@ -5,7 +5,7 @@ import { Plus, X, Zap, CheckSquare, Calendar } from 'lucide-react';
 import { Goal } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseCapture, ParsedCapture, Priority } from '@/lib/captureParser';
-import { parseDateKey, toDateKey } from '@/lib/dates';
+import { parseDateKey, toDateKey, lengthLabel } from '@/lib/dates';
 import { submitOnModEnter } from '@/lib/forms';
 import { useDialog } from '@/hooks/useDialog';
 
@@ -28,11 +28,6 @@ interface Choices {
 }
 
 const dayLabel = (key: string) => parseDateKey(key).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-
-const lengthLabel = (minutes: number) => {
-  const hours = Math.floor(minutes / 60);
-  return [hours && `${hours}h`, minutes % 60 && `${minutes % 60}m`].filter(Boolean).join(' ');
-};
 
 export function QuickCapture({ goals, onCreateTask, onCreateActivity }: QuickCaptureProps) {
   const [open, setOpen] = useState(false);
