@@ -6,7 +6,7 @@
 
 A full-stack planner with goals, time blocks, tasks, habits, a focus timer and analytics. On top sit OpenAI-powered features: a streaming coach, weekly reviews, week planning and milestone suggestions, all validated server-side before they touch your data. Two machine-learning models, built and evaluated in Python, learn how long your tasks really take and which planned blocks you're likely to skip.
 
-**Live demo:** [growth-tracker-azure.vercel.app](https://growth-tracker-azure.vercel.app). Press **Try the demo** for a seeded account; no sign-up needed. The API runs on free hosting, so the first visit can take about a minute while it wakes up. · **[Case study](docs/CASE_STUDY.md)**
+**Live demo:** [growth-tracker-azure.vercel.app](https://growth-tracker-azure.vercel.app). Press **Try the demo** for a seeded account; no sign-up needed. **[Case study](docs/CASE_STUDY.md)**
 
 <p align="center">
   <img src="docs/screenshots/coach.gif" alt="The AI coach streaming a reply that cites the user's goal hours, then adding its suggested time block to the plan" width="360">
@@ -40,7 +40,7 @@ A full-stack planner with goals, time blocks, tasks, habits, a focus timer and a
   - 181 unit tests
   - 39 Python tests for the two models, including running both analysis notebooks
   - 61 Playwright journeys with axe-core accessibility checks, including the emailed password-reset link and using the app with the network cut
-  - CI runs all of it on every push, and Vercel and Render deploy only after CI passes
+  - CI runs all of it on every push, and Vercel deploys only after CI passes
 - **Accessible and fast:**
   - Lighthouse 100 for accessibility and best practices on every page, 92–96 for performance
   - zero axe violations in light and dark mode; keyboard-complete dialogs
@@ -50,14 +50,14 @@ A full-stack planner with goals, time blocks, tasks, habits, a focus timer and a
 ```mermaid
 flowchart LR
   B[Browser] -->|pages + /api/*| W["Next.js 16 app<br/>(Vercel)"]
-  W -->|"/api/* rewrite<br/>+ x-proxy-secret"| A["Express API<br/>(Render web service)"]
+  W -->|"/api/* rewrite<br/>+ x-proxy-secret"| A["Express API<br/>(Vercel function)"]
   A -->|Prisma| D[(Supabase Postgres)]
   A -->|"Responses API<br/>stream + structured output"| O[OpenAI]
   ML["Python pipeline<br/>(ml/)"] -.->|"two model.json files<br/>(committed)"| A
-  GH[GitHub Actions CI] -.->|checks pass| R[Vercel + Render deploys]
+  GH[GitHub Actions CI] -.->|checks pass| R[Vercel deploys]
 ```
 
-The browser only talks to the Next.js app, which forwards `/api/*` to the API with a shared secret. The API rejects anything that didn't come through the app. [Deployment](#deployment-vercel--render--supabase-free-tier) explains why: the app and the API are on different sites, so a cookie set by the API would be third-party.
+The browser only talks to the Next.js app, which forwards `/api/*` to the API with a shared secret. The API rejects anything that didn't come through the app. [Deployment](#deployment-vercel--supabase-free-tier) explains why: the app and the API are on different sites, so a cookie set by the API would be third-party.
 
 ---
 
@@ -116,7 +116,7 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
 - **Design**: one blue accent on warm zinc neutrals, 1px borders instead of heavy shadows, Inter typography
 - **Theme**: Light / Dark / System picker in Settings (System by default), applied before first paint so there's no flash
 - **Installable**: add it to your phone's home screen and it runs as an app, with app icons (including a maskable icon for Android)
-- **Works offline**: the app opens without a connection and shows your last saved plan. Ticking off habits, tasks, subtasks and time blocks works anywhere and syncs when you're back. It also opens straight away while the free server wakes up
+- **Works offline**: the app opens without a connection and shows your last saved plan. Ticking off habits, tasks, subtasks and time blocks works anywhere and syncs when you're back.
 - **Morning and evening notifications**: an optional summary of your plan and a nudge to check in, at times you choose, even when the app is closed
 - **Resilient UX**: page-shaped loading skeletons, a first-run guide, toasts for any failed save (with the reason, or "you seem to be offline"), cached data kept on screen if a refresh fails, error boundaries and a 404 page
 - **Accessible**: zero axe-core violations (WCAG 2.1 AA) in light and dark mode; dialogs trap and restore focus and close on Escape; confirmations replace `window.confirm`; every control is labelled; charts have text alternatives; skip link; honours "reduce motion"; pinch-zoom allowed
@@ -126,7 +126,7 @@ Five areas, one loop: **plan** the week, **do** the day, **review** it, and **le
   - **Change password** in Settings signs out every other device and keeps this one signed in.
   - **Download my data** saves everything as one JSON file.
   - **Delete account** removes everything; it asks for your password and offers the download first.
-- **Demo and onboarding**: **Try the demo** signs in to a seeded shared account (reset on every cold start; account-wide actions disabled). A notice offers to switch the account's time zone when the device is elsewhere, and slow sign-ins explain the free tier's cold start.
+- **Demo and onboarding**: **Try the demo** signs in to a seeded shared account (reset daily; account-wide actions disabled). A notice offers to switch the account's time zone when the device is elsewhere, and slow requests say they're still going.
 
 ---
 
@@ -209,7 +209,7 @@ GrowthTracker/
     └── evals/                 # Evaluation set for the AI features (npm run eval)
 ```
 
-`frontend/e2e/` holds the Playwright suite, `frontend/public/sw.js` the service worker, `.github/workflows/` the CI pipeline and scheduled jobs, and `render.yaml` the API's deployment Blueprint.
+`frontend/e2e/` holds the Playwright suite, `frontend/public/sw.js` the service worker, `.github/workflows/` the CI pipeline and scheduled jobs, and `backend/vercel.json` the API's Vercel settings.
 
 ---
 
@@ -294,7 +294,7 @@ browser ──POST /api/coach/messages──► API ──Responses API (stream)
   - The default model is `gpt-6-luna` ($0.10 / $0.50 per 1M input/output tokens), roughly $0.0002 per message. Change it with `OPENAI_MODEL`.
 - **Tested without a key.** Backend tests use a fake model for route logic, plus a local server that speaks the Responses streaming protocol, which exercises the real SDK. The E2E suite runs the whole flow against that fake server: stream, stop, add a suggestion, opt out.
 
-**Setting up your key:** in the OpenAI dashboard, create a project, create a key restricted to the model endpoints, and set a monthly budget. A restricted key also needs the **Embeddings** endpoint, and if the project limits its models, `text-embedding-3-small`. Without them Ask your journal still works, but on exact words only. Put the key in `backend/.env` as `OPENAI_API_KEY` locally, and in the API service's environment on Render.
+**Setting up your key:** in the OpenAI dashboard, create a project, create a key restricted to the model endpoints, and set a monthly budget. A restricted key also needs the **Embeddings** endpoint, and if the project limits its models, `text-embedding-3-small`. Without them Ask your journal still works, but on exact words only. Put the key in `backend/.env` as `OPENAI_API_KEY` locally, and in the API project's environment variables on Vercel (then redeploy it).
 
 **Without a key:** start the fake server (`cd backend && npx ts-node --transpile-only tests/fake-openai-server.ts`), then run the API with `OPENAI_API_KEY=sk-fake-local-key OPENAI_BASE_URL=http://127.0.0.1:5100/v1`.
 
@@ -361,51 +361,67 @@ GitHub Actions runs all four suites, plus lint, type checks and production build
 
 ---
 
-## Deployment (Vercel + Render + Supabase, free tier)
+## Deployment (Vercel + Supabase, free tier)
 
 ```
-browser ──► growth-tracker-azure.vercel.app (Next.js) ──/api/*──► growthtracker-api.onrender.com (Express) ──► Supabase Postgres
-                 adds x-proxy-secret                                    rejects requests without it
+browser ──► growth-tracker-azure.vercel.app (Next.js) ──/api/*──► API on Vercel (Express) ──► Supabase Postgres
+              adds x-proxy-secret and x-client-ip                  rejects requests without the secret
 ```
 
-The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API, so the refresh cookie is first-party (`SameSite=Strict`). That matters because the app (`vercel.app`) and the API (`onrender.com`) are different sites, and a cookie set by the API would be cross-site for the app. The API refuses any request that doesn't carry the shared `API_PROXY_SECRET`, which also means client IPs (used for rate limiting) can't be spoofed by calling it directly.
+The app and the API are two Vercel projects from this repository: `frontend/` (Next.js) and `backend/` (Express, which Vercel runs as a single function from the default export of `src/app.ts`). Neither sleeps: a function that's been idle resumes in about a second.
+
+The browser only ever talks to the Next.js app. `/api/*` is rewritten to the API, so the refresh cookie is first-party (`SameSite=Strict`). That matters because `vercel.app` is on the Public Suffix List: the app and the API are different sites, and a cookie set by the API would be cross-site for the app. The API refuses any request that doesn't carry the shared `API_PROXY_SECRET`, so it can't be called directly. Vercel replaces `X-Forwarded-For` on every hop, so the app also passes the visitor's IP in `X-Client-IP`, and the API trusts that header only on requests carrying the secret. Per-IP rate limits depend on it.
 
 ### 1. Database (Supabase)
-1. Create a project in the **same region as the API** (`render.yaml` uses Singapore, so pick Southeast Asia (Singapore), `ap-southeast-1`). Every request makes several API ↔ database round trips, so distance between them matters more than distance to you.
+1. Create a project in the **same region as the API** (`backend/vercel.json` uses Singapore, `sin1`, so pick Southeast Asia (Singapore), `ap-southeast-1`). Every request makes several API ↔ database round trips, so distance between them matters more than distance to you.
 2. **Connect → ORMs → Prisma** gives two strings: the transaction pooler (port 6543) is `DATABASE_URL`, with `?pgbouncer=true` added; the session pooler (port 5432) is `DIRECT_URL`. Use the pooler hosts: Supabase's direct host is IPv6-only.
-3. **If the database was created earlier with `prisma db push`**, mark the baseline as applied once from your machine: `DATABASE_URL=… DIRECT_URL=… npm run db:migrate:baseline`. Render applies every later migration on start.
+3. **If the database was created earlier with `prisma db push`**, mark the baseline as applied once from your machine: `DATABASE_URL=… DIRECT_URL=… npm run db:migrate:baseline`. Production deploys of the API apply every later migration during the build.
 
-### 2. API (Render)
-1. Push to GitHub, then in Render choose **New → Blueprint** and select the repository. `render.yaml` creates the API service.
-2. Fill in the prompted values:
+### 2. API (Vercel)
+1. In Vercel choose **Add New → Project**, import the repository and set **Root Directory** to `backend`. Express is detected. `backend/vercel.json` sets the build command and the region.
+2. Add these variables for **Production** only, so preview deployments can't reach the live database:
    - `DATABASE_URL` and `DIRECT_URL`: from step 1.
-   - `CORS_ORIGIN`: the app's URL from step 3, e.g. `https://growth-tracker-azure.vercel.app`. Fill it in once the app exists.
-3. Optional: paste your OpenAI key into `OPENAI_API_KEY`. Leave it empty to deploy without the coach.
-4. JWT secrets and `API_PROXY_SECRET` are generated by Render. Copy `API_PROXY_SECRET` for step 3.
-5. Optional, for **Forgot password**: set `MAIL_PROVIDER`, `MAIL_API_KEY` and `MAIL_FROM` ([Email](#email-password-reset)).
-6. Optional, for error reports: set `SENTRY_DSN` ([Monitoring](#monitoring)).
-7. Optional, for notifications: see [Phone app](#phone-app).
-8. Deploys run only after CI passes (`autoDeployTrigger: checksPass`), and only when `backend/` changes.
+   - `NODE_ENV`: `production`.
+   - `JWT_SECRET`, `JWT_REFRESH_SECRET` and `API_PROXY_SECRET`: three different values from `openssl rand -hex 32`. Keep `API_PROXY_SECRET` for step 3.
+   - `DIGEST_CRON_SECRET`: one more `openssl rand -hex 32`, for the scheduled jobs (step 4).
+   - `TRUST_PROXY`: `1`.
+   - `CORS_ORIGIN`: the app's URL, e.g. `https://growth-tracker-azure.vercel.app`.
+   - `DEMO_LOGIN_ENABLED`: `true`, and `SEED_TIMEZONE`: `Europe/Dublin`, for **Try the demo**.
+   - Optional: `OPENAI_API_KEY` for the coach ([AI](#ai-coach-how-it-works)), mail ([Email](#email-password-reset)), `SENTRY_DSN` ([Monitoring](#monitoring)) and push keys ([Phone app](#phone-app)).
+3. Deploy. The build runs `prisma generate`, and on production deploys also `prisma migrate deploy`. Open `<API URL>/health`: it should answer `{"status":"OK","database":"up",…}`.
+4. Under **Settings → Deployment Checks**, require the `Backend` CI job, so a deploy goes live only after CI passes.
+
+Vercel reads environment variables when a deployment starts, so **redeploy after changing any of them**.
 
 ### 3. App (Vercel)
 1. In Vercel choose **Add New → Project**, import the repository and set **Root Directory** to `frontend`. Next.js is detected.
 2. Add these variables for **Production** only, so preview builds can't reach the live API:
-   - `API_ORIGIN`: the API's URL, e.g. `https://growthtracker-api.onrender.com`.
-   - `API_PROXY_SECRET`: the value from step 2.
+   - `API_ORIGIN`: the API's URL from step 2, with no trailing slash.
+   - `API_PROXY_SECRET`: the same value as on the API.
    - `NEXT_PUBLIC_DEMO_LOGIN`: `true`, to show **Try the demo**.
    - `NEXT_TELEMETRY_DISABLED`: `1`.
    - Optional: `NEXT_PUBLIC_SENTRY_DSN` ([Monitoring](#monitoring)) and `NEXT_PUBLIC_SITE_URL` (a custom domain; the project's production URL is used otherwise).
 3. Deploy. Then, under **Settings**, set the function region to Singapore (`sin1`), next to the API, and Node.js to 22. `API_ORIGIN` and the `NEXT_PUBLIC_*` values are read at build time, so redeploy after changing any of them.
-4. Under **Settings → Deployment Checks**, require the `Frontend` and `End-to-end` CI jobs, so a deploy goes live only after CI passes.
-5. Set `CORS_ORIGIN` on the API to the app's URL (step 2).
+4. Under **Settings → Deployment Checks**, require the `Frontend` and `End-to-end` CI jobs.
+5. Set `CORS_ORIGIN` on the API to the app's URL (step 2), and redeploy the API.
 
-`TRUST_PROXY` in `render.yaml` matches this setup. To check it, call `/api/health` on the app a few times and watch the `RateLimit-Remaining` header: it should go down by one each time, also when the request carries a made-up `X-Forwarded-For` header. A count that jumps around means the value is too low (visitors share Vercel's outbound IPs); a fresh count for a made-up header means it's too high.
+To check client IPs, call `/api/health` on the app a few times and watch the `RateLimit-Remaining` header: it should go down by one each time, also when the request carries a made-up `X-Forwarded-For` or `X-Client-IP` header.
+
+### 4. Scheduled jobs (GitHub Actions)
+The API only runs while it's handling a request, so GitHub Actions calls it on a schedule. Under **Settings → Secrets and variables → Actions** on GitHub:
+- Variables: `API_URL` (the API's URL) and `APP_URL` (the app's URL), both with no trailing slash.
+- Secret: `DIGEST_CRON_SECRET`, the same value as on the API.
+
+Then run **Actions → Demo reset → Run workflow** once, which creates the demo account. After that:
+- `demo-reset.yml` rebuilds the demo account (`demo@growthtracker.dev` / `demo-password-1`) every day, so its data stays dated around "today" and visitors' changes are undone. Only the demo user is touched.
+- `uptime.yml` checks the API and the app every six hours ([Monitoring](#monitoring)).
+- `digests.yml` sends notifications once you turn them on ([Phone app](#phone-app)).
 
 ### Free-tier notes
-- The app on Vercel doesn't sleep. The API on Render sleeps after 15 minutes without traffic, and the first visit afterwards waits about a minute while it wakes up.
-- Free instances have no pre-deploy step, so migrations run at the start of the API's start command.
-- `SEED_DEMO_ON_START=true` rebuilds the demo account (`demo@growthtracker.dev` / `demo-password-1`) on every cold start, so its data stays dated around "today" and visitors' changes are reset. Set it to `false` to keep demo data between restarts. Only the demo user is touched.
-- Render's free Postgres expires after 30 days, which is why the database lives on Supabase.
+- Vercel's Hobby plan includes 4 hours of active CPU, 360 GB-hours of function memory and 1 million function invocations a month, shared by both projects. Time spent waiting on the database or OpenAI doesn't count as CPU. Going over pauses the account until you act, so check **Usage** now and then.
+- Hobby is for personal, non-commercial projects.
+- Rate-limit counters live in each function instance's memory. At this app's traffic that's one instance; under a burst spread over several, each starts its own count.
+- Supabase pauses a free project after a week without activity. The uptime checks query the database, which helps.
 
 ### Email (password reset)
 Without email, everything works except **Forgot password**, which then says reset by email isn't set up. To turn it on, pick a provider and set three variables on the **growthtracker-api** service:
@@ -421,10 +437,9 @@ Without email, everything works except **Forgot password**, which then says rese
 Links in emails use `APP_URL`, which defaults to the first `CORS_ORIGIN` (the app's URL), so there is nothing else to set. Locally with `MAIL_PROVIDER=none`, the API prints the reset link in its log instead of sending it.
 
 ### Monitoring
-**Is it up?** `.github/workflows/uptime.yml` checks the live app every six hours, and GitHub emails you if a check fails. It needs no setup and also runs by hand from **Actions → Uptime → Run workflow**.
+**Is it up?** `.github/workflows/uptime.yml` checks the live app every six hours, and GitHub emails you if a check fails. It needs the repository variables `API_URL` and `APP_URL` ([Deployment, step 4](#4-scheduled-jobs-github-actions)), and also runs by hand from **Actions → Uptime → Run workflow**.
 
 - It calls `/health` on the API, then `/api/health` on the app. The second goes through the proxy, so it proves the app, the shared secret, the API and the database all work together.
-- It's six-hourly on purpose. A monitor pinging every few minutes would keep the API awake all month, using nearly all of the 750 free hours Render gives a workspace, and the demo account would stop being reset, because that happens on cold starts.
 - Each check runs a database query, which helps keep Supabase from pausing a quiet free project. Supabase doesn't guarantee a set amount of activity is enough, so opening the app now and then helps too.
 - GitHub turns off scheduled workflows after 60 days without repository activity, and emails you first.
 
@@ -432,7 +447,7 @@ Links in emails use `APP_URL`, which defaults to the first `CORS_ORIGIN` (the ap
 
 1. Create a free Sentry account. Choose the EU region if you'd like the data in Europe.
 2. Create two projects: **Express** for the API and **Browser JavaScript** for the app.
-3. Add each project's DSN on Render: `SENTRY_DSN` on **growthtracker-api**, `NEXT_PUBLIC_SENTRY_DSN` on **growthtracker**. The second is read at build time, so redeploy the app afterwards.
+3. Add each project's DSN on Vercel: `SENTRY_DSN` on the API project, `NEXT_PUBLIC_SENTRY_DSN` on the app project. Redeploy both afterwards.
 
 What's sent is deliberately small: a stack trace, the page or API path, and the request ID that links to the logs. Request bodies, headers, cookies, query strings, IP addresses and breadcrumbs are never sent, because they can hold passwords, reset links and journal entries. Expected errors, such as failed validation or a dropped connection, aren't reported. Browser error tracking adds 30 KB, loaded separately after the page, and nothing at all without a DSN.
 
@@ -457,7 +472,7 @@ It's a set of rules in `frontend/src/lib/captureParser.ts`, not AI, so it's inst
 ### Calendar link
 **Settings → Calendar** gives you a private link to a read-only iCalendar feed: time blocks from 30 days ago to 180 days ahead, plus open tasks with due dates as all-day events. Skipped and rescheduled blocks are left out.
 
-- The link goes straight to the API, because a request forwarded by the app can't wake a sleeping API. A calendar app that arrives while it's asleep may time out and try again on its next refresh.
+- The link goes straight to the API, because calendar apps can't send the app proxy's secret.
 - Calendar apps refresh on their own timing, from about an hour to a day, so changes aren't instant.
 - Calendar apps can't sign in, so **the link itself is the password**. It's kept out of the logs and error reports. **Replace link** makes the old one stop working, and so does **Sign out everywhere**, changing your password, or deleting your account. After those, turn it on again and re-add it to your calendars.
 
@@ -472,13 +487,13 @@ It's a set of rules in `frontend/src/lib/captureParser.ts`, not AI, so it's inst
 **Notifications** are off until you set them up:
 
 1. On your computer, run `npx web-push generate-vapid-keys`, and `openssl rand -hex 32` for a shared secret.
-2. On Render, add to **growthtracker-api**: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `DIGEST_CRON_SECRET` (the random value).
-3. On GitHub, under **Settings → Secrets and variables → Actions**: add the secret `DIGEST_CRON_SECRET` with the same value, and the variable `DIGESTS_ENABLED` set to `true`.
+2. On Vercel, add to the API project: `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`, then redeploy it. `DIGEST_CRON_SECRET` is already set ([Deployment, step 2](#2-api-vercel)).
+3. On GitHub, under **Settings → Secrets and variables → Actions**, add the variable `DIGESTS_ENABLED` set to `true` (`API_URL` and the `DIGEST_CRON_SECRET` secret are already there from [Deployment, step 4](#4-scheduled-jobs-github-actions)).
 4. On your phone, open **Settings → Notifications → Turn on notifications**, then **Send a test**. On iPhone and iPad, GrowthTracker must be on your Home Screen first (Safari → Share → Add to Home Screen).
 
 How it works and what to expect:
 
-- A free server sleeps, so it can't keep its own timer. `.github/workflows/digests.yml` wakes it every half hour and it sends whatever's due. That uses about 370 of the 750 free hours a month, and the API stays awake more often, so cold starts get rarer.
+- The API only runs while it's handling a request, so it can't keep its own timer. `.github/workflows/digests.yml` calls it every half hour and it sends whatever's due.
 - GitHub can run scheduled jobs late, so digests can be a few minutes late or more at busy times. A digest still goes out up to two hours after its time, then it's skipped. Each one is sent at most once a day, and days with nothing to report stay quiet.
 - Messages are encrypted for the device, so the push services can't read them. They can show task and habit names on your lock screen.
 - Signing out stops notifications on that device. **Sign out everywhere**, changing your password and deleting your account stop them on all devices.
@@ -554,7 +569,7 @@ How it works and what to expect:
 | `DIRECT_URL` | Direct (non-pooled) connection used by migrations | — |
 | `JWT_SECRET` | Secret for access tokens (min. 32 chars) | — |
 | `JWT_REFRESH_SECRET` | Secret for refresh tokens (min. 32 chars, must differ) | — |
-| `TRUST_PROXY` | Reverse-proxy hops in front of the API (`3` on Render behind the app on Vercel) | `0` |
+| `TRUST_PROXY` | Reverse-proxy hops in front of the API (`1` on Vercel) | `0` |
 | `API_PROXY_SECRET` | Shared with the frontend; when set, only proxied requests are served. Required in production | — |
 | `RATE_LIMIT_MAX_REQUESTS` | API requests per IP per window (15 min) | `600` |
 | `AUTH_RATE_LIMIT_MAX` | Failed login/register attempts per IP per window | `10` |

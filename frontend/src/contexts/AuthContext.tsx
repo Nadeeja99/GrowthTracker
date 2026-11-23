@@ -64,13 +64,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // drop it whenever the API reports it can no longer be renewed.
   useEffect(() => {
     let cancelled = false;
-    // Start the API now in case it is asleep (free hosting tier), so it is
-    // up by the time the visitor signs in.
-    apiClient.wakeApi().catch(() => undefined);
 
     const start = async () => {
       // Open from saved data right away: without a connection, or while the
-      // server wakes up, this is all there is. The session is confirmed below.
+      // server is slow to answer, this is all there is. The session is confirmed below.
       const saved = rememberedUser();
       if (saved) {
         await restoreCache(queryClient, saved.id);

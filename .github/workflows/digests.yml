@@ -1,10 +1,9 @@
 name: Digests
 
-# Sends the morning and evening notifications. A free Render instance sleeps, so
-# it can't run its own timer: this wakes the API every half hour and asks it to
-# send whatever's due. Each wake keeps the API up for about 15 minutes, so this
-# uses roughly 370 of the workspace's 750 free hours a month. Off until the
-# repository variable DIGESTS_ENABLED is 'true' (README → Phone app).
+# Sends the morning and evening notifications. The API on Vercel only runs while
+# it's handling a request, so it can't keep a timer of its own: this asks it
+# every half hour to send whatever's due. Off until the repository variable
+# DIGESTS_ENABLED is 'true' (README → Phone app); API_URL is the API's address.
 
 on:
   schedule:
@@ -17,16 +16,16 @@ permissions:
 jobs:
   send:
     name: Send what's due
-    if: github.repository == 'Nadeeja99/GrowthTracker' && vars.DIGESTS_ENABLED == 'true'
+    if: github.repository == 'Nadeeja99/GrowthTracker' && vars.DIGESTS_ENABLED == 'true' && vars.API_URL != ''
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
-      # Repeating is safe: each digest is claimed once per day. Retries cover
-      # the minute or so a cold start takes.
+      # Repeating is safe: each digest is claimed once per day.
       - name: Ask the API to send digests
         env:
+          API_URL: ${{ vars.API_URL }}
           DIGEST_CRON_SECRET: ${{ secrets.DIGEST_CRON_SECRET }}
         run: >-
-          curl --silent --show-error --fail --retry 8 --retry-all-errors --retry-delay 15 --max-time 90
+          curl --silent --show-error --fail --retry 3 --retry-all-errors --retry-delay 10 --max-time 60
           --request POST --header "Authorization: Bearer $DIGEST_CRON_SECRET"
-          https://growthtracker-api.onrender.com/internal/digests/run
+          "$API_URL/internal/digests/run"

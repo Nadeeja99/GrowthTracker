@@ -14,6 +14,8 @@ import { requestContext } from './middleware/requestContext';
 import { requireProxy } from './middleware/requireProxy';
 import { requireCronSecret } from './middleware/requireCronSecret';
 import { runDigests } from './services/digests';
+import { seedDemo } from './scripts/seed';
+import { HttpError } from './utils/httpError';
 
 import authRoutes from './routes/auth-simple';
 import userRoutes from './routes/users';
@@ -118,16 +120,17 @@ app.get(['/health', '/api/health'], async (_req, res) => {
   }
 });
 
-// Wake-up ping, sent from the browser when the app opens: a request from
-// outside Render starts the API on the free tier. Not /health, because ad
-// blockers' EasyPrivacy list blocks `||onrender.com/health`.
-app.get('/', (_req, res) => {
-  res.status(200).json({ status: 'OK' });
-});
-
-// Called on a schedule, because a free instance sleeps and can't run its own timer.
+// Scheduled jobs (.github/workflows). On Vercel the API only runs while it's
+// handling a request, so it can't keep timers of its own.
 app.post('/internal/digests/run', requireCronSecret, async (_req, res) => {
   res.json({ success: true, data: await runDigests() });
+});
+
+// Rebuilds the shared demo account once a day: keeps its dates current and
+// undoes visitors' changes.
+app.post('/internal/demo/reset', requireCronSecret, async (_req, res) => {
+  if (!env.DEMO_LOGIN_ENABLED) throw new HttpError(404, 'The demo isn’t enabled here.');
+  res.json({ success: true, data: await seedDemo() });
 });
 
 app.get('/calendar/:file', calendarFeed);
@@ -152,3 +155,7 @@ app.use('/api/calendar', calendarRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
+
+// Vercel runs the API from this module's default export (src/index.ts, with
+// its own server and shutdown handling, is for local and container runs).
+export default app;

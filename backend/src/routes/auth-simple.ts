@@ -122,7 +122,7 @@ router.post('/login', async (req: AuthRequest, res) => {
 
 // "Try the demo": signs in to the shared, seeded demo account without a
 // password. Off unless DEMO_LOGIN_ENABLED=true. The account is rebuilt by the
-// seed (on every cold start on Render), so visitors' changes don't last.
+// seed once a day (POST /internal/demo/reset), so visitors' changes don't last.
 router.post('/demo', async (req: AuthRequest, res) => {
   if (!env.DEMO_LOGIN_ENABLED) throw new HttpError(404, 'The demo isn’t available here.');
   const { timezone } = demoLoginSchema.parse(req.body ?? {});

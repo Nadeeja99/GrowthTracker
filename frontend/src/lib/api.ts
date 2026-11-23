@@ -358,27 +358,6 @@ const NO_REFRESH_ENDPOINTS = [
   '/auth/password/forgot', '/auth/password/reset',
 ];
 
-// Render's free tier stops the API after 15 idle minutes. A request forwarded
-// by the app's proxy can then get Render's own 502 page instead of an API
-// response. A request straight from the browser starts it, so the app pings the
-// API once when it opens, and requests that arrive before it is up wait for it
-// and retry.
-const API_WAKE_URL = process.env.NEXT_PUBLIC_API_WAKE_URL;
-const WAKE_TIMEOUT_MS = 90_000;
-const WAKE_RETRY_DELAY_MS = 5_000;
-
-/**
- * The host's error page for a stopped API, as opposed to one of the API's own
- * (JSON) errors. Such a request never reached the API, so it is safe to resend.
- */
-const isApiAsleep = (response: Response) =>
-  (response.status === 502 || response.status === 503) &&
-  !response.headers.get('Content-Type')?.includes('application/json');
-
-/** The error message for a failed response that carries no API message of its own. */
-const fallbackMessage = (response: Response) =>
-  isApiAsleep(response) ? 'The server is still starting. Please try again in a minute.' : `HTTP ${response.status}`;
-
 class ApiClient {
   private baseURL: string;
   // The access token lives only in memory (never localStorage), so injected
@@ -386,7 +365,6 @@ class ApiClient {
   // page load from the httpOnly refresh cookie via refreshSession().
   private token: string | null = null;
   private refreshInFlight: Promise<User | null> | null = null;
-  private lastWake: { at: number; done: Promise<boolean> } | null = null;
   private sessionExpiredListener: (() => void) | null = null;
 
   constructor(baseURL: string) {
@@ -412,9 +390,7 @@ class ApiClient {
     const headers: HeadersInit = { ...this.jsonHeaders(), ...options.headers };
 
     // `include` sends the httpOnly refresh cookie to the /auth endpoints.
-    const send = () => fetch(url, { ...options, headers, credentials: 'include' });
-    let response = await send();
-    if (isApiAsleep(response)) response = await this.waitForApi(send, response);
+    const response = await fetch(url, { ...options, headers, credentials: 'include' });
     // Proxies and cold-starting hosts can answer with HTML, so don't assume JSON.
     const data = await response.json().catch(() => ({}));
 
@@ -427,44 +403,10 @@ class ApiClient {
 
     if (!response.ok) {
       const fieldError: string | undefined = data.validationErrors?.[0]?.message;
-      throw new ApiError(fieldError || data.error || fallbackMessage(response), response.status);
+      throw new ApiError(fieldError || data.error || `HTTP ${response.status}`, response.status);
     }
 
     return data;
-  }
-
-  /**
-   * Waits for the wake-up ping, then resends `send` until the API is awake
-   * (see isApiAsleep). Gives up after WAKE_TIMEOUT_MS, or at once if the ping
-   * couldn't be sent, and returns the last response.
-   */
-  private async waitForApi(send: () => Promise<Response>, asleep: Response): Promise<Response> {
-    const deadline = Date.now() + WAKE_TIMEOUT_MS;
-    // Blocked (e.g. by an ad blocker) or offline: nothing will start the API.
-    if (!(await this.wakeApi())) return asleep;
-    for (;;) {
-      const response = await send();
-      if (!isApiAsleep(response) || Date.now() >= deadline) return response;
-      await new Promise(resolve => setTimeout(resolve, WAKE_RETRY_DELAY_MS));
-    }
-  }
-
-  /**
-   * Starts the API with one request straight from the browser. Called when the
-   * app opens; later callers share that ping until it is WAKE_TIMEOUT_MS old,
-   * after which the API may have stopped again. Resolves when the ping does:
-   * true if it reached the server, false if it couldn't be sent.
-   */
-  wakeApi(): Promise<boolean> {
-    if (!API_WAKE_URL) return Promise.resolve(true);
-    if (!this.lastWake || Date.now() - this.lastWake.at >= WAKE_TIMEOUT_MS) {
-      this.lastWake = {
-        at: Date.now(),
-        // Only the wake-up matters, not the answer.
-        done: fetch(API_WAKE_URL, { cache: 'no-store' }).then(() => true, () => false),
-      };
-    }
-    return this.lastWake.done;
   }
 
   private jsonHeaders(): Record<string, string> {
@@ -794,7 +736,6 @@ class ApiClient {
     });
 
     let response = await send();
-    if (isApiAsleep(response)) response = await this.waitForApi(send, response);
     if (response.status === 401) {
       if (!(await this.refreshSession())) {
         this.sessionExpiredListener?.();
@@ -804,7 +745,7 @@ class ApiClient {
     }
     if (!response.ok || !response.body || !response.headers.get('Content-Type')?.includes('text/event-stream')) {
       const data = await response.json().catch(() => ({}));
-      throw new ApiError(data.validationErrors?.[0]?.message || data.error || fallbackMessage(response), response.status);
+      throw new ApiError(data.validationErrors?.[0]?.message || data.error || `HTTP ${response.status}`, response.status);
     }
 
     const reader = response.body.getReader();

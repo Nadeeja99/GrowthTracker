@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { MailCheck } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { describeError } from '@/lib/toast';
-import { useSlowFlag, WAKING_UP_MESSAGE } from '@/hooks/useSlowFlag';
+import { useSlowFlag, SLOW_MESSAGE } from '@/hooks/useSlowFlag';
 import { inputClass } from '@/components/ui/PasswordField';
 
 /** "Forgot password": asks for the email and explains what happens next. */
@@ -62,7 +62,7 @@ export function ForgotPasswordForm({ initialEmail = '', onBack }: { initialEmail
                 {error}
               </div>
             )}
-            {slow && <p role="status" className="text-sm text-gray-600 dark:text-gray-400 mb-4">{WAKING_UP_MESSAGE}</p>}
+            {slow && <p role="status" className="text-sm text-gray-600 dark:text-gray-400 mb-4">{SLOW_MESSAGE}</p>}
             <form onSubmit={submit} className="space-y-4">
               <div>
                 <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>

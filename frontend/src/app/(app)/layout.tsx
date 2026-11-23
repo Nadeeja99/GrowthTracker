@@ -13,7 +13,7 @@ import { FocusPanel } from '@/components/Focus/FocusPanel';
 import { CoachPanel } from '@/components/Coach/CoachPanel';
 import { QuickCapture } from '@/components/ui/QuickCapture';
 import { PageLoader } from '@/components/ui/PageState';
-import { useSlowFlag, WAKING_UP_MESSAGE } from '@/hooks/useSlowFlag';
+import { useSlowFlag, SLOW_MESSAGE } from '@/hooks/useSlowFlag';
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
 import { syncPushDevice } from '@/lib/push';
 import { useGoals } from '@/hooks/data/useGoals';
@@ -68,7 +68,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (isLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <PageLoader label={slow ? WAKING_UP_MESSAGE : undefined} />
+        <PageLoader label={slow ? SLOW_MESSAGE : undefined} />
       </div>
     );
   }

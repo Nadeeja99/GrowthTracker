@@ -28,18 +28,13 @@ describe('proxy gate', () => {
     expect(res.body.database).toBe('up');
   });
 
-  it('hides the scheduled digest job until a secret is configured', async () => {
+  it('hides the scheduled jobs until a secret is configured', async () => {
     expect((await request(app).post('/internal/digests/run')).status).toBe(404);
+    expect((await request(app).post('/internal/demo/reset')).status).toBe(404);
   });
 
   it('leaves calendar feeds reachable by calendar apps, without the proxy secret', async () => {
     expect((await request(app).get('/calendar/not-a-real-token.ics')).status).toBe(404);
-  });
-
-  it('answers the app’s cross-origin wake-up ping on / without the secret', async () => {
-    const res = await request(app).get('/').set('Origin', 'http://localhost:3000');
-    expect(res.status).toBe(200);
-    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3000');
   });
 });
 
@@ -61,6 +56,18 @@ describe('platform behaviour', () => {
     const statuses = [];
     for (let i = 0; i < 4; i++) statuses.push((await attempt()).status);
     expect(statuses).toEqual([401, 401, 401, 429]);
+  });
+
+  // On Vercel every proxied request arrives from the app's server, so the app
+  // passes the visitor's IP along. Runs after the test above used up its bucket.
+  it('counts per visitor using the IP the app passes on', async () => {
+    const attempt = (headers: Record<string, string>) => request(app).post('/api/auth/login').set(headers)
+      .send({ email: 'ghost@example.test', password: 'wrong-password' });
+    expect((await attempt({ ...viaProxy, 'x-client-ip': '203.0.113.7' })).status).toBe(401);
+    // Without the secret the header is never trusted (and the request is refused).
+    expect((await attempt({ 'x-client-ip': '203.0.113.8' })).status).toBe(403);
+    // A value that isn't an IP address is ignored, so it falls back to the shared, used-up bucket.
+    expect((await attempt({ ...viaProxy, 'x-client-ip': 'not-an-ip' })).status).toBe(429);
   });
 
   // Runs after the failed-login test: being locked out of sign-in must not block a reset.

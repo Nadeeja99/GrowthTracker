@@ -3,7 +3,8 @@
 // deletes and recreates only the demo user.
 //
 //   npm run db:seed                  (development, via ts-node)
-//   node dist/scripts/seed.js        (production build, e.g. on Render)
+//   node dist/scripts/seed.js        (production build)
+//   POST /internal/demo/reset        (the daily scheduled reset, see app.ts)
 import bcrypt from 'bcryptjs';
 import { env } from '../config/env';
 import { prisma } from '../config/database';

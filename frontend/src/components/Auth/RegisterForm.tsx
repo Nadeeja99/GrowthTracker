@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { submitOnModEnter } from '@/lib/forms';
-import { useSlowFlag, WAKING_UP_MESSAGE } from '@/hooks/useSlowFlag';
+import { useSlowFlag, SLOW_MESSAGE } from '@/hooks/useSlowFlag';
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void;
@@ -78,7 +78,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) =
             {error}
           </div>
         )}
-        {slow && <p role="status" className="text-sm text-gray-600 dark:text-gray-400 mb-4">{WAKING_UP_MESSAGE}</p>}
+        {slow && <p role="status" className="text-sm text-gray-600 dark:text-gray-400 mb-4">{SLOW_MESSAGE}</p>}
 
         <form onKeyDown={submitOnModEnter} onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

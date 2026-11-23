@@ -25,9 +25,9 @@ const envSchema = z
 
     CORS_ORIGIN: z.string().default('http://localhost:3000'),
     // Number of reverse-proxy hops in front of the app, needed for correct client
-    // IPs (which per-IP rate limiting depends on). On Render behind the Next.js
-    // app on Vercel: 3. Too low and every visitor shares Vercel's outbound IPs;
-    // too high and a client can pick its own IP with X-Forwarded-For.
+    // IPs (which per-IP rate limiting depends on). On Vercel: 1. Too high and a
+    // client can pick its own IP with X-Forwarded-For. Requests through the app's
+    // proxy carry the visitor's IP in X-Client-IP instead (see requireProxy).
     TRUST_PROXY: numberFromEnv(0),
     // Shared with the Next.js app; when set, only requests carrying it are served.
     API_PROXY_SECRET: z.string().min(32, 'API_PROXY_SECRET must be at least 32 characters').optional(),
@@ -80,7 +80,7 @@ const envSchema = z
     VAPID_PRIVATE_KEY: optionalSecret(z.string().min(20, 'VAPID_PRIVATE_KEY looks too short')),
     // Who push services contact about problems. Defaults to the app's URL.
     VAPID_SUBJECT: optionalSecret(z.string().regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT must start with mailto: or https://')),
-    // Shared with the scheduled job that sends the digests (.github/workflows/digests.yml).
+    // Shared with the scheduled jobs: digests and the daily demo reset (.github/workflows).
     DIGEST_CRON_SECRET: optionalSecret(z.string().min(32, 'DIGEST_CRON_SECRET must be at least 32 characters')),
 
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),

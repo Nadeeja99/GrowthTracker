@@ -1,7 +1,7 @@
 import winston from 'winston';
 import { env } from '../config/env';
 
-// Logs go to stdout only: hosting platforms (Render, Fly, Docker) collect
+// Logs go to stdout only: hosting platforms (Vercel, Fly, Docker) collect
 // stdout, while local log files are lost on every deploy or restart.
 // Production emits one JSON object per line so log search can index fields.
 const logger = winston.createLogger({
