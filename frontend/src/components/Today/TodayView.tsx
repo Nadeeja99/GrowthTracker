@@ -12,6 +12,8 @@ import { GoalProgress } from './GoalProgress';
 import { toDateKey } from '@/lib/dates';
 import { FocusTarget } from '@/contexts/FocusContext';
 import { CoachCard } from '@/components/Coach/CoachCard';
+import { SlipRiskNote } from '@/components/Schedule/SlipRiskNote';
+import { useSkipRisks } from '@/hooks/data/useSkipRisk';
 
 interface TodayViewProps {
   goals: Goal[];
@@ -106,6 +108,7 @@ export function TodayView({
     pending: <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />,
   };
 
+  const risks = useSkipRisks();
   const completedActivities = todayActivities.filter(a => a.status === 'completed').length;
   const completedHabits = dailyHabits.filter(h => h.completedToday).length;
   const completedTasksToday = tasks.filter(t => t.status === 'completed' && t.completedAt?.startsWith(today)).length;
@@ -204,6 +207,7 @@ export function TodayView({
                     {activity.startTime} – {activity.endTime}
                     {activity.goalId && ` · ${getGoalName(activity.goalId)}`}
                   </p>
+                  {activity.status === 'pending' && <SlipRiskNote risk={risks.get(activity.id)} className="mt-1" />}
                 </div>
                 <div className="flex items-center gap-2">
                   {statusIcon[activity.status]}

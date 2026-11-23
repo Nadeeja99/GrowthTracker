@@ -31,12 +31,12 @@ The work was to make it something you'd trust with your week, and that an employ
 | Backend | Validated config, rate limiting, request IDs, structured logs, ownership checks on every relation, versioned migrations, a demo seed. |
 | Auth | 15-minute in-memory access tokens, rotating httpOnly refresh cookie, "sign out everywhere" via a token version. |
 | Frontend | A server-state cache with targeted invalidation, a design system with light and dark themes, skeletons, error boundaries, toasts that say what failed and why. |
-| Quality | 294 API integration tests, 178 unit tests, 25 Python tests, 59 end-to-end journeys with accessibility checks, CI, and deploys gated on CI. |
+| Quality | 347 API integration tests, 181 unit tests, 39 Python tests, 61 end-to-end journeys with accessibility checks, CI, and deploys gated on CI. |
 | Phone | Works offline with check-ins that sync later, opens instantly from saved data, and sends morning and evening push digests. |
 | Capture | Plain-English quick add with a live preview, parsed on the device, and a private calendar feed for other calendar apps. |
 | AI | A streaming coach, weekly review, week planner and goal breakdown, all on one guarded request pipeline. |
 | Journal | Free keyword search over daily notes, and answers with hybrid retrieval (full-text search plus pgvector) whose citations are checked by the server. |
-| Machine learning | A Python pipeline and notebook that train and evaluate a model of how long each person's tasks really take, served in the API as estimate suggestions with honest ranges. |
+| Machine learning | Two models trained and evaluated in Python and served in the API: how long each person's tasks really take (estimate suggestions with honest ranges), and which planned blocks they're likely to skip (labels, and a smarter Plan my week). An evaluation set grades the AI features on labelled journal questions and planning scenarios. |
 
 ## Key decisions and trade-offs
 
@@ -125,19 +125,36 @@ The app records an estimate and, through the focus timer, the time a task really
 - Two implementations can drift apart, so the pipeline writes 29 test cases that the TypeScript must reproduce to 9 decimal places. CI retrains from scratch and fails if the committed model is stale, and the API refuses to start with a model file whose features don't match its code. Writing those checks caught a real mismatch: a clamp stored rounded to 6 decimals made the API differ from Python by about 10⁻⁸.
 - Population effects learned from simulated people are assumptions for real ones, so suggestions wait until a person's own record outweighs them: 3 timed tasks, derived from the fitted variances.
 
+### 9. Predicting follow-through, and measuring the AI
+A plan is only as good as the blocks that actually happen. Skip risk estimates how likely each planned block is to be missed, from its time of day, length, how far ahead it was planned, how crowded the day is, and the person's own record.
+
+**Decision:** logistic regression over those details plus the person's **shrunken skip rates** (overall, for that time of day, for that goal), served from JSON like the estimate model.
+
+- **Why shrunken rates rather than raw history.** Three misses out of four evening blocks is weak evidence; thirty out of forty isn't. A beta prior fitted to training users (worth about 6 blocks) and per-band and per-goal shrinkage, tuned on validation users, encode that, so the model can stay a simple, calibrated logistic regression. Gradient boosting given the raw counts did slightly worse (log loss 0.548 against 0.543).
+- **A label has to be trusted, so it's cautious.** It appears after 6 blocks with a known result, and only at 50% risk or more, the lowest threshold at which 2 in 3 flagged validation blocks were really missed. On test users it caught 3 in 10 misses in advance, and 65% of its flags were right.
+- **Unticked blocks are unknown, not missed.** Many people never mark skips. Counting unticked blocks as misses would flag almost everything they plan; leaving them out makes the model err towards silence.
+- **Explanations come from the model itself.** The terms pushing a block's score up most become its reasons ("You often miss evening blocks"), so the label never says something the model didn't use.
+
+**Plan my week** now gets the person's keep rate by time of day and their realistic task durations from the estimate model. Every suggestion comes back with its risk, and likely misses start unticked.
+
+**The evaluation set** makes "is the AI any good?" a number. It has 40 invented notes and 20 questions labelled with the notes that answer them, scored by recall@8 and MRR for each search method, plus four planning scenarios graded on goal hours, rule violations, skip risk against random placement, and task sizing. It runs free against the fake provider in CI, and with a real key on demand.
+
+That already produced one finding without spending anything: keyword search finds every right note for questions that share words with the answer or name a period, but only about 1 in 5 for questions worded differently. That's the case for the embeddings, now measurable rather than assumed.
+
 ## Results
 
 - **Lighthouse (mobile):**
   - accessibility 100 and best practices 100 on every page
   - performance 92–96
   - layout shift close to 0 after making AI cards wait for their status instead of popping in
-- **Tests:** 294 backend, 178 frontend unit, 25 Python and 59 end-to-end. CI runs them all, and Vercel and Render deploy only after CI passes.
+- **Tests:** 347 backend, 181 frontend unit, 39 Python and 61 end-to-end. CI runs them all, and Vercel and Render deploy only after CI passes.
+- **Skip risk (80 unseen simulated people):** AUC 0.72 against 0.70 for each person's own skip rate and 0.78 at best, with stated risks within about 2 points of observed rates on average.
 - **Estimate suggestions (80 unseen simulated users):** the average miss fell from 36.8 minutes with the raw estimate to 26.2, against a noise floor of 24.7. That's 88% of the removable error, and better than each person's own median overrun (28.6).
 - **Security:** the API answers only through the proxy, every relation is ownership-checked, configuration is validated at boot, and failed logins are rate-limited.
 
 ## Next steps
 
 - **Faster first paint on app pages.** Largest Contentful Paint is about 3 s on throttled mobile because the session restore and the first data fetch happen client-side, one after the other. Server-rendering the first view, with the session read on the server, would remove that wait.
-- **Evaluation for the AI features.** A small set of fixed user snapshots with graded expectations (grounded in the data? sensible plan?), run whenever the prompt or model changes.
+- **Run the evaluation set with a real key**, and keep the report as the baseline for future prompt and model changes. Then add graders for the coach and the weekly review.
 - **A usage dashboard** over `ai_usage`.
 - **Retrain on real data.** The pipeline can already read the app's data export, and scores the shipped model on one person's file. Retraining needs many people's data, which doesn't exist yet.

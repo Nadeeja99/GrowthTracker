@@ -1,0 +1,82 @@
+{
+  "name": "skip-risk",
+  "features": [
+    "intercept",
+    "band_early",
+    "band_afternoon",
+    "band_evening",
+    "band_late",
+    "weekend",
+    "log_duration",
+    "log_lead_days",
+    "day_load",
+    "has_goal",
+    "personal_logit",
+    "band_deviation",
+    "goal_deviation",
+    "recent_misses"
+  ],
+  "coefficients": [
+    -0.802112,
+    0.388812,
+    0.17185,
+    0.251068,
+    0.534266,
+    0.287374,
+    0.339388,
+    0.187485,
+    0.08977,
+    -0.031022,
+    0.845533,
+    1.411878,
+    0.547545,
+    0.177275
+  ],
+  "shrinkage": {
+    "priorMean": 0.291669,
+    "userStrength": 5.654038,
+    "bandStrength": 50.0,
+    "goalStrength": 20.0,
+    "historyLimit": 100
+  },
+  "threshold": 0.5,
+  "minHistory": 6,
+  "resolveHours": 24,
+  "bands": [
+    {
+      "name": "early",
+      "startMinutes": 0
+    },
+    {
+      "name": "morning",
+      "startMinutes": 540
+    },
+    {
+      "name": "afternoon",
+      "startMinutes": 720
+    },
+    {
+      "name": "evening",
+      "startMinutes": 1020
+    },
+    {
+      "name": "late",
+      "startMinutes": 1260
+    }
+  ],
+  "clamps": {
+    "minDuration": 15,
+    "maxDuration": 240,
+    "maxLeadDays": 60,
+    "maxDayLoad": 6,
+    "recent": 3
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "trainedOn": "synthetic",
+    "generatorSeed": 29,
+    "trainUsers": 240,
+    "trainBlocks": 18281,
+    "card": "ml/SKIP_RISK_MODEL_CARD.md"
+  }
+}

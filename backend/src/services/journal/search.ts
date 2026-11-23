@@ -129,3 +129,19 @@ export async function retrieveNotes(
   ]);
   return { notes: fuseRankings(lists, NOTES_IN_ANSWER).map(toNote), method: vector ? 'hybrid' : 'keywords', range };
 }
+
+/**
+ * Each search on its own and merged, exactly as retrieveNotes runs them, for
+ * the evaluation set (backend/evals). A period in the question ("last week")
+ * limits every method, and its latest notes join every ranking, as in the app.
+ */
+export async function rankingsForEvaluation(user: { id: string; timezone: string }, question: string, vector: number[] | null) {
+  const range = journalDateRange(question, dateKeyInZone(new Date(), user.timezone));
+  const [keywords, meaning, latest] = await Promise.all([
+    keywordMatches(user.id, question, range, CANDIDATES),
+    vector ? meaningMatches(user.id, vector, range) : Promise.resolve([] as Row[]),
+    range ? latestInRange(user.id, range) : Promise.resolve([] as Row[]),
+  ]);
+  const top = (lists: Row[][]) => fuseRankings(lists, NOTES_IN_ANSWER).map(toNote);
+  return { keywords: top([keywords, latest]), meaning: top([meaning, latest]), hybrid: top([keywords, meaning, latest]) };
+}

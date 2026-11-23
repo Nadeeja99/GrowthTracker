@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Clock, CheckCircle2, XCircle, Play, SkipForward, CheckSquare } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Calendar, Clock, CheckCircle2, XCircle, Play, SkipForward, CheckSquare } from 'lucide-react';
 import { Goal, ScheduleActivity } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseDateKey, toDateKey } from '@/lib/dates';
+import { useSkipRisks } from '@/hooks/data/useSkipRisk';
 
 interface ScheduleCalendarProps {
   goals: Goal[];
@@ -24,6 +25,7 @@ export function ScheduleCalendar({
   onActivityClick,
 }: ScheduleCalendarProps) {
   const [currentWeek, setCurrentWeek] = useState<Date>(parseDateKey(selectedDate));
+  const risks = useSkipRisks();
 
   const getWeekDates = (date: Date) => {
     const startOfWeek = new Date(date);
@@ -199,7 +201,16 @@ export function ScheduleCalendar({
                         className="w-2 h-2 rounded-full flex-shrink-0"
                         style={{ backgroundColor: getGoalColor(activity.goalId) }}
                       />
-                      {getStatusIcon(activity.status)}
+                      <span className="flex items-center gap-1">
+                        {activity.status === 'pending' && risks.get(activity.id)?.likelyToSlip && (
+                          // Compact here; the day view and Today spell out the reasons.
+                          <span title={['Likely to slip', ...risks.get(activity.id)!.reasons].join(': ')} className="text-amber-700 dark:text-amber-300">
+                            <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
+                            <span className="sr-only">Likely to slip</span>
+                          </span>
+                        )}
+                        {getStatusIcon(activity.status)}
+                      </span>
                     </div>
                     <div className="font-medium text-gray-900 dark:text-white truncate">
                       {activity.title}
@@ -246,6 +257,12 @@ export function ScheduleCalendar({
             <SkipForward className="w-4 h-4 text-yellow-500" />
             <span className="text-gray-600 dark:text-gray-400">Rescheduled</span>
           </div>
+          {risks.size > 0 && (
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-amber-700 dark:text-amber-300" aria-hidden="true" />
+              <span className="text-gray-600 dark:text-gray-400">Likely to slip</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

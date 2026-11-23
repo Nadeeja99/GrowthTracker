@@ -98,3 +98,6 @@ env.local
 # Playwright
 test-results/
 playwright-report/
+
+# AI evaluation reports (npm run eval -- --out …)
+eval-report*.json

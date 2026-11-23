@@ -161,6 +161,60 @@ describe('week plan', () => {
     expect(data).toContain(`"plannableDays":["${nextWeek}"`);
   });
 
+  it('uses the person’s own record: when they follow through, how long tasks take, and each block’s risk', async () => {
+    const planner = await registerUser(app, { timezone: 'UTC' });
+    await request(app).put('/api/coach/settings').set(auth(planner.token)).send({ enabled: true });
+    const goal = (await request(app).post('/api/goals').set(auth(planner.token)).send({ title: 'Thesis', targetHoursWeekly: 8 })).body.data.goal.id;
+    // Keeps morning blocks, misses evening ones.
+    for (let d = 3; d < 13; d++) {
+      const day = addDays(today(), -d);
+      await prisma.schedule.createMany({ data: [
+        { userId: planner.user.id, title: 'Write', status: 'COMPLETED', startTime: new Date(`${day}T08:00:00Z`), endTime: new Date(`${day}T09:00:00Z`) },
+        { userId: planner.user.id, title: 'Write', status: 'SKIPPED', startTime: new Date(`${day}T19:00:00Z`), endTime: new Date(`${day}T20:00:00Z`) },
+      ] });
+    }
+    // Tasks take twice as long as planned.
+    for (let i = 0; i < 4; i++) {
+      await prisma.task.create({ data: { userId: planner.user.id, goalId: goal, title: `Done ${i}`, status: 'COMPLETED', estimatedTime: 30, actualTime: 60, completedAt: new Date() } });
+    }
+    await prisma.task.create({ data: { userId: planner.user.id, goalId: goal, title: 'Draft chapter 2', estimatedTime: 60 } });
+
+    const nextWeek = addDays(thisWeek(), 7);
+    const monday = addDays(nextWeek, 1);
+    model.output = {
+      summary: 'Mornings and evenings.',
+      blocks: [
+        { title: 'Draft chapter 2', goalId: goal, date: monday, startTime: '08:00', durationMinutes: 90, reason: 'r' },
+        { title: 'Draft chapter 2', goalId: goal, date: monday, startTime: '19:00', durationMinutes: 90, reason: 'r' },
+      ],
+    };
+    const res = await request(app).post('/api/ai/week-plan').set(auth(planner.token))
+      .send({ weekStart: nextWeek, window: { start: '07:00', end: '22:00' } });
+    expect(res.status).toBe(200);
+
+    const data = model.requests[0].input;
+    // Times of day with fewer than 3 blocks are left out.
+    expect(data).toContain('"followThrough":{"kept":10,"of":20,"byTimeOfDay":[{"time":"before 09:00","kept":10,"of":10},{"time":"17:00-21:00","kept":0,"of":10}]}');
+    const usual = /"title":"Draft chapter 2"[^}]*"usuallyTakesMinutes":(\d+)/.exec(data);
+    expect(Number(usual?.[1])).toBeGreaterThan(90);
+
+    const [morning, evening] = res.body.data.plan.blocks;
+    expect(morning.risk).toMatchObject({ likelyToSlip: false, reasons: [] });
+    expect(evening.risk).toMatchObject({ likelyToSlip: true });
+    expect(evening.risk.reasons[0]).toBe('You often miss evening blocks');
+    expect(morning.risk).not.toHaveProperty('id');
+  });
+
+  it('leaves out follow-through and risk for someone without a record yet', async () => {
+    const nextWeek = addDays(thisWeek(), 7);
+    model.output = { summary: 's', blocks: [{ title: 'Study', goalId, date: addDays(nextWeek, 2), startTime: '10:00', durationMinutes: 60, reason: 'r' }] };
+    const res = await request(app).post('/api/ai/week-plan').set(auth(user.token))
+      .send({ weekStart: nextWeek, window: { start: '07:00', end: '21:00' } });
+    expect(res.body.data.plan.blocks[0].risk).toBeNull();
+    expect(model.requests[0].input).not.toContain('followThrough');
+    expect(model.requests[0].input).not.toContain('usuallyTakesMinutes');
+  });
+
   it('only plans this week or next, with a sensible window', async () => {
     const plan = (body: object) => request(app).post('/api/ai/week-plan').set(auth(user.token)).send(body);
     expect((await plan({ weekStart: addDays(thisWeek(), 14) })).status).toBe(400);

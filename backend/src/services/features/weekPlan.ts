@@ -10,6 +10,10 @@ import { clip, dataBlock, goalTimeMs, hours } from '../ai/data';
 import { assertAiReady } from '../ai/request';
 import { generateStructured } from '../ai/structured';
 import { isDateKey, minutesOfDay, nullable, weekStartKey } from '../ai/time';
+import { MODEL as ESTIMATES, predictDuration, roundMinutes } from '../estimates/calibration';
+import { timedHistory } from '../estimates/history';
+import { BlockRisk, blockRisks, outcomeHistory } from '../skipRisk/blocks';
+import { MODEL as SKIP_RISK, Outcome } from '../skipRisk/risk';
 
 type User = { id: string; email: string; timezone: string };
 
@@ -63,6 +67,8 @@ export interface PlannedBlock {
   startTime: string;
   endTime: string;
   reason: string;
+  /** From the skip-risk model; null until the person has enough history. */
+  risk?: Omit<BlockRisk, 'id'> | null;
 }
 
 interface Interval { start: number; end: number }
@@ -125,6 +131,8 @@ Propose time blocks for the days listed in "plannableDays" that move each goal t
 - Prefer blocks of 45 to 90 minutes, at most ${MAX_PER_DAY} per day, with breaks between them. Spread a goal across the week rather than cramming one day.
 - Where an open task belongs to a goal, name the block after the task.
 - Use the user's recent energy (daily reviews) if it shows a pattern, e.g. lighter days after low-energy ones.
+- If "followThrough" is given, it's how often the user really kept blocks at each time of day. Prefer times they keep, and avoid ones they usually miss.
+- If a task has "usuallyTakesMinutes", that's how long tasks like it really take this user: size its block from that, not from "estimateMinutes".
 - Use goal ids exactly as given. Dates are YYYY-MM-DD and times 24h HH:MM in the user's time zone.
 - If nothing is needed (all targets met or no free time), return an empty list and say why in the summary.`;
 
@@ -156,7 +164,7 @@ export async function generateWeekPlan(user: User, weekStart: string, window: { 
     prisma.focusSession.findMany({ where: { userId: user.id, startedAt: { gte: start, lt: end } }, select: { goalId: true, scheduleId: true, durationSeconds: true } }),
     prisma.task.findMany({
       where: { userId: user.id, status: { in: ['PENDING', 'IN_PROGRESS'] } },
-      select: { title: true, dueDate: true, estimatedTime: true, goalId: true },
+      select: { title: true, dueDate: true, estimatedTime: true, goalId: true, priority: true, _count: { select: { subtasks: true } } },
       orderBy: { dueDate: 'asc' },
       take: 15,
     }),
@@ -166,6 +174,7 @@ export async function generateWeekPlan(user: User, weekStart: string, window: { 
       orderBy: { date: 'asc' },
     }),
   ]);
+  const [timed, outcomes] = await Promise.all([timedHistory(user.id), outcomeHistory(user.id, tz, now)]);
 
   const time = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   const done = goalTimeMs(blocks, focus);
@@ -197,8 +206,14 @@ export async function generateWeekPlan(user: User, weekStart: string, window: { 
       title: clip(t.title, 80),
       due: t.dueDate?.toISOString().slice(0, 10),
       estimateMinutes: t.estimatedTime ?? undefined,
+      usuallyTakesMinutes: t.estimatedTime && timed.length >= ESTIMATES.minHistory
+        ? roundMinutes(predictDuration(ESTIMATES, {
+          estimateMinutes: t.estimatedTime, priority: t.priority, subtasks: t._count.subtasks, hasDueDate: t.dueDate !== null, goalId: t.goalId,
+        }, timed).predictedMinutes)
+        : undefined,
       goal: t.goalId ? goalTitle.get(t.goalId) : undefined,
     })),
+    followThrough: followThrough(outcomes),
     recentEnergy: reflections.filter(r => r.energy != null).map(r => ({ date: r.date.toISOString().slice(0, 10), energy: r.energy, performance: r.performance ?? undefined })),
   };
 
@@ -213,7 +228,7 @@ export async function generateWeekPlan(user: User, weekStart: string, window: { 
     maxOutputTokens: 3500,
   });
 
-  return normalizeWeekPlan(value, {
+  const plan = normalizeWeekPlan(value, {
     timezone: tz,
     days,
     window: { start: windowStart, end: windowEnd },
@@ -221,4 +236,30 @@ export async function generateWeekPlan(user: User, weekStart: string, window: { 
     goalIds: new Set(goals.map(g => g.id)),
     now,
   });
+
+  // The model's guess, checked against the person's own record: each block
+  // says how likely it is to slip, so the dialog can leave risky ones unticked.
+  const { risks } = await blockRisks(
+    user,
+    plan.blocks.map(b => ({ id: b.id, startTime: new Date(b.startTime), endTime: new Date(b.endTime), plannedAt: now, goalId: b.goalId })),
+    { proposed: true, now }
+  );
+  const byId = new Map((risks ?? []).map(({ id, ...risk }) => [id, risk]));
+  return { ...plan, blocks: plan.blocks.map(b => ({ ...b, risk: byId.get(b.id) ?? null })) };
+}
+
+const BAND_LABELS: Record<Outcome['band'], string> = {
+  early: 'before 09:00', morning: '09:00-12:00', afternoon: '12:00-17:00', evening: '17:00-21:00', late: 'after 21:00',
+};
+
+/** How often blocks were kept, by time of day; only once there's enough history to mean something. */
+export function followThrough(outcomes: Outcome[]) {
+  if (outcomes.length < SKIP_RISK.minHistory) return undefined;
+  const byBand = (Object.keys(BAND_LABELS) as Outcome['band'][])
+    .map(band => {
+      const of = outcomes.filter(o => o.band === band);
+      return { time: BAND_LABELS[band], kept: of.filter(o => !o.missed).length, of: of.length };
+    })
+    .filter(b => b.of >= 3);
+  return { kept: outcomes.filter(o => !o.missed).length, of: outcomes.length, byTimeOfDay: byBand };
 }

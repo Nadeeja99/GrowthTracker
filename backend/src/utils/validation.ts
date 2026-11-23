@@ -299,6 +299,18 @@ export const estimateQuerySchema = z.object({
   excludeTaskId: z.string().min(1).max(64).optional(),
 });
 
+// At most a month ahead, so one request stays small.
+export const skipRiskQuerySchema = z.object({
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+}).refine(q => !q.startDate || !q.endDate || new Date(q.startDate) < new Date(q.endDate), {
+  message: 'endDate must be after startDate',
+  path: ['endDate'],
+}).refine(q => !q.endDate || new Date(q.endDate).getTime() - Math.max(Date.now(), q.startDate ? new Date(q.startDate).getTime() : 0) <= 31 * 86_400_000, {
+  message: 'Ask for at most 31 days at a time',
+  path: ['endDate'],
+});
+
 export const journalAskSchema = z.object({
   question: z.string().trim().min(1, 'Type a question').max(300),
 });
