@@ -62,7 +62,11 @@ describe('demo seed', () => {
     await seedDemo(); // idempotent: replaces only the demo user
     const user = await prisma.user.findUniqueOrThrow({ where: { email: DEMO_EMAIL } });
     expect(await prisma.goal.count({ where: { userId: user.id } })).toBe(3);
-    expect(await prisma.schedule.count({ where: { userId: user.id } })).toBe(11); // 7 study + 3 runs + 1 exam
+    expect(await prisma.schedule.count({ where: { userId: user.id } })).toBe(45); // this week: 7 study + 3 runs + 1 exam; plus 34 older
+    // The older record for skip risk stays out of this week's numbers.
+    const older = await prisma.schedule.findMany({ where: { userId: user.id, startTime: { lt: new Date(Date.now() - 7 * 86_400_000) } } });
+    expect(older).toHaveLength(34);
+    expect(older.every(b => b.status === 'COMPLETED' || b.status === 'SKIPPED')).toBe(true);
     const login = await request(app).post('/api/auth/login').send({ email: DEMO_EMAIL, password: 'demo-password-1' });
     expect(login.status).toBe(200);
   });

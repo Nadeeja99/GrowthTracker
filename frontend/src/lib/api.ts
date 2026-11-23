@@ -295,6 +295,25 @@ export interface WeeklyReview {
   generatedAt: string;
 }
 
+/** From the skip-risk model (ml/SKIP_RISK_MODEL_CARD.md). */
+export interface BlockRisk {
+  id: string;
+  /** 0 to 1. */
+  probability: number;
+  likelyToSlip: boolean;
+  /** Up to two plain reasons, only when likely to slip. */
+  reasons: string[];
+}
+
+export interface SkipRiskResult {
+  risks: BlockRisk[];
+  /** Past blocks with a known result; risks stay empty below `minHistory`. */
+  history: number;
+  minHistory: number;
+  threshold: number;
+  modelVersion: string;
+}
+
 export interface PlannedBlock {
   id: string;
   title: string;
@@ -302,6 +321,8 @@ export interface PlannedBlock {
   startTime: string;
   endTime: string;
   reason: string;
+  /** How likely it is to slip, from the person's record; null until there's enough of it. */
+  risk?: Omit<BlockRisk, 'id'> | null;
 }
 
 export interface WeekPlan {
@@ -818,6 +839,11 @@ class ApiClient {
       ...(params.excludeTaskId && { excludeTaskId: params.excludeTaskId }),
     });
     return this.request(`/estimates?${query}`, { signal });
+  }
+
+  /** Skip risk for upcoming blocks (the next 14 days by default). */
+  async getSkipRisks(signal?: AbortSignal): Promise<ApiResponse<SkipRiskResult>> {
+    return this.request('/skip-risk', { signal });
   }
 
   // Journal (the notes in daily reviews)

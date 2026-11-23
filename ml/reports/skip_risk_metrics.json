@@ -1,0 +1,249 @@
+{
+  "modelVersion": "1.0.0",
+  "data": {
+    "users": {
+      "train": 240,
+      "validation": 80,
+      "test": 80
+    },
+    "blocks": {
+      "train": 18281,
+      "validation": 6069,
+      "test": 5567
+    },
+    "missRate": 0.291
+  },
+  "fit": {
+    "coefficients": {
+      "intercept": -0.802112,
+      "band_early": 0.388812,
+      "band_afternoon": 0.17185,
+      "band_evening": 0.251068,
+      "band_late": 0.534266,
+      "weekend": 0.287374,
+      "log_duration": 0.339388,
+      "log_lead_days": 0.187485,
+      "day_load": 0.08977,
+      "has_goal": -0.031022,
+      "personal_logit": 0.845533,
+      "band_deviation": 1.411878,
+      "goal_deviation": 0.547545,
+      "recent_misses": 0.177275
+    },
+    "priorMean": 0.291669,
+    "userStrength": 5.654038
+  },
+  "tuning": {
+    "validationLogLoss": {
+      "band 5, goal 5": 0.52656,
+      "band 5, goal 10": 0.52648,
+      "band 5, goal 20": 0.52644,
+      "band 5, goal 50": 0.52645,
+      "band 5, goal 100": 0.52649,
+      "band 10, goal 5": 0.52644,
+      "band 10, goal 10": 0.52635,
+      "band 10, goal 20": 0.52631,
+      "band 10, goal 50": 0.52633,
+      "band 10, goal 100": 0.52637,
+      "band 20, goal 5": 0.52636,
+      "band 20, goal 10": 0.52628,
+      "band 20, goal 20": 0.52624,
+      "band 20, goal 50": 0.52626,
+      "band 20, goal 100": 0.52629,
+      "band 50, goal 5": 0.52633,
+      "band 50, goal 10": 0.52625,
+      "band 50, goal 20": 0.52621,
+      "band 50, goal 50": 0.52624,
+      "band 50, goal 100": 0.52629,
+      "band 100, goal 5": 0.52635,
+      "band 100, goal 10": 0.52626,
+      "band 100, goal 20": 0.52623,
+      "band 100, goal 50": 0.52625,
+      "band 100, goal 100": 0.52631
+    },
+    "bandStrength": 50.0,
+    "goalStrength": 20.0,
+    "minHistory": 6,
+    "threshold": 0.5
+  },
+  "test": {
+    "population_rate": {
+      "log_loss": 0.6117,
+      "brier": 0.2104,
+      "auc": 0.5,
+      "calibration_error": 0.009,
+      "n": 5567
+    },
+    "personal_rate": {
+      "log_loss": 0.5564,
+      "brier": 0.187,
+      "auc": 0.6982,
+      "calibration_error": 0.0161,
+      "n": 5567
+    },
+    "block_features_only": {
+      "log_loss": 0.6062,
+      "brier": 0.2079,
+      "auc": 0.5737,
+      "calibration_error": 0.0183,
+      "n": 5567
+    },
+    "model": {
+      "log_loss": 0.5428,
+      "brier": 0.1815,
+      "auc": 0.7222,
+      "calibration_error": 0.0182,
+      "n": 5567
+    },
+    "oracle": {
+      "log_loss": 0.5004,
+      "brier": 0.165,
+      "auc": 0.7804,
+      "calibration_error": 0.0153,
+      "n": 5567
+    }
+  },
+  "testShownInApp": {
+    "population_rate": {
+      "log_loss": 0.6172,
+      "brier": 0.213,
+      "auc": 0.5,
+      "calibration_error": 0.0153,
+      "n": 5001
+    },
+    "personal_rate": {
+      "log_loss": 0.5562,
+      "brier": 0.1872,
+      "auc": 0.7084,
+      "calibration_error": 0.0195,
+      "n": 5001
+    },
+    "block_features_only": {
+      "log_loss": 0.6135,
+      "brier": 0.2113,
+      "auc": 0.5672,
+      "calibration_error": 0.0248,
+      "n": 5001
+    },
+    "model": {
+      "log_loss": 0.5433,
+      "brier": 0.1818,
+      "auc": 0.7295,
+      "calibration_error": 0.0221,
+      "n": 5001
+    },
+    "oracle": {
+      "log_loss": 0.5068,
+      "brier": 0.1675,
+      "auc": 0.7781,
+      "calibration_error": 0.0193,
+      "n": 5001
+    }
+  },
+  "testByHistory": {
+    "0": {
+      "population_rate": 0.5629,
+      "personal_rate": 0.5629,
+      "block_features_only": 0.5316,
+      "model": 0.532,
+      "oracle": 0.4528,
+      "blocks": 179
+    },
+    "1-4": {
+      "population_rate": 0.5645,
+      "personal_rate": 0.5562,
+      "block_features_only": 0.5516,
+      "model": 0.5483,
+      "oracle": 0.427,
+      "blocks": 303
+    },
+    "5-9": {
+      "population_rate": 0.6235,
+      "personal_rate": 0.6125,
+      "block_features_only": 0.6107,
+      "model": 0.593,
+      "oracle": 0.5157,
+      "blocks": 398
+    },
+    "10-19": {
+      "population_rate": 0.6139,
+      "personal_rate": 0.5736,
+      "block_features_only": 0.5991,
+      "model": 0.5553,
+      "oracle": 0.502,
+      "blocks": 798
+    },
+    "20-49": {
+      "population_rate": 0.6155,
+      "personal_rate": 0.5554,
+      "block_features_only": 0.6088,
+      "model": 0.5382,
+      "oracle": 0.5132,
+      "blocks": 1990
+    },
+    "50+": {
+      "population_rate": 0.6163,
+      "personal_rate": 0.5377,
+      "block_features_only": 0.6211,
+      "model": 0.5321,
+      "oracle": 0.4995,
+      "blocks": 1899
+    }
+  },
+  "reliability": [
+    {
+      "predicted": 0.0652,
+      "observed": 0.0777,
+      "blocks": 579
+    },
+    {
+      "predicted": 0.1526,
+      "observed": 0.1789,
+      "blocks": 1409
+    },
+    {
+      "predicted": 0.2494,
+      "observed": 0.2511,
+      "blocks": 1354
+    },
+    {
+      "predicted": 0.3458,
+      "observed": 0.3319,
+      "blocks": 931
+    },
+    {
+      "predicted": 0.4451,
+      "observed": 0.4591,
+      "blocks": 562
+    },
+    {
+      "predicted": 0.5455,
+      "observed": 0.5769,
+      "blocks": 416
+    },
+    {
+      "predicted": 0.6439,
+      "observed": 0.7253,
+      "blocks": 233
+    },
+    {
+      "predicted": 0.736,
+      "observed": 0.72,
+      "blocks": 75
+    }
+  ],
+  "flags": {
+    "validation": {
+      "threshold": 0.5,
+      "flagged_share": 0.1132,
+      "precision": 0.6437,
+      "recall": 0.2597
+    },
+    "test": {
+      "threshold": 0.5,
+      "flagged_share": 0.1422,
+      "precision": 0.6498,
+      "recall": 0.301
+    }
+  }
+}

@@ -23,7 +23,11 @@ export function useSchedules() {
 export function useScheduleMutations() {
   const queryClient = useQueryClient();
 
+  // Any change to blocks can change their risk (a crowded day, a new miss).
+  const refreshRisks = () => queryClient.invalidateQueries({ queryKey: queryKeys.skipRisk });
+
   const putActivity = (backendSchedule: BackendSchedule) => {
+    refreshRisks();
     const activity = mapBackendScheduleToFrontend(backendSchedule);
     queryClient.setQueryData<ScheduleActivity[]>(queryKeys.schedules, old =>
       old?.some(a => a.id === activity.id)
@@ -42,7 +46,10 @@ export function useScheduleMutations() {
   const createMany = useMutation({
     meta: { action: 'create the recurring blocks' },
     mutationFn: (activities: ActivityInput[]) => apiClient.createSchedulesBulk(activities.map(mapFrontendActivityToBackend)),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.schedules }),
+    onSuccess: () => {
+      refreshRisks();
+      return queryClient.invalidateQueries({ queryKey: queryKeys.schedules });
+    },
   });
 
   const update = useMutation({
@@ -58,6 +65,7 @@ export function useScheduleMutations() {
     meta: { action: 'delete the time block' },
     mutationFn: (id: string) => apiClient.deleteSchedule(id),
     onSuccess: (_res, id) => {
+      refreshRisks();
       queryClient.setQueryData<ScheduleActivity[]>(queryKeys.schedules, old => old?.filter(a => a.id !== id));
     },
   });

@@ -1,0 +1,25 @@
+{
+  "about": "Questions over notes.json, each with the notes that answer it. 'kind' says what makes it hard: 'words' share words with their notes; 'meaning' mostly don't, so keyword search alone should miss them; 'period' name a time.",
+  "questions": [
+    { "id": "q01", "kind": "words", "question": "What did the physio say about my knee?", "relevant": ["n03", "n15", "n27"] },
+    { "id": "q02", "kind": "words", "question": "When did I study VPC peering?", "relevant": ["n06"] },
+    { "id": "q03", "kind": "words", "question": "What have I written about Priya?", "relevant": ["n11", "n20"] },
+    { "id": "q04", "kind": "words", "question": "How did my practice exam go?", "relevant": ["n14"] },
+    { "id": "q05", "kind": "words", "question": "What about the half marathon?", "relevant": ["n18", "n40"] },
+    { "id": "q06", "kind": "words", "question": "How much coffee have I been drinking?", "relevant": ["n10", "n22"] },
+    { "id": "q07", "kind": "meaning", "question": "When was I exhausted?", "relevant": ["n02", "n22", "n30", "n38"] },
+    { "id": "q08", "kind": "meaning", "question": "What helped me feel calmer?", "relevant": ["n09", "n16", "n29"] },
+    { "id": "q09", "kind": "meaning", "question": "When did I argue with someone?", "relevant": ["n11", "n19"] },
+    { "id": "q10", "kind": "meaning", "question": "When did I eat badly?", "relevant": ["n02", "n10", "n22"] },
+    { "id": "q11", "kind": "meaning", "question": "When did I sleep badly?", "relevant": ["n05", "n28"] },
+    { "id": "q12", "kind": "meaning", "question": "When did I feel proud of myself?", "relevant": ["n04", "n24", "n32"] },
+    { "id": "q13", "kind": "meaning", "question": "When did work feel overwhelming?", "relevant": ["n02", "n17", "n26", "n38"] },
+    { "id": "q14", "kind": "meaning", "question": "What family time have I had?", "relevant": ["n07", "n25", "n37"] },
+    { "id": "q15", "kind": "meaning", "question": "When did I procrastinate?", "relevant": ["n08", "n21", "n36"] },
+    { "id": "q16", "kind": "meaning", "question": "When was I ill?", "relevant": ["n12", "n13"] },
+    { "id": "q17", "kind": "meaning", "question": "Which days had nice weather?", "relevant": ["n09", "n23"] },
+    { "id": "q18", "kind": "period", "question": "How was yesterday?", "relevant": ["n01"] },
+    { "id": "q19", "kind": "period", "question": "What happened in the last 10 days?", "relevant": ["n01", "n02", "n03", "n04", "n05", "n06", "n07", "n08", "n09", "n10"] },
+    { "id": "q20", "kind": "period", "question": "How did running go in the last 10 days?", "relevant": ["n01", "n03"] }
+  ]
+}

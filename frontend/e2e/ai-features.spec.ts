@@ -40,9 +40,18 @@ test('plan my week: suggests blocks that avoid existing ones and adds the chosen
   await expect(dialog.getByText('Evening review').first()).toBeVisible()
   await expectAccessible(page, '[role="dialog"]')
 
-  const count = await options.count()
-  await options.first().uncheck()
-  await dialog.getByRole('button', { name: `Add ${count - 1} ${count - 1 === 1 ? 'block' : 'blocks'}` }).click()
+  // Blocks the demo's record says would likely slip start unticked, with the reason.
+  const items = dialog.getByRole('listitem')
+  for (let i = 0; i < await items.count(); i++) {
+    const item = items.nth(i)
+    if (await item.getByText('Likely to slip').count()) await expect(item.getByRole('checkbox')).not.toBeChecked()
+    else await expect(item.getByRole('checkbox')).toBeChecked()
+  }
+
+  await options.first().check()
+  await options.nth(1).uncheck()
+  const chosen = await dialog.getByRole('checkbox', { checked: true }).count()
+  await dialog.getByRole('button', { name: `Add ${chosen} ${chosen === 1 ? 'block' : 'blocks'}` }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page.getByText(/Added \d+ blocks? to your week/)).toBeVisible()
 })

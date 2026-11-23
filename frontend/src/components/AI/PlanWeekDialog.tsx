@@ -14,6 +14,7 @@ import { addDaysToKey, toDateKey, weekStartKey } from '@/lib/dates';
 import { queryKeys } from '@/lib/queryKeys';
 import { describeError, toast } from '@/lib/toast';
 import { aiButtonClass, ChoiceGroup } from './AiControls';
+import { SlipRiskNote } from '@/components/Schedule/SlipRiskNote';
 
 type Week = 'this' | 'next';
 const time = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
@@ -43,7 +44,8 @@ function PlanWeekDialog({ onClose }: { onClose: () => void }) {
 
   const run = () => {
     setAddError(null);
-    plan.mutate({ weekStart, window: range }, { onSuccess: res => setSelected(new Set(res.data!.plan.blocks.map(b => b.id))) });
+    // Blocks the person would likely miss start unticked; they can still add them.
+    plan.mutate({ weekStart, window: range }, { onSuccess: res => setSelected(new Set(res.data!.plan.blocks.filter(b => !b.risk?.likelyToSlip).map(b => b.id))) });
   };
 
   const add = async () => {
@@ -105,6 +107,11 @@ function PlanWeekDialog({ onClose }: { onClose: () => void }) {
             <div className="space-y-4">
               {plan.data?.data?.plan.summary && <p className="text-sm text-gray-800 dark:text-gray-200">{plan.data.data.plan.summary}</p>}
               {blocks.length === 0 && <p className="text-sm text-gray-600 dark:text-gray-400">No blocks to suggest for this week.</p>}
+              {blocks.some(b => b.risk?.likelyToSlip) && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Blocks you&apos;d likely miss, going by your past blocks, are left unticked. Tick them if you still want them.
+                </p>
+              )}
               {byDay.map(([day, items]) => (
                 <fieldset key={day}>
                   <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -133,6 +140,7 @@ function PlanWeekDialog({ onClose }: { onClose: () => void }) {
                             <span className="block text-xs text-gray-600 dark:text-gray-400">
                               {[goal(b.goalId)?.name, b.reason].filter(Boolean).join(' · ')}
                             </span>
+                            <SlipRiskNote risk={b.risk} className="mt-1" />
                           </span>
                         </label>
                       </li>

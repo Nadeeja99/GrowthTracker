@@ -5,6 +5,8 @@ import { Clock, Plus, CheckCircle2, XCircle, Play, SkipForward, CheckSquare, Che
 import { Goal, ScheduleActivity, Task } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseDateKey, toDateKey } from '@/lib/dates';
+import { useSkipRisks } from '@/hooks/data/useSkipRisk';
+import { SlipRiskNote } from './SlipRiskNote';
 
 interface DailyScheduleProps {
   goals: Goal[];
@@ -30,6 +32,7 @@ export function DailySchedule({
 }: DailyScheduleProps) {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
 
+  const risks = useSkipRisks();
   const getActivitiesForDate = (date: string) => {
     return activities.filter(activity => activity.date === date);
   };
@@ -156,19 +159,19 @@ export function DailySchedule({
         </div>
       </div>
 
-      {/* Quick Stats */}
+      {/* Quick Stats: -700 text keeps 4.5:1 contrast on the pale tints */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-lg p-3 text-center">
-          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+          <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
             {dayActivities.filter(a => a.status === 'completed').length}
           </div>
-          <div className="text-sm text-emerald-600 dark:text-emerald-400">Completed</div>
+          <div className="text-sm text-emerald-700 dark:text-emerald-400">Completed</div>
         </div>
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-center">
-          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+          <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
             {dayActivities.filter(a => a.status === 'in-progress').length}
           </div>
-          <div className="text-sm text-blue-600 dark:text-blue-400">In Progress</div>
+          <div className="text-sm text-blue-700 dark:text-blue-400">In Progress</div>
         </div>
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3 text-center">
           <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
@@ -177,10 +180,10 @@ export function DailySchedule({
           <div className="text-sm text-yellow-700 dark:text-yellow-400">Pending</div>
         </div>
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 text-center">
-          <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+          <div className="text-2xl font-bold text-red-700 dark:text-red-400">
             {dayActivities.filter(a => a.status === 'skipped').length}
           </div>
-          <div className="text-sm text-red-600 dark:text-red-400">Skipped</div>
+          <div className="text-sm text-red-700 dark:text-red-400">Skipped</div>
         </div>
       </div>
 
@@ -239,6 +242,7 @@ export function DailySchedule({
                           <div className="text-sm text-gray-600 dark:text-gray-400">
                             {activity.startTime} - {activity.endTime}
                           </div>
+                          {activity.status === 'pending' && <SlipRiskNote risk={risks.get(activity.id)} className="mt-1.5" />}
                           {activity.taskTitle && (
                             <div className="flex items-center gap-1 mt-1.5">
                               <CheckSquare className="w-3 h-3 text-blue-600 dark:text-blue-400 flex-shrink-0" />

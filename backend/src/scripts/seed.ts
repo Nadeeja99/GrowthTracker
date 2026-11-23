@@ -120,6 +120,13 @@ export async function seedDemo() {
     }
   }
   blocks.push({ userId, goalId: aws.id, taskId: exam.id, title: 'Practice exam 2', startTime: at(0, 14), endTime: at(0, 16), status: 'PENDING' as const });
+  // An older record for skip risk: morning study is nearly always kept, evening
+  // runs mostly aren't, so upcoming runs show "Likely to slip". Kept 8+ days
+  // back, so this week's hours and the 7-day strip are unchanged.
+  for (let d = -24; d <= -8; d++) {
+    blocks.push({ userId, goalId: aws.id, title: 'AWS study', startTime: at(d, 7), endTime: at(d, 8, 30), status: d % 6 === 0 ? 'SKIPPED' as const : 'COMPLETED' as const });
+    blocks.push({ userId, goalId: run.id, title: 'Easy run', startTime: at(d, 18), endTime: at(d, 19), status: d % 5 === 0 ? 'COMPLETED' as const : 'SKIPPED' as const });
+  }
   await prisma.schedule.createMany({ data: blocks });
 
   const readHabit = await prisma.habit.create({ data: { userId, name: 'Read 20 pages', frequency: 'DAILY' } });
