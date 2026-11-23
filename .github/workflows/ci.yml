@@ -151,8 +151,8 @@ jobs:
           npm run build
           # Throwaway push keys, so the notification settings are switched on.
           eval "$(node -e "const k = require('web-push').generateVAPIDKeys(); console.log('export VAPID_PUBLIC_KEY=' + k.publicKey + ' VAPID_PRIVATE_KEY=' + k.privateKey)")"
-          # Same commands as Render's start: compiled seed, then the API in
-          # production mode (it only accepts requests through the app's proxy).
+          # Compiled seed, then the API in production mode (it only accepts
+          # requests through the app's proxy).
           node dist/scripts/seed.js
           nohup npx ts-node --transpile-only tests/fake-openai-server.ts > fake-openai.log 2>&1 &
           NODE_ENV=production nohup npm start > api.log 2>&1 &

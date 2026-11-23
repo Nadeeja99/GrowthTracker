@@ -7,7 +7,7 @@ import { KeyRound, Target } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiError } from '@/lib/api';
 import { describeError, toast } from '@/lib/toast';
-import { useSlowFlag, WAKING_UP_MESSAGE } from '@/hooks/useSlowFlag';
+import { useSlowFlag, SLOW_MESSAGE } from '@/hooks/useSlowFlag';
 import { newPasswordProblem, PasswordField } from '@/components/ui/PasswordField';
 
 function ResetPasswordForm() {
@@ -71,7 +71,7 @@ function ResetPasswordForm() {
           {error}
         </div>
       )}
-      {slow && <p role="status" className="text-sm text-gray-600 dark:text-gray-400 mb-4">{WAKING_UP_MESSAGE}</p>}
+      {slow && <p role="status" className="text-sm text-gray-600 dark:text-gray-400 mb-4">{SLOW_MESSAGE}</p>}
       <form onSubmit={submit} className="space-y-4">
         <PasswordField id="reset-new" label="New password" value={password} onChange={setPassword} autoComplete="new-password" hint="At least 8 characters." autoFocus />
         <PasswordField id="reset-confirm" label="Confirm new password" value={confirm} onChange={setConfirm} autoComplete="new-password" />

@@ -40,3 +40,19 @@ describe('with the demo seeded', () => {
     expect((await request(app).get('/api/auth/me').set(auth(accessToken))).status).toBe(200);
   });
 });
+
+describe('the daily reset (POST /internal/demo/reset)', () => {
+  const reset = () => request(app).post('/internal/demo/reset');
+
+  it('needs the scheduled-job secret', async () => {
+    expect((await reset()).status).toBe(401);
+  });
+
+  it('rebuilds the demo account, undoing visitors\' changes', async () => {
+    await prisma.user.updateMany({ where: { email: 'demo@growthtracker.dev' }, data: { timezone: 'Pacific/Fiji' } });
+    const res = await reset().set('Authorization', `Bearer ${process.env.DIGEST_CRON_SECRET}`);
+    expect(res.status).toBe(200);
+    const demo = await prisma.user.findUnique({ where: { email: 'demo@growthtracker.dev' } });
+    expect(demo?.timezone).not.toBe('Pacific/Fiji');
+  });
+});

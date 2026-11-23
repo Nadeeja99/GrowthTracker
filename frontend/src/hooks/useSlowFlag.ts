@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react';
 
 /**
- * True once `pending` has lasted longer than `delayMs`. Used to explain waits
- * caused by the free hosting tier, where an idle server takes up to a minute
- * to wake up.
+ * True once `pending` has lasted longer than `delayMs`, so a slow request can
+ * say it's still going instead of looking stuck.
  */
 export function useSlowFlag(pending: boolean, delayMs = 4000): boolean {
   const [slow, setSlow] = useState(false);
@@ -20,4 +19,4 @@ export function useSlowFlag(pending: boolean, delayMs = 4000): boolean {
   return pending && slow;
 }
 
-export const WAKING_UP_MESSAGE = 'Waking up the server. On the free hosting tier this can take up to a minute after a quiet spell.';
+export const SLOW_MESSAGE = 'Still working on it. This is taking longer than usual.';

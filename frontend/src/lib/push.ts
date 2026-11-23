@@ -78,6 +78,6 @@ export async function syncPushDevice(): Promise<void> {
     const subscription = await currentPushSubscription();
     if (subscription) await apiClient.savePushSubscription(toServer(subscription));
   } catch {
-    // Offline, or the server's asleep: the next opening tries again.
+    // Offline, or the server couldn't be reached: the next opening tries again.
   }
 }

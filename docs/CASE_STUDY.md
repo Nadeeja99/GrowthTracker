@@ -2,7 +2,7 @@
 
 A personal planning app taken from a working prototype to a deployable, tested product, with AI features built to be safe around real user data.
 
-**Stack:** Next.js 16 · React 19 · TanStack Query · Tailwind · Express · Prisma · PostgreSQL (Supabase) · OpenAI Responses API · Python (statsmodels, pandas, scikit-learn) · Jest · Vitest · pytest · Playwright · GitHub Actions · Vercel · Render
+**Stack:** Next.js 16 · React 19 · TanStack Query · Tailwind · Express · Prisma · PostgreSQL (Supabase) · OpenAI Responses API · Python (statsmodels, pandas, scikit-learn) · Jest · Vitest · pytest · Playwright · GitHub Actions · Vercel
 
 ---
 
@@ -41,7 +41,7 @@ The work was to make it something you'd trust with your week, and that an employ
 ## Key decisions and trade-offs
 
 ### 1. A same-origin proxy instead of cross-site cookies
-The app and the API are separate services on different sites: the app on `vercel.app`, the API on `onrender.com`. (Both are on the Public Suffix List, so even two subdomains of either would be *different sites*.) A refresh cookie set by the API would be third-party, and browsers increasingly block those.
+The app and the API are separate Vercel projects, and so separate sites: `vercel.app` is on the Public Suffix List, so two of its subdomains are *different sites*. A refresh cookie set by the API would be third-party, and browsers increasingly block those.
 
 **Decision:** the browser only talks to the Next.js app, which rewrites `/api/*` to the API. The cookie stays first-party with `SameSite=Strict`.
 
@@ -82,13 +82,15 @@ CI has no API key. There are two layers:
 The same fake server powers the Playwright suite, which drives the coach, weekly review and planner in a real browser.
 
 ### 5. Free hosting, honestly
-Everything runs on free tiers: Vercel for the app, Render for the API and Supabase for Postgres (Render's free database expires after 30 days). The app moved from Render to Vercel so that it no longer sleeps; only the API does.
+Everything runs on free tiers: Vercel for the app and the API, and Supabase for Postgres.
+
+The API started on Render's free tier, which stops a service after 15 idle minutes. Requests the app forwarded didn't start it again, only requests straight from a browser did, so the app pinged the API from the browser when it opened. Then sign-in kept failing for some visitors: ad blockers' EasyPrivacy list blocks `||onrender.com/health`, the very URL being pinged. Moving the ping fixed that, but every first visit still waited about a minute, so the API moved to Vercel too, where an idle function resumes in about a second.
 
 | Constraint | How it's handled |
 |---|---|
-| No pre-deploy step on the free tier | Migrations run at the start of the API's start command. |
-| The free API sleeps after 15 idle minutes | The first visit takes about a minute. Sign-in says "waking up the server" after 4 seconds instead of looking broken, and the session check on page load starts waking the API immediately. |
-| A shared demo account | **Try the demo** signs in without a password. The demo is re-seeded on each cold start, so its dates stay current and visitors' changes are undone. "Sign out everywhere" is disabled there, so one visitor can't sign out the rest. |
+| No long-running server | Express runs as a single Vercel function. Migrations run in the production build, and scheduled work (notification digests, the daily demo reset) is triggered by GitHub Actions. |
+| Vercel replaces `X-Forwarded-For` on every hop, so the API sees the app's server instead of the visitor | The app passes the visitor's IP in `X-Client-IP`, and the API trusts it only on requests carrying the proxy secret. Per-IP rate limits depend on it. |
+| A shared demo account | **Try the demo** signs in without a password. The demo is rebuilt every day, so its dates stay current and visitors' changes are undone. "Sign out everywhere" is disabled there, so one visitor can't sign out the rest. |
 
 ### 6. Accessibility as a test, not a checklist
 Accessibility is checked automatically and treated as a test failure:
@@ -147,7 +149,7 @@ That already produced one finding without spending anything: keyword search find
   - accessibility 100 and best practices 100 on every page
   - performance 92–96
   - layout shift close to 0 after making AI cards wait for their status instead of popping in
-- **Tests:** 347 backend, 181 frontend unit, 39 Python and 61 end-to-end. CI runs them all, and Vercel and Render deploy only after CI passes.
+- **Tests:** 349 backend, 180 frontend unit, 39 Python and 61 end-to-end. CI runs them all, and Vercel deploys only after CI passes.
 - **Skip risk (80 unseen simulated people):** AUC 0.72 against 0.70 for each person's own skip rate and 0.78 at best, with stated risks within about 2 points of observed rates on average.
 - **Estimate suggestions (80 unseen simulated users):** the average miss fell from 36.8 minutes with the raw estimate to 26.2, against a noise floor of 24.7. That's 88% of the removable error, and better than each person's own median overrun (28.6).
 - **Security:** the API answers only through the proxy, every relation is ownership-checked, configuration is validated at boot, and failed logins are rate-limited.

@@ -1,11 +1,8 @@
 name: Uptime
 
-# Wakes the live app and fails (GitHub then emails you) if it doesn't come up
-# healthy. Six-hourly on purpose: a monitor pinging every few minutes would keep
-# the free Render API awake all month, using nearly all of the workspace's 750
-# free hours, and the demo account would stop being reset (that happens on cold
-# starts). These checks also run a database query, which counts as activity for
-# Supabase's free-plan pausing.
+# Checks the live app and fails (GitHub then emails you) if it isn't healthy.
+# Both checks run a database query, which also counts as activity for
+# Supabase's free-plan pausing. API_URL and APP_URL are repository variables.
 
 on:
   schedule:
@@ -18,15 +15,17 @@ permissions:
 jobs:
   check:
     name: Live app is healthy
-    if: github.repository == 'Nadeeja99/GrowthTracker'
+    if: github.repository == 'Nadeeja99/GrowthTracker' && vars.API_URL != '' && vars.APP_URL != ''
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 5
+    env:
+      API_URL: ${{ vars.API_URL }}
+      APP_URL: ${{ vars.APP_URL }}
     steps:
-      # Retries cover the API's cold start, which takes about a minute.
       - name: API and database
-        run: curl --silent --show-error --fail --retry 12 --retry-all-errors --retry-delay 15 --max-time 90 https://growthtracker-api.onrender.com/health
+        run: curl --silent --show-error --fail --retry 3 --retry-all-errors --retry-delay 10 --max-time 60 "$API_URL/health"
 
-      # After the API, so a failure here points at the app or its proxy rather
-      # than a cold start.
+      # After the API, so a failure here points at the app or its proxy (for
+      # example a mismatched API_PROXY_SECRET) rather than the API itself.
       - name: App, through its proxy to the API
-        run: curl --silent --show-error --fail --retry 12 --retry-all-errors --retry-delay 15 --max-time 90 https://growth-tracker-azure.vercel.app/api/health
+        run: curl --silent --show-error --fail --retry 3 --retry-all-errors --retry-delay 10 --max-time 60 "$APP_URL/api/health"

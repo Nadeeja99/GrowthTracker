@@ -9,9 +9,9 @@ import { apiClient } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { describeError } from '@/lib/toast';
 
-// Straight to the API, not through this app: calendar apps can't wake a sleeping
-// API through the proxy, and a direct request does (see lib/api.ts).
-const API_URL = process.env.NEXT_PUBLIC_API_WAKE_URL ?? 'http://localhost:5000/';
+// Straight to the API, not through this app's /api proxy: calendar apps can't
+// send the proxy's secret, and the feed URL carries a secret of its own.
+const API_URL = process.env.NEXT_PUBLIC_API_ORIGIN ?? 'http://localhost:5000';
 
 export const feedUrl = (token: string) => `${API_URL.replace(/\/$/, '')}/calendar/${token}.ics`;
 

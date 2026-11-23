@@ -1,0 +1,30 @@
+name: Demo reset
+
+# Rebuilds the shared demo account once a day, so its dates stay current and
+# visitors' changes don't pile up. Run it by hand (Actions → Demo reset → Run
+# workflow) right after the first deploy to create the account. Needs the API
+# variable API_URL and the secret DIGEST_CRON_SECRET (shared by scheduled jobs).
+
+on:
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reset:
+    name: Rebuild the demo account
+    if: github.repository == 'Nadeeja99/GrowthTracker' && vars.API_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ask the API to reset the demo
+        env:
+          API_URL: ${{ vars.API_URL }}
+          DIGEST_CRON_SECRET: ${{ secrets.DIGEST_CRON_SECRET }}
+        run: >-
+          curl --silent --show-error --fail --retry 3 --retry-all-errors --retry-delay 10 --max-time 120
+          --request POST --header "Authorization: Bearer $DIGEST_CRON_SECRET"
+          "$API_URL/internal/demo/reset"

@@ -14,8 +14,8 @@ const CACHE = `growthtracker-${VERSION}`;
 const PAGES = ['/today', '/plan', '/goals', '/habits', '/insights', '/settings', '/auth'];
 const FILES = ['/manifest.json', '/icon-192x192.png', '/icon-512x512.png'];
 
-// How long a page may take before the saved copy is shown instead. A free
-// server takes about a minute to wake, and that shouldn't mean a blank screen.
+// How long a page may take before the saved copy is shown instead. A slow
+// network or server shouldn't mean a blank screen.
 const PAGE_TIMEOUT_MS = 3000;
 
 const STATIC_FILE = /\/_next\/static\/[^"'\\\s<>)]+/g;
